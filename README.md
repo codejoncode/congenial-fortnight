@@ -1,5 +1,16 @@
 # Forex Signal Service
 
+## Getting Started
+
+To get all project files, clone the repository:
+
+```bash
+git clone https://github.com/codejoncode/congenial-fortnight.git
+cd congenial-fortnight
+```
+
+This will pull all files: Django backend, React frontend, ML script (`daily_forex_signal_system.py`), README, requirements.txt, etc.
+
 ## Project Overview
 
 This project is a signal service for forex trading, specifically targeting EURUSD and XAUUSD pairs. It uses machine learning models to predict the direction of the next trading period (bullish or bearish) and provides stop-loss recommendations to minimize losses.
