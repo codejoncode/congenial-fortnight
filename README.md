@@ -4,6 +4,25 @@
 
 This project is a signal service for forex trading, specifically targeting EURUSD and XAUUSD pairs. It uses machine learning models to predict the direction of the next trading period (bullish or bearish) and provides stop-loss recommendations to minimize losses.
 
+## Primary Goal: 90%+ Accurate Candle Prediction
+
+Our ultimate objective is to achieve 90% or better accuracy in predicting and displaying the next candle's characteristics. This includes:
+
+- **Direction Prediction**: Accurately forecasting bullish (green) or bearish (red) trends.
+- **Price Levels**: Predicting high, low, open, close within tight tolerances.
+- **Visual Representation**: Displaying golden candles with red/green fills, wicks, and hover tooltips showing OHLC.
+- **Advanced Features**:
+  - Trend direction analysis using moving averages, RSI, MACD.
+  - ATR (Average True Range) for volatility and stop-loss calculation.
+  - Variants from previous highs/lows: e.g., breakout levels, support/resistance.
+  - Creative indicators: Fibonacci retracements, Bollinger Bands, PnF charts, momentum oscillators.
+  - Price action patterns: Engulfing, Doji, Hammer, etc.
+  - Machine learning ensemble: RF + XGB with isotonic calibration for confidence scoring.
+- **No-Signal Logic**: Emit 'no signal' for low-confidence predictions to avoid false positives.
+- **Backtesting**: Rigorous historical testing with slippage, commissions, and realistic P&L.
+
+By integrating these elements creatively, we aim to provide traders with highly reliable signals for daily close-to-close trades.
+
 ### Key Features
 - **Daily Signals**: Generates bullish/bearish signals for the next trading day based on historical data.
 - **Stop Loss Optimization**: Provides ATR-based stop losses to minimize losses.
