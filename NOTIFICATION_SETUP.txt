@@ -1,0 +1,10 @@
+# Free Notification Setup for 1man2amazing@gmail.com
+# Run this command after getting your Gmail App Password:
+
+# Windows PowerShell:
+# $env:GMAIL_USERNAME="1man2amazing@gmail.com"; $env:GMAIL_APP_PASSWORD="YOUR_APP_PASSWORD_HERE"; $env:NOTIFICATION_EMAIL="mydecretor@protonmail.com"; $env:NOTIFICATION_SMS="7734921722"; python free_notifications.py
+
+# Linux/Mac:
+# GMAIL_USERNAME=1man2amazing@gmail.com GMAIL_APP_PASSWORD=YOUR_APP_PASSWORD_HERE NOTIFICATION_EMAIL=mydecorator@protonmail.com NOTIFICATION_SMS=7734921722 python free_notifications.py
+
+# Replace YOUR_APP_PASSWORD_HERE with the 16-character password from Google

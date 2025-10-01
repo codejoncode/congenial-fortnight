@@ -91,18 +91,24 @@ class AutomatedTrainer:
 
                 logger.info(f"{pair} accuracy after iteration {iteration}: {current_accuracy:.4f}")
 
+                # Send heartbeat notification every 5 iterations or when significant progress is made
+                if iteration % 5 == 0 or (current_accuracy > best_accuracy + 0.02):
+                    self.send_progress_notification(pair, iteration, current_accuracy, best_accuracy)
+                    best_accuracy = max(best_accuracy, current_accuracy)
+
                 # Check if target reached
                 if current_accuracy >= self.target_accuracy:
                     logger.info(f"Target accuracy {self.target_accuracy} reached for {pair}!")
                     self.notifier.send_notification(
-                        subject=f"🎯 Target Accuracy Reached for {pair}",
-                        message=f"Model optimization completed!\n\n"
-                               f"Pair: {pair}\n"
-                               f"Final Accuracy: {current_accuracy:.4f}\n"
-                               f"Target: {self.target_accuracy}\n"
-                               f"Iterations: {iteration}\n"
-                               f"Profit Factor: {performance.get('profit_factor', 'N/A')}\n"
-                               f"Total Trades: {performance.get('total_trades', 'N/A')}"
+                        subject=f"🎯 TARGET ACCURACY REACHED: {pair} - {current_accuracy:.1%}",
+                        message=f"🚀 SUCCESS! Model optimization completed!\n\n"
+                               f"🎯 Pair: {pair}\n"
+                               f"📊 Final Accuracy: {current_accuracy:.1%}\n"
+                               f"🎯 Target: {self.target_accuracy:.1%}\n"
+                               f"🔄 Iterations: {iteration}\n"
+                               f"💰 Profit Factor: {performance.get('profit_factor', 'N/A')}\n"
+                               f"📈 Total Trades: {performance.get('total_trades', 'N/A')}\n\n"
+                               f"✅ Automated training will continue for other pairs."
                     )
                     break
 
@@ -123,6 +129,28 @@ class AutomatedTrainer:
             'target_reached': current_accuracy >= self.target_accuracy,
             'results_history': results_history
         }
+
+    def send_progress_notification(self, pair: str, iteration: int, current_accuracy: float, best_accuracy: float):
+        """Send progress update notification during training"""
+        progress_message = f"🤖 Training Progress Update\n\n"
+        progress_message += f"📊 Pair: {pair}\n"
+        progress_message += f"🔄 Iteration: {iteration}/{self.max_iterations}\n"
+        progress_message += f"📈 Current Accuracy: {current_accuracy:.1%}\n"
+        progress_message += f"🎯 Best Accuracy: {best_accuracy:.1%}\n"
+        progress_message += f"🎯 Target: {self.target_accuracy:.1%}\n"
+        progress_message += f"⏱️  Time: {datetime.now().strftime('%H:%M:%S')}\n\n"
+        
+        if current_accuracy >= self.target_accuracy:
+            progress_message += "🎉 TARGET ACHIEVED!\n"
+        else:
+            progress_remaining = self.target_accuracy - current_accuracy
+            progress_message += f"📍 Remaining: {progress_remaining:.1%}\n"
+            progress_message += "🔄 Training continues..."
+        
+        self.notifier.send_notification(
+            subject=f"🤖 {pair} Training Progress - {current_accuracy:.1%}",
+            message=progress_message
+        )
 
     def save_progress(self, pair: str, results_history: List[Dict]):
         """Save optimization progress"""
