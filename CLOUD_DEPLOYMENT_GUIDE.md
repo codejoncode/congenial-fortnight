@@ -1,6 +1,57 @@
 # Forex Trading System with ML Predictions
 
+# Forex Trading System with ML Predictions
+
 A comprehensive forex trading signal system that combines machine learning predictions with advanced technical analysis and multi-timeframe features.
+
+## 🚀 System Overview
+
+This system provides daily forex trading signals using ensemble machine learning models trained on extensive technical indicators, 200+ candlestick patterns, and multi-timeframe data.
+
+### Key Features
+- **Ensemble ML Models**: Random Forest + XGBoost with isotonic calibration
+- **200+ Candlestick Patterns**: Comprehensive bullish/bearish single/two/three candle patterns
+- **Multi-Timeframe Analysis**: Daily, 4-hour, and weekly data integration
+- **Advanced Technical Indicators**: RSI, MACD, ATR, Bollinger Bands, Stochastic, CCI, etc.
+- **Quantum Features**: Fibonacci ratios, golden ratio relationships, harmonic oscillators
+- **Automated Backtesting**: Realistic trading simulation with proper entry/exit logic
+- **Cloud Deployment**: Google Cloud Run with automated training jobs
+- **Automated Optimization**: Self-improving models targeting 85%+ accuracy
+
+## 📊 Performance Metrics
+
+### Current Results
+- **EURUSD**: 61.5% directional accuracy (optimized)
+- **XAUUSD**: 77.1% directional accuracy (optimized)
+- **Target**: 85%+ accuracy for both pairs (automated training in progress)
+- **Features**: 106 comprehensive indicators including fundamental data
+- **Backtest Period**: 30+ days with realistic P&L simulation
+
+## ✅ **Deployment Checklist**
+
+### 🔧 **Local Development Setup**
+- [x] Python 3.10+ installed and configured
+- [x] Node.js 16+ installed and configured
+- [x] Git repository cloned successfully
+- [x] Virtual environment created (`.venv`)
+- [x] Python dependencies installed (`pip install -r requirements.txt`)
+- [x] React dependencies installed (`npm install`)
+- [x] Django migrations completed (`python manage.py migrate`)
+- [x] Superuser account created (`python manage.py createsuperuser`)
+
+### 🤖 **Model Training & Validation**
+- [x] Historical data downloaded (EURUSD, XAUUSD)
+- [x] Data cleaning and preprocessing verified
+- [x] Multi-timeframe data integration working
+- [x] Model training pipeline executed
+- [x] Model files generated and saved to `models/` directory
+- [x] Model accuracy validated (60%+ directional accuracy)
+- [x] Backtesting functionality tested
+- [x] CSV export capability verified
+
+### 🎨 **Frontend Configuration**
+- [x] React application builds successfully (`npm run build`)
+- [x] Candlestick charts displaying correctly
 
 ## 🚀 System Overview
 
@@ -266,7 +317,106 @@ jobs:
 
 ## 🚀 Deployment Options
 
-### Option 1: GitHub Actions + Cloud Run (Recommended)
+### Option 1: Google Cloud Run + Automated Training (Recommended)
+
+This setup provides fully automated deployment with continuous model improvement targeting 85%+ accuracy.
+
+#### Prerequisites
+
+1. **Google Cloud Account**: Sign up at [cloud.google.com](https://cloud.google.com)
+2. **Enable Required APIs**:
+   - Cloud Run API
+   - Cloud Build API
+   - Container Registry API
+3. **Install Google Cloud SDK**: [cloud.google.com/sdk](https://cloud.google.com/sdk)
+
+#### Secrets Configuration
+
+You need to set up the following secrets in both **GitHub** and **Google Cloud Build**:
+
+##### GitHub Secrets (Repository Settings → Secrets and variables → Actions)
+```
+GCP_PROJECT_ID=your-gcp-project-id
+GCP_SA_KEY={"type":"service_account","project_id":"..."}  # JSON key
+FRED_API_KEY=your-fred-api-key
+EMAIL_USERNAME=mydecorator@protonmail.com  # Your email
+EMAIL_FROM=mydecorator@protonmail.com     # Same as above
+NOTIFICATION_EMAIL=mydecorator@protonmail.com
+NOTIFICATION_SMS=7734921722                # Your phone number
+```
+
+##### Google Cloud Build Substitutions
+Set these as substitution variables in your Cloud Build trigger:
+```
+_FRED_API_KEY=your-fred-api-key
+_EMAIL_USERNAME=mydecorator@protonmail.com
+_EMAIL_FROM=mydecorator@protonmail.com
+_NOTIFICATION_EMAIL=mydecorator@protonmail.com
+_NOTIFICATION_SMS=7734921722
+```
+
+#### How to Generate GCP_SA_KEY
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Navigate to **IAM & Admin** → **Service Accounts**
+3. Click **Create Service Account**
+4. Name: `forex-trading-deployer`
+5. Grant these roles:
+   - Cloud Run Admin
+   - Cloud Build Service Account
+   - Storage Admin
+   - Service Account User
+6. Create key → JSON → Download
+7. Copy the entire JSON content to `GCP_SA_KEY` secret
+
+#### Automated Training Features
+
+- **Target Accuracy**: 85% for both EURUSD and XAUUSD
+- **Continuous Optimization**: Runs after each deployment
+- **Progress Tracking**: Logs saved to `/app/logs/`
+- **Notifications**: Email + SMS alerts on completion
+- **No Password Required**: Uses ProtonMail's API (no password needed)
+
+#### Deployment Steps
+
+1. **Push to GitHub** (triggers automatic deployment):
+```bash
+git add .
+git commit -m "Deploy to Cloud Run with automated training"
+git push origin main
+```
+
+2. **Monitor Deployment**:
+   - Check GitHub Actions tab
+   - View Cloud Build logs in GCP Console
+   - Training job runs automatically after deployment
+
+3. **Access Your App**:
+   - Cloud Run URL: `https://congenial-fortnight-[hash]-uc.a.run.app`
+   - API Health Check: `https://[url]/health/`
+
+#### Manual Training Trigger
+
+You can also trigger training manually:
+
+```bash
+# Via GitHub Actions (recommended)
+gh workflow run deploy-cloud-run.yml -f target_accuracy=0.85 -f max_iterations=50
+
+# Or via Cloud Run job directly
+gcloud run jobs execute automated-training \
+  --region us-central1 \
+  --args="--target,0.85,--max-iterations,50"
+```
+
+#### Cost Estimation
+
+- **Cloud Run**: ~$0.10/hour (2GB RAM, 1 CPU)
+- **Cloud Build**: ~$0.20 per deployment
+- **Training Jobs**: ~$0.50 per hour (4GB RAM, 2 CPU)
+- **Total Monthly**: ~$50-100 for moderate usage
+
+### Option 2: GitHub Actions + Cloud Run (Basic)
 
 1. **GitHub Actions** handles automated training
 2. **Google Cloud Run** hosts the prediction API
@@ -274,27 +424,15 @@ jobs:
 
 #### Cloud Run Setup
 
-1. **Create Dockerfile**
-```dockerfile
-FROM python:3.10-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-EXPOSE 8000
-
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
-```
-
+1. **Create Dockerfile** (already done)
 2. **Deploy to Cloud Run**
 ```bash
-gcloud run deploy forex-signals \
+gcloud run deploy congenial-fortnight \
   --source . \
   --platform managed \
   --region us-central1 \
-  --allow-unauthenticated
+  --allow-unauthenticated \
+  --port 8080
 ```
 
 ### Option 2: Heroku Deployment
