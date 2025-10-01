@@ -41,7 +41,49 @@ python -c "from candle_prediction_system import CandlePredictionSystem; system =
 python manage.py backtest_signals EURUSD --days 30
 ```
 
-## 📊 Project Overview
+## � Notification Setup (Optional)
+
+Get notified when new trading signals are generated! The system supports free email and SMS notifications.
+
+### Email Notifications (Free)
+1. **Create Gmail Account** (or use existing)
+2. **Enable 2-Factor Authentication** in Gmail settings
+3. **Generate App Password**:
+   - Go to Google Account settings → Security → 2-Step Verification → App passwords
+   - Generate password for "Mail"
+4. **Add to GitHub Secrets**:
+   ```
+   EMAIL_USERNAME: your-gmail@gmail.com
+   EMAIL_PASSWORD: your-app-password
+   EMAIL_FROM: your-gmail@gmail.com
+   NOTIFICATION_EMAIL: your-notification-email@example.com
+   ```
+
+### SMS Notifications (Free Tier)
+1. **Use Textbelt** (1 free SMS/day):
+   - No setup required - uses free API key
+   - Add to GitHub Secrets: `NOTIFICATION_SMS: +1234567890`
+
+2. **Alternative: Twilio Free Credits** (new accounts get $15+ free):
+   - Sign up at twilio.com
+   - Get phone number and API credentials
+   - Add to GitHub Secrets: `TWILIO_FREE_KEY: your-key`
+
+### Testing Notifications
+```bash
+# Generate test signals
+python manage.py run_daily_signal
+
+# Test notification system
+python -c "
+from notification_system import NotificationSystem
+notifier = NotificationSystem()
+signals = [{'pair': 'EURUSD', 'signal': 'bullish', 'probability': 0.85, 'entry_price': 1.0850, 'stop_loss': 0.0020}]
+notifier.send_signal_notification(signals, ['your-email@example.com', '+1234567890'])
+"
+```
+
+## �📊 Project Overview
 
 This project is a signal service for forex trading, specifically targeting EURUSD and XAUUSD pairs. It uses machine learning models to predict the direction of the next trading period (bullish or bearish) and provides stop-loss recommendations to minimize losses.
 

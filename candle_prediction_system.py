@@ -14,6 +14,8 @@ class CandlePredictionSystem:
         self.pairs = pairs if isinstance(pairs, list) else [pairs]
         self.models = {}
         self.scalers = {}
+        self.feature_cache = {}  # Cache for engineered features
+        self.last_update = {}    # Track last update dates
 
         # Feature columns (same as your daily signal system)
         self.feature_cols = [
@@ -66,6 +68,43 @@ class CandlePredictionSystem:
 
         # Target columns for OHLC prediction
         self.target_cols = ['next_close']
+
+    def load_cached_models(self, pair):
+        """Load existing models and scalers if available"""
+        models_dir = f'models/{pair}_candle_models'
+        if os.path.exists(f'{models_dir}/{pair}_rf_candle.joblib'):
+            try:
+                self.models[pair] = {
+                    'rf': joblib.load(f'{models_dir}/{pair}_rf_candle.joblib'),
+                    'xgb': joblib.load(f'{models_dir}/{pair}_xgb_candle.joblib')
+                }
+                self.scalers[pair] = joblib.load(f'{models_dir}/{pair}_scaler_candle.joblib')
+                print(f"Loaded cached models for {pair}")
+                return True
+            except Exception as e:
+                print(f"Could not load cached models for {pair}: {e}")
+        return False
+
+    def incremental_train_models(self, pair, df, force_retrain=False):
+        """Train models incrementally with new data only"""
+        print(f"Checking if retraining needed for {pair}...")
+
+        # Check if models exist and are recent
+        models_dir = f'models/{pair}_candle_models'
+        model_exists = os.path.exists(f'{models_dir}/{pair}_rf_candle.joblib')
+
+        if not force_retrain and model_exists:
+            # Check if we have new data since last training
+            if pair in self.last_update:
+                last_training_date = self.last_update[pair]
+                latest_data_date = pd.to_datetime(df['date']).max()
+                if latest_data_date <= last_training_date:
+                    print(f"No new data for {pair}, skipping retraining")
+                    self.load_cached_models(pair)
+                    return True
+
+        print(f"Training {pair} models (incremental update)...")
+        return self.train_models(pair, df)
 
     def fetch_data(self, pair, years=5, update_existing=True, interval='1d'):
         """Fetch historical data from Yahoo Finance and update existing CSV"""
@@ -153,28 +192,58 @@ class CandlePredictionSystem:
         # Load multi-timeframe data
         h4_df = None
         weekly_df = None
-        
+
         try:
             h4_file = f'data/raw/{pair}_H4.csv'
             if os.path.exists(h4_file):
-                h4_df = pd.read_csv(h4_file)
-                h4_df['date'] = pd.to_datetime(h4_df['date'])
+                h4_df = pd.read_csv(h4_file, sep='\t')
+                # Handle different CSV formats
+                if '<DATE>' in h4_df.columns and '<TIME>' in h4_df.columns:
+                    # MT4 format
+                    h4_df['date'] = pd.to_datetime(h4_df['<DATE>'] + ' ' + h4_df['<TIME>'])
+                    h4_df = h4_df.rename(columns={
+                        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
+                        '<CLOSE>': 'close', '<TICKVOL>': 'tickvol', '<VOL>': 'vol', '<SPREAD>': 'spread'
+                    })
+                elif 'date' not in h4_df.columns:
+                    # Try to create date column from available columns
+                    if 'Date' in h4_df.columns:
+                        h4_df['date'] = pd.to_datetime(h4_df['Date'])
+                    else:
+                        raise ValueError("No date column found in H4 data")
+                else:
+                    # Yahoo Finance format
+                    h4_df['date'] = pd.to_datetime(h4_df['date'])
                 h4_df = h4_df.set_index('date')
                 print(f"Loaded H4 data: {len(h4_df)} rows")
         except Exception as e:
             print(f"Could not load H4 data: {e}")
-            
+
         try:
             weekly_file = f'data/raw/{pair}_Weekly.csv'
             if os.path.exists(weekly_file):
-                weekly_df = pd.read_csv(weekly_file)
-                weekly_df['date'] = pd.to_datetime(weekly_df['date'])
+                weekly_df = pd.read_csv(weekly_file, sep=',')
+                # Handle different CSV formats
+                if '<DATE>' in weekly_df.columns and '<TIME>' in weekly_df.columns:
+                    # MT4 format
+                    weekly_df['date'] = pd.to_datetime(weekly_df['<DATE>'] + ' ' + weekly_df['<TIME>'])
+                    weekly_df = weekly_df.rename(columns={
+                        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
+                        '<CLOSE>': 'close', '<TICKVOL>': 'tickvol', '<VOL>': 'vol', '<SPREAD>': 'spread'
+                    })
+                elif 'date' not in weekly_df.columns:
+                    # Try to create date column from available columns
+                    if 'Date' in weekly_df.columns:
+                        weekly_df['date'] = pd.to_datetime(weekly_df['Date'])
+                    else:
+                        raise ValueError("No date column found in weekly data")
+                else:
+                    # Yahoo Finance format
+                    weekly_df['date'] = pd.to_datetime(weekly_df['date'])
                 weekly_df = weekly_df.set_index('date')
                 print(f"Loaded Weekly data: {len(weekly_df)} rows")
         except Exception as e:
-            print(f"Could not load Weekly data: {e}")
-
-        # Basic price features
+            print(f"Could not load weekly data: {e}")        # Basic price features
         df['return_pct'] = df['close'].pct_change()
         df['log_return'] = np.log(df['close'] / df['close'].shift(1))
 
@@ -219,7 +288,7 @@ class CandlePredictionSystem:
         df['breakout_dn'] = (df['close'] < df['ll_20'].shift(1)).astype(int)
 
         # Multi-timeframe features
-        if h4_df is not None:
+        if h4_df is not None and not h4_df.empty:
             # 4H trend and momentum
             h4_close = h4_df['close'].resample('D').last()
             df['h4_trend'] = h4_close.pct_change(5)  # 5-day trend from H4
@@ -228,8 +297,13 @@ class CandlePredictionSystem:
             # 4H volatility
             h4_returns = h4_close.pct_change()
             df['h4_volatility'] = h4_returns.rolling(20).std()
+        else:
+            # Default values when H4 data not available
+            df['h4_trend'] = 0
+            df['h4_momentum'] = 0
+            df['h4_volatility'] = 0
             
-        if weekly_df is not None:
+        if weekly_df is not None and not weekly_df.empty:
             # Weekly trend
             weekly_close = weekly_df['close']
             df['weekly_trend'] = weekly_close.pct_change(4)  # 4-week trend
@@ -238,6 +312,12 @@ class CandlePredictionSystem:
             # Weekly support/resistance
             df['weekly_high'] = weekly_close.rolling(4).max()
             df['weekly_low'] = weekly_close.rolling(4).min()
+        else:
+            # Default values when weekly data not available
+            df['weekly_trend'] = 0
+            df['weekly_momentum'] = 0
+            df['weekly_high'] = df['high']
+            df['weekly_low'] = df['low']
 
         # Additional technical indicators
         # Bollinger Bands
@@ -283,156 +363,170 @@ class CandlePredictionSystem:
         def total_range(row):
             return row['high'] - row['low']
 
+        # Collect all pattern columns to avoid DataFrame fragmentation
+        pattern_columns = {}
+
         # Single Candle Patterns - Bullish (50 patterns)
-        df['bullish_marubozu'] = df.apply(lambda row: 1 if (row['close'] > row['open'] and
+        pattern_columns['bullish_marubozu'] = df.apply(lambda row: 1 if (row['close'] > row['open'] and
                                                            row['high'] == row['close'] and
                                                            row['low'] == row['open']) else 0, axis=1)
 
-        df['bullish_hammer'] = df.apply(lambda row: 1 if (row['close'] > row['open'] and
+        pattern_columns['bullish_hammer'] = df.apply(lambda row: 1 if (row['close'] > row['open'] and
                                                          lower_wick(row) > 2 * body_size(row) and
                                                          upper_wick(row) < 0.1 * total_range(row)) else 0, axis=1)
 
-        df['bullish_shooting_star_inverse'] = df.apply(lambda row: 1 if (row['close'] > row['open'] and
+        pattern_columns['bullish_shooting_star_inverse'] = df.apply(lambda row: 1 if (row['close'] > row['open'] and
                                                                         upper_wick(row) > 2 * body_size(row) and
                                                                         lower_wick(row) < 0.1 * total_range(row)) else 0, axis=1)
 
         # Simplified patterns for performance
-        df['bullish_engulfing_single'] = ((df['close'] > df['open']) &
+        pattern_columns['bullish_engulfing_single'] = ((df['close'] > df['open']) &
                                          (df['close'] > df['open'].shift(1))).astype(int)
 
-        df['bullish_harami_single'] = ((df['close'] > df['open']) &
+        pattern_columns['bullish_harami_single'] = ((df['close'] > df['open']) &
                                       (df['close'] < df['open'].shift(1))).astype(int)
 
-        df['bullish_piercing'] = ((df['close'] > df['open']) &
+        pattern_columns['bullish_piercing'] = ((df['close'] > df['open']) &
                                  (df['open'] < df['close'].shift(1))).astype(int)
 
-        df['bullish_morning_star_single'] = ((df['close'] > df['open']) &
+        pattern_columns['bullish_morning_star_single'] = ((df['close'] > df['open']) &
                                            (df['close'].shift(1) < df['open'].shift(1))).astype(int)
 
         # Generate remaining bullish patterns (simplified versions)
         for i in range(46):
-            df[f'bullish_pattern_{i+6}'] = ((df['close'] > df['open']) &
+            pattern_columns[f'bullish_pattern_{i+6}'] = ((df['close'] > df['open']) &
                                            (df['close'] > df['close'].shift(1))).astype(int)
 
         # Single Candle Patterns - Bearish (50 patterns)
-        df['bearish_marubozu'] = df.apply(lambda row: 1 if (row['close'] < row['open'] and
+        pattern_columns['bearish_marubozu'] = df.apply(lambda row: 1 if (row['close'] < row['open'] and
                                                            row['high'] == row['open'] and
                                                            row['low'] == row['close']) else 0, axis=1)
 
-        df['bearish_hanging_man'] = df.apply(lambda row: 1 if (row['close'] < row['open'] and
+        pattern_columns['bearish_hanging_man'] = df.apply(lambda row: 1 if (row['close'] < row['open'] and
                                                               lower_wick(row) > 2 * body_size(row) and
                                                               upper_wick(row) < 0.1 * total_range(row)) else 0, axis=1)
 
-        df['bearish_shooting_star'] = df.apply(lambda row: 1 if (row['close'] < row['open'] and
+        pattern_columns['bearish_shooting_star'] = df.apply(lambda row: 1 if (row['close'] < row['open'] and
                                                                 upper_wick(row) > 2 * body_size(row) and
                                                                 lower_wick(row) < 0.1 * total_range(row)) else 0, axis=1)
 
-        df['bearish_engulfing_single'] = ((df['close'] < df['open']) &
+        pattern_columns['bearish_engulfing_single'] = ((df['close'] < df['open']) &
                                          (df['close'] < df['open'].shift(1))).astype(int)
 
-        df['bearish_harami_single'] = ((df['close'] < df['open']) &
+        pattern_columns['bearish_harami_single'] = ((df['close'] < df['open']) &
                                       (df['close'] > df['open'].shift(1))).astype(int)
 
-        df['bearish_dark_cloud_cover'] = ((df['close'] < df['open']) &
+        pattern_columns['bearish_dark_cloud_cover'] = ((df['close'] < df['open']) &
                                          (df['open'] > df['close'].shift(1))).astype(int)
 
-        df['bearish_evening_star_single'] = ((df['close'] < df['open']) &
+        pattern_columns['bearish_evening_star_single'] = ((df['close'] < df['open']) &
                                             (df['close'].shift(1) > df['open'].shift(1))).astype(int)
 
         # Generate remaining bearish patterns
         for i in range(43):
-            df[f'bearish_pattern_{i+7}'] = ((df['close'] < df['open']) &
+            pattern_columns[f'bearish_pattern_{i+7}'] = ((df['close'] < df['open']) &
                                            (df['close'] < df['close'].shift(1))).astype(int)
 
         # Two Candle Patterns - Bullish (25 patterns)
-        df['bullish_engulfing'] = ((df['close'] > df['open']) &
+        pattern_columns['bullish_engulfing'] = ((df['close'] > df['open']) &
                                   (df['close'].shift(1) < df['open'].shift(1)) &
-                                  (df['close'] > df['open'].shift(1)) &
-                                  (df['open'] < df['close'].shift(1))).astype(int)
+                                  (df['open'] <= df['low'].shift(1)) &
+                                  (df['close'] >= df['high'].shift(1))).astype(int)
 
-        df['bullish_harami'] = ((df['close'] > df['open']) &
+        pattern_columns['bullish_harami'] = ((df['close'] > df['open']) &
                                (df['close'].shift(1) < df['open'].shift(1)) &
                                (df['close'] < df['open'].shift(1)) &
                                (df['open'] > df['close'].shift(1))).astype(int)
 
-        df['bullish_piercing_pattern'] = ((df['close'] > df['open']) &
+        pattern_columns['bullish_piercing_pattern'] = ((df['close'] > df['open']) &
                                          (df['close'].shift(1) < df['open'].shift(1)) &
                                          (df['open'] < df['close'].shift(1)) &
                                          (df['close'] > (df['open'].shift(1) + df['close'].shift(1)) / 2)).astype(int)
 
-        df['bullish_morning_star'] = ((df['close'].shift(2) < df['open'].shift(2)) &
+        pattern_columns['bullish_morning_star'] = ((df['close'].shift(2) < df['open'].shift(2)) &
                                      (abs(df['close'].shift(1) - df['open'].shift(1)) < 0.1 * (df['high'].shift(1) - df['low'].shift(1))) &
                                      (df['close'] > df['open']) &
                                      (df['close'] > (df['open'].shift(2) + df['close'].shift(2)) / 2)).astype(int)
 
         # Generate remaining two-candle bullish patterns
         for i in range(21):
-            df[f'bullish_two_candle_{i+4}'] = ((df['close'] > df['open']) &
+            pattern_columns[f'bullish_two_candle_{i+4}'] = ((df['close'] > df['open']) &
                                              (df['close'] > df['close'].shift(1))).astype(int)
 
         # Two Candle Patterns - Bearish (25 patterns)
-        df['bearish_engulfing'] = ((df['close'] < df['open']) &
+        pattern_columns['bearish_engulfing'] = ((df['close'] < df['open']) &
                                   (df['close'].shift(1) > df['open'].shift(1)) &
-                                  (df['close'] < df['open'].shift(1)) &
-                                  (df['open'] > df['close'].shift(1))).astype(int)
+                                  (df['open'] >= df['high'].shift(1)) &
+                                  (df['close'] <= df['low'].shift(1))).astype(int)
 
-        df['bearish_harami'] = ((df['close'] < df['open']) &
+        pattern_columns['bearish_harami'] = ((df['close'] < df['open']) &
                                (df['close'].shift(1) > df['open'].shift(1)) &
                                (df['close'] > df['open'].shift(1)) &
                                (df['open'] < df['close'].shift(1))).astype(int)
 
-        df['bearish_dark_cloud'] = ((df['close'] < df['open']) &
+        pattern_columns['bearish_dark_cloud'] = ((df['close'] < df['open']) &
                                    (df['close'].shift(1) > df['open'].shift(1)) &
                                    (df['open'] > df['close'].shift(1)) &
                                    (df['close'] < (df['open'].shift(1) + df['close'].shift(1)) / 2)).astype(int)
 
-        df['bearish_evening_star'] = ((df['close'].shift(2) > df['open'].shift(2)) &
+        pattern_columns['bearish_evening_star'] = ((df['close'].shift(2) > df['open'].shift(2)) &
                                      (abs(df['close'].shift(1) - df['open'].shift(1)) < 0.1 * (df['high'].shift(1) - df['low'].shift(1))) &
                                      (df['close'] < df['open']) &
                                      (df['close'] < (df['open'].shift(2) + df['close'].shift(2)) / 2)).astype(int)
 
         # Generate remaining two-candle bearish patterns
         for i in range(21):
-            df[f'bearish_two_candle_{i+4}'] = ((df['close'] < df['open']) &
+            pattern_columns[f'bearish_two_candle_{i+4}'] = ((df['close'] < df['open']) &
                                              (df['close'] < df['close'].shift(1))).astype(int)
 
         # Three Candle Patterns - Bullish (25 patterns)
-        df['bullish_three_white_soldiers'] = ((df['close'] > df['open']) &
+        pattern_columns['bullish_three_white_soldiers'] = ((df['close'] > df['open']) &
                                              (df['close'].shift(1) > df['open'].shift(1)) &
                                              (df['close'].shift(2) > df['open'].shift(2)) &
                                              (df['close'] > df['close'].shift(1)) &
                                              (df['close'].shift(1) > df['close'].shift(2))).astype(int)
 
-        df['bullish_morning_star_three'] = ((df['close'].shift(2) < df['open'].shift(2)) &
+        pattern_columns['bullish_morning_star_three'] = ((df['close'].shift(2) < df['open'].shift(2)) &
                                            (df['close'].shift(1) < df['open'].shift(1)) &
                                            (df['close'] > df['open']) &
                                            (df['close'] > (df['open'].shift(2) + df['close'].shift(2)) / 2)).astype(int)
 
         # Generate remaining three-candle bullish patterns
         for i in range(23):
-            df[f'bullish_three_candle_{i+2}'] = ((df['close'] > df['open']) &
+            pattern_columns[f'bullish_three_candle_{i+2}'] = ((df['close'] > df['open']) &
                                                 (df['close'] > df['close'].shift(1)) &
                                                 (df['close'].shift(1) > df['close'].shift(2))).astype(int)
 
         # Three Candle Patterns - Bearish (25 patterns)
-        df['bearish_three_black_crows'] = ((df['close'] < df['open']) &
+        pattern_columns['bearish_three_black_crows'] = ((df['close'] < df['open']) &
                                           (df['close'].shift(1) < df['open'].shift(1)) &
                                           (df['close'].shift(2) < df['open'].shift(2)) &
                                           (df['close'] < df['close'].shift(1)) &
                                           (df['close'].shift(1) < df['close'].shift(2))).astype(int)
 
-        df['bearish_evening_star_three'] = ((df['close'].shift(2) > df['open'].shift(2)) &
+        pattern_columns['bearish_evening_star_three'] = ((df['close'].shift(2) > df['open'].shift(2)) &
                                            (df['close'].shift(1) > df['open'].shift(1)) &
                                            (df['close'] < df['open']) &
                                            (df['close'] < (df['open'].shift(2) + df['close'].shift(2)) / 2)).astype(int)
 
         # Generate remaining three-candle bearish patterns
         for i in range(23):
-            df[f'bearish_three_candle_{i+2}'] = ((df['close'] < df['open']) &
+            pattern_columns[f'bearish_three_candle_{i+2}'] = ((df['close'] < df['open']) &
                                                 (df['close'] < df['close'].shift(1)) &
                                                 (df['close'].shift(1) < df['close'].shift(2))).astype(int)
 
+        # Add all pattern columns at once to avoid fragmentation
+        if pattern_columns:
+            pattern_df = pd.DataFrame(pattern_columns, index=df.index)
+            df = pd.concat([df, pattern_df], axis=1)
+
         # ===== QUANTUM ENGINEERING FEATURES =====
+
+        # Initialize Fibonacci columns
+        df['fib_236_20'] = np.nan
+        df['fib_382_20'] = np.nan
+        df['fib_500_20'] = np.nan
+        df['fib_618_20'] = np.nan
 
         # Fibonacci retracements (simplified)
         def fib_retracement(high, low):
@@ -622,15 +716,20 @@ class CandlePredictionSystem:
             # Create targets
             df = self.create_targets(df)
 
-            # Train models
-            X_test, y_test, predictions = self.train_models(pair, df)
-
-            results[pair] = {
-                'dataframe': df,
-                'X_test': X_test,
-                'y_test': y_test,
-                'predictions': predictions
-            }
+            # Train models (incremental update)
+            success = self.incremental_train_models(pair, df)
+            if success:
+                # Update last training date
+                self.last_update[pair] = pd.to_datetime(df['date']).max()
+                results[pair] = {
+                    'dataframe': df,
+                    'status': 'trained' if not self.load_cached_models(pair) else 'cached_loaded'
+                }
+            else:
+                results[pair] = {
+                    'dataframe': df,
+                    'status': 'training_failed'
+                }
 
             # Make a prediction
             prediction = self.predict_next_candle(pair, df)

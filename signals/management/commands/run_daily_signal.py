@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import os
 import joblib
+import json
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.calibration import CalibratedClassifierCV
@@ -34,8 +35,10 @@ class Command(BaseCommand):
                 df['date'] = pd.to_datetime(df['date'])
                 df = df.set_index('date').sort_index()
 
-                # Feature engineering (full set from script)
-                df = self.engineer_features(df)
+                # Feature engineering (use same as candle_prediction_system)
+                from candle_prediction_system import CandlePredictionSystem
+                temp_system = CandlePredictionSystem([pair])
+                df = temp_system.engineer_features(df, pair)
 
                 if len(df) < 30:  # Need more data for features
                     self.stdout.write(f'Not enough data for {pair} after feature engineering')
@@ -48,12 +51,8 @@ class Command(BaseCommand):
                 scaler = joblib.load(os.path.join(model_dir, f'{pair}_scaler.joblib'))
                 calibrator = joblib.load(os.path.join(model_dir, f'{pair}_calibrator.joblib'))
 
-                # Features
-                features = [
-                    'ret1', 'gapopen', 'sma5', 'sma20', 'ema12', 'ema26', 'rsi14', 'atr14',
-                    'bb_width', 'macd', 'macd_signal', 'sma5_20_diff', 'ema12_26_diff',
-                    'hl_norm', 'insidebar', 'bullengulf', 'bearengulf', 'pnfdir', 'breakup', 'breakdn'
-                ]
+                # Use the same features as the training system
+                features = temp_system.feature_cols
                 X = df[features].iloc[-1:].values
                 X_scaled = scaler.transform(X)
 
@@ -72,7 +71,7 @@ class Command(BaseCommand):
                     signal = 'no_signal'
 
                 # Stop loss
-                atr = df['atr14'].iloc[-1]
+                atr = df['atr_14'].iloc[-1]
                 stop_loss = atr * 0.5
 
                 date = df.index[-1].date()
@@ -91,6 +90,9 @@ class Command(BaseCommand):
 
             except Exception as e:
                 self.stdout.write(f'Error processing {pair}: {e}')
+
+        # Export signals to JSON for notifications
+        self.export_signals_to_json()
 
     def fetch_latest_data(self, pairs, data_path):
         """Fetch latest daily data using yfinance."""
@@ -154,8 +156,8 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(f'Error fetching data for {pair}: {e}')
 
-    def engineer_features(self, df):
-        """Feature engineering from the script."""
+    def engineer_features(self, df, pair):
+        """Feature engineering with multi-timeframe support."""
         # Basic price features
         df['ret1'] = df['close'].pct_change()
         df['gapopen'] = (df['open'] - df['close'].shift(1)) / df['close'].shift(1)
@@ -195,6 +197,37 @@ class Command(BaseCommand):
         df['bullengulf'] = ((df['close'] > df['open']) & (df['open'] < df['close'].shift(1)) & (df['close'] > df['open'].shift(1))).astype(int)
         df['bearengulf'] = ((df['close'] < df['open']) & (df['open'] > df['close'].shift(1)) & (df['close'] < df['open'].shift(1))).astype(int)
 
+        # Load weekly data for additional features
+        try:
+            weekly_file = f'data/raw/{pair}_Weekly.csv'
+            if os.path.exists(weekly_file):
+                weekly_df = pd.read_csv(weekly_file)
+                weekly_df['date'] = pd.to_datetime(weekly_df['date'])
+
+                # Add weekly trend features
+                df['date'] = pd.to_datetime(df['date'])
+
+                # Get weekly close for comparison
+                weekly_close = []
+                for date in df['date']:
+                    # Find the most recent weekly close before or on this date
+                    weekly_mask = weekly_df['date'] <= date
+                    if weekly_mask.any():
+                        weekly_close.append(weekly_df.loc[weekly_mask, 'close'].iloc[-1])
+                    else:
+                        weekly_close.append(df.loc[df['date'] == date, 'close'].iloc[0])
+
+                df['weekly_close'] = weekly_close
+                df['weekly_trend'] = (df['close'] - df['weekly_close']) / df['weekly_close']
+                df['weekly_momentum'] = df['weekly_close'].pct_change(4)  # 4 weeks momentum
+            else:
+                df['weekly_trend'] = 0
+                df['weekly_momentum'] = 0
+        except Exception as e:
+            self.stdout.write(f'Warning: Could not load weekly data for {pair}: {e}')
+            df['weekly_trend'] = 0
+            df['weekly_momentum'] = 0
+
         # PnF logic
         df['pnfdir'] = np.where(df['close'] > df['close'].shift(1), 1, -1)
         df['pnfdir'] = df['pnfdir'].rolling(5).mean()
@@ -221,3 +254,51 @@ class Command(BaseCommand):
         low_close = np.abs(df['low'] - df['close'].shift(1))
         tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
         return tr.rolling(period).mean()
+
+    def export_signals_to_json(self):
+        """Export today's signals to JSON file for notifications"""
+        try:
+            # Get today's signals
+            today = datetime.now().date()
+            signals = Signal.objects.filter(date=today)
+
+            signal_data = {
+                'date': str(today),
+                'signals': []
+            }
+
+            for signal in signals:
+                # Calculate entry price (current close for simplicity)
+                entry_price = self.get_current_price(signal.pair)
+
+                signal_dict = {
+                    'pair': signal.pair,
+                    'signal': signal.signal,
+                    'probability': float(signal.probability),
+                    'stop_loss': float(signal.stop_loss),
+                    'entry_price': entry_price,
+                    'date': str(signal.date)
+                }
+                signal_data['signals'].append(signal_dict)
+
+            # Save to output directory
+            os.makedirs('output', exist_ok=True)
+            with open('output/daily_signals.json', 'w') as f:
+                json.dump(signal_data, f, indent=2)
+
+            self.stdout.write(f'Exported {len(signal_data["signals"])} signals to JSON')
+
+        except Exception as e:
+            self.stdout.write(f'Error exporting signals to JSON: {e}')
+
+    def get_current_price(self, pair):
+        """Get current price for entry calculation"""
+        try:
+            # Load latest data
+            file_path = f'data/raw/{pair}_Daily.csv'
+            if os.path.exists(file_path):
+                df = pd.read_csv(file_path)
+                return float(df['close'].iloc[-1])
+            return 0.0
+        except:
+            return 0.0

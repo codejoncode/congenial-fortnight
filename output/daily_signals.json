@@ -1,0 +1,13 @@
+{
+  "date": "2025-10-01",
+  "signals": [
+    {
+      "pair": "EURUSD",
+      "signal": "bullish",
+      "probability": 0.902285513480019,
+      "stop_loss": 0.006867500000000003,
+      "entry_price": 1.088,
+      "date": "2025-10-01"
+    }
+  ]
+}
