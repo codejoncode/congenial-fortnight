@@ -49,6 +49,22 @@ jobs:
           --timeout=300 \
           --port=8000
 
+    - name: Upload CSV files to Cloud Storage
+      run: |
+        # Create bucket if it doesn't exist
+        gsutil mb -p ${{ env.GCP_PROJECT_ID }} gs://${{ env.GCP_PROJECT_ID }}-forex-data || true
+        
+        # Upload all CSV files from output directory
+        if [ -d "output" ]; then
+          gsutil -m cp -r output/*.csv gs://${{ env.GCP_PROJECT_ID }}-forex-data/ || true
+          gsutil -m cp -r output/*.json gs://${{ env.GCP_PROJECT_ID }}-forex-data/ || true
+        fi
+        
+        # Upload model files
+        if [ -d "models" ]; then
+          gsutil -m cp -r models/*.joblib gs://${{ env.GCP_PROJECT_ID }}-forex-data/models/ || true
+        fi
+
     - name: Test deployment
       run: |
         # Wait a moment for deployment to be ready

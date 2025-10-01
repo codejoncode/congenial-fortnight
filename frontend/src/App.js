@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import CandlestickChart from './CandlestickChart';
 import './App.css';
 
 // API configuration
@@ -11,8 +12,11 @@ function App() {
   const [signals, setSignals] = useState([]);
   const [backtestResults, setBacktestResults] = useState(null);
   const [showBacktest, setShowBacktest] = useState(false);
+  const [showChart, setShowChart] = useState(false);
   const [backtestPair, setBacktestPair] = useState('EURUSD');
+  const [chartPair, setChartPair] = useState('EURUSD');
   const [backtestDays, setBacktestDays] = useState(30);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchSignals();
@@ -28,14 +32,29 @@ function App() {
       });
   };
 
+  const downloadCSV = () => {
+    const url = `${API_BASE_URL}/api/backtest/csv/?pair=${backtestPair}&days=${backtestDays}`;
+    window.open(url, '_blank');
+  };
+
   const runBacktest = () => {
+    setLoading(true);
     axios.get(`${API_BASE_URL}/api/backtest/?pair=${backtestPair}&days=${backtestDays}`)
       .then(response => {
         setBacktestResults(response.data);
+        setLoading(false);
       })
       .catch(error => {
         console.error('Error running backtest:', error);
+        setLoading(false);
       });
+  };
+
+  const refreshData = () => {
+    fetchSignals();
+    if (showBacktest && backtestResults) {
+      runBacktest();
+    }
   };
 
   return (
@@ -45,6 +64,9 @@ function App() {
         
         <button onClick={() => setShowBacktest(!showBacktest)}>
           {showBacktest ? 'Hide Backtest' : 'Show Backtest Results'}
+        </button>
+        <button onClick={() => setShowChart(!showChart)} style={{marginLeft: '10px'}}>
+          {showChart ? 'Hide Chart' : 'Show Chart'}
         </button>
         
         {!showBacktest ? (
@@ -66,6 +88,12 @@ function App() {
               <select value={backtestPair} onChange={(e) => setBacktestPair(e.target.value)}>
                 <option value="EURUSD">EURUSD</option>
                 <option value="XAUUSD">XAUUSD</option>
+                <option value="GBPUSD">GBPUSD</option>
+                <option value="USDJPY">USDJPY</option>
+                <option value="AUDUSD">AUDUSD</option>
+                <option value="USDCAD">USDCAD</option>
+                <option value="USDCHF">USDCHF</option>
+                <option value="NZDUSD">NZDUSD</option>
               </select>
               <label> Days: </label>
               <input 
@@ -76,6 +104,11 @@ function App() {
                 max="365"
               />
               <button onClick={runBacktest}>Run Backtest</button>
+              {backtestResults && !backtestResults.error && (
+                <button onClick={downloadCSV} style={{marginLeft: '10px', backgroundColor: '#28a745', color: 'white'}}>
+                  📥 Download CSV
+                </button>
+              )}
             </div>
             
             {backtestResults && !backtestResults.error && (
@@ -165,8 +198,24 @@ function App() {
             )}
           </div>
         )}
+
+        {showChart && (
+          <div style={{marginTop: '20px', padding: '20px', border: '1px solid #ddd', borderRadius: '5px'}}>
+            <h2>Price Chart</h2>
+            <div style={{marginBottom: '10px'}}>
+              <label>Pair: </label>
+              <select value={chartPair} onChange={(e) => setChartPair(e.target.value)}>
+                <option value="EURUSD">EURUSD</option>
+                <option value="XAUUSD">XAUUSD</option>
+                <option value="GBPUSD">GBPUSD</option>
+                <option value="USDJPY">USDJPY</option>
+              </select>
+            </div>
+            <CandlestickChart pair={chartPair} />
+          </div>
+        )}
         
-        <button onClick={fetchSignals}>Refresh Signals</button>
+        <button onClick={fetchSignals} style={{marginTop: '20px'}}>Refresh Signals</button>
       </header>
     </div>
   );

@@ -74,3 +74,34 @@ def backtest_results(request):
 
     except Exception as e:
         return Response({'error': str(e)})
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def download_backtest_csv(request):
+    """Download backtest results as CSV file"""
+    pair = request.GET.get('pair', 'EURUSD')
+    days = int(request.GET.get('days', 30))
+
+    try:
+        from daily_forex_signal_system import DailyForexSignal
+        import io
+        from django.http import HttpResponse
+
+        ds = DailyForexSignal()
+        result = ds.backtest_last_n_days_enhanced(pair, n=days)
+
+        if 'trade_details' in result and result['trade_details']:
+            df = pd.DataFrame(result['trade_details'])
+            csv_buffer = io.StringIO()
+            df.to_csv(csv_buffer, index=False)
+            csv_content = csv_buffer.getvalue()
+
+            # Create HTTP response with CSV
+            response = HttpResponse(csv_content, content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="backtest_{pair}_{days}days_{datetime.now().strftime("%Y%m%d")}.csv"'
+            return response
+        else:
+            return Response({'error': 'No trade data available'}, status=404)
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
