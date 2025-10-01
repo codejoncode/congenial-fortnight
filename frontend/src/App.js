@@ -75,28 +75,83 @@ function App() {
             
             {backtestResults && !backtestResults.error && (
               <div>
-                <h3>{backtestResults.pair} - {backtestResults.days} Days Backtest</h3>
-                <p>Overall Accuracy: {(backtestResults.overall_accuracy * 100).toFixed(1)}%</p>
-                <p>Total Signals: {backtestResults.total_signals}</p>
-                
-                <h4>Accuracy by Probability Range</h4>
-                <ul>
+                <h3>{backtestResults.pair} - {backtestResults.days} Days Enhanced Backtest</h3>
+
+                {/* Overall Statistics */}
+                <div style={{backgroundColor: '#f0f0f0', padding: '10px', margin: '10px 0', borderRadius: '5px'}}>
+                  <h4>Overall Performance</h4>
+                  <p>Accuracy: {(backtestResults.overall_accuracy * 100).toFixed(1)}%</p>
+                  <p>Total Signals: {backtestResults.total_signals}</p>
+                  <p>Wins: {backtestResults.wins} | Losses: {backtestResults.losses}</p>
+                </div>
+
+                {/* Pips Analysis */}
+                <div style={{backgroundColor: '#e8f4f8', padding: '10px', margin: '10px 0', borderRadius: '5px'}}>
+                  <h4>💰 Pips Analysis</h4>
+                  <p>Total Pips Won: <span style={{color: 'green'}}>{backtestResults.total_pips_won?.toFixed(1)}</span></p>
+                  <p>Total Pips Lost: <span style={{color: 'red'}}>{Math.abs(backtestResults.total_pips_lost)?.toFixed(1)}</span></p>
+                  <p><strong>Net Pips: <span style={{color: backtestResults.net_pips >= 0 ? 'green' : 'red'}}>{backtestResults.net_pips?.toFixed(1)}</span></strong></p>
+                  <p>Average Win: {backtestResults.avg_win_pips?.toFixed(2)} pips</p>
+                  <p>Average Loss: {Math.abs(backtestResults.avg_loss_pips)?.toFixed(2)} pips</p>
+                  <p>Profit Factor: {backtestResults.profit_factor?.toFixed(2)}</p>
+                  <p>Largest Win: {backtestResults.largest_win?.toFixed(1)} pips</p>
+                  <p>Largest Loss: {Math.abs(backtestResults.largest_loss)?.toFixed(1)} pips</p>
+                </div>
+
+                {/* Probability Analysis */}
+                <h4>🎯 Accuracy by Probability Range</h4>
+                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px'}}>
                   {Object.entries(backtestResults.probability_bins).map(([range, data]) => (
-                    <li key={range}>
-                      {range}: {data.accuracy ? (data.accuracy * 100).toFixed(1) : 0}% ({data.correct}/{data.total} correct)
-                    </li>
+                    <div key={range} style={{
+                      border: '1px solid #ddd',
+                      padding: '8px',
+                      borderRadius: '4px',
+                      backgroundColor: data.accuracy > 0.6 ? '#d4edda' : data.accuracy > 0.5 ? '#fff3cd' : '#f8d7da'
+                    }}>
+                      <strong>{range}:</strong><br/>
+                      {data.total > 0 ? (data.accuracy * 100).toFixed(1) : 0}% accuracy<br/>
+                      ({data.correct}/{data.total} correct)
+                    </div>
                   ))}
-                </ul>
-                
-                <h4>Recent Results</h4>
-                <ul>
-                  {backtestResults.recent_results.map((result, index) => (
-                    <li key={index}>
-                      {result.date}: Signal {result.signal}, Actual {result.actual}, 
-                      Correct: {result.correct ? 'Yes' : 'No'}, Prob: {(result.probability * 100).toFixed(1)}%
-                    </li>
-                  ))}
-                </ul>
+                </div>
+
+                {/* Recent Trades */}
+                <h4>📊 Recent Trade Details</h4>
+                <div style={{maxHeight: '300px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px'}}>
+                  <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                    <thead>
+                      <tr style={{backgroundColor: '#f8f9fa'}}>
+                        <th style={{padding: '8px', border: '1px solid #ddd'}}>Date</th>
+                        <th style={{padding: '8px', border: '1px solid #ddd'}}>Signal</th>
+                        <th style={{padding: '8px', border: '1px solid #ddd'}}>Probability</th>
+                        <th style={{padding: '8px', border: '1px solid #ddd'}}>Result</th>
+                        <th style={{padding: '8px', border: '1px solid #ddd'}}>Pips</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {backtestResults.recent_results?.map((result, index) => (
+                        <tr key={index} style={{
+                          backgroundColor: result.correct ? '#d4edda' : '#f8d7da'
+                        }}>
+                          <td style={{padding: '8px', border: '1px solid #ddd'}}>{result.date}</td>
+                          <td style={{padding: '8px', border: '1px solid #ddd'}}>{result.signal}</td>
+                          <td style={{padding: '8px', border: '1px solid #ddd'}}>{(result.probability * 100).toFixed(1)}%</td>
+                          <td style={{padding: '8px', border: '1px solid #ddd'}}>
+                            {result.correct ? '✅ Win' : '❌ Loss'}
+                          </td>
+                          <td style={{
+                            padding: '8px',
+                            border: '1px solid #ddd',
+                            color: result.pips >= 0 ? 'green' : 'red',
+                            fontWeight: 'bold'
+                          }}>
+                            {result.pips?.toFixed(1)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
             
