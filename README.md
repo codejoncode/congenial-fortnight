@@ -90,3 +90,70 @@ By integrating these elements creatively, we aim to provide traders with highly 
 
 ### Navigation
 - Easily switch between EURUSD and XAUUSD views in the frontend.
+
+## Model Integration and Signal Generation
+
+The core ML logic is in `daily_forex_signal_system.py`, which trains and predicts signals using an ensemble of Random Forest (RF) and XGBoost (XGB) models, calibrated with isotonic regression for confidence scoring. The `generate_signal` method processes the latest data window to produce signals.
+
+Pre-trained model artifacts (.joblib files) for EURUSD and XAUUSD pairs are stored in the `models/` directory:
+- `{pair}_rf.joblib`: Random Forest model
+- `{pair}_xgb.joblib`: XGBoost model
+- `{pair}_scaler.joblib`: Feature scaler
+- `{pair}_calibrator.joblib`: Probability calibrator
+
+The backend loads these artifacts to generate daily signals, which are served to the React frontend for display on candlestick charts.
+
+## Security and Personal Use
+
+This application is designed for personal use only. Access is restricted to the owner via authentication:
+- JWT-based authentication for API access.
+- Simple login system to ensure only authorized users can view signals.
+- No public sharing; signals are private and for individual trading decisions.
+
+## Getting Daily Updates
+To keep signals current with the latest market data:
+
+1. **Automatic Data Fetching**:
+   ```bash
+   python manage.py run_daily_signal --fetch-data
+   ```
+   This downloads the latest daily OHLC data from Yahoo Finance and generates fresh signals.
+
+2. **Manual Data Updates**:
+   - Download latest CSV files from your data source
+   - Replace files in `data/raw/` directory
+   - Run: `python manage.py run_daily_signal`
+
+3. **Scheduling Daily Updates**:
+   - **Windows**: Use Task Scheduler to run the command daily at market close (e.g., 5 PM ET)
+   - **Linux/Mac**: Use cron: `0 17 * * 1-5 /path/to/venv/bin/python manage.py run_daily_signal --fetch-data`
+
+4. **Signal Alerts**:
+   - Check the web app at http://localhost:3000 for current signals
+   - Signals update automatically when you refresh the page
+   - High probability (>80%) signals indicate strong confidence
+
+5. **Model Updates**:
+   - Retrain models in Google Colab with new data
+   - Download updated .joblib files
+   - Replace in `models/` directory
+   - Rerun signal generation
+
+## Backtesting and Analysis
+To analyze signal performance and probability vs. losses:
+
+1. **Run Backtests**:
+   ```bash
+   python manage.py backtest_signals EURUSD --days 60
+   ```
+   This shows overall accuracy and win rates for bullish/bearish signals.
+
+2. **View Backtest Results on Frontend**:
+   - Visit http://localhost:3000 and click "Backtest Results"
+   - Select pair and number of days
+   - See accuracy metrics and probability distribution
+
+3. **Improving Performance**:
+   - Modify thresholds in `run_daily_signal.py` for stricter/looser signals
+   - Add features in `engineer_features` method
+   - Retrain models with more data for better calibration
