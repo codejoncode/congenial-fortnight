@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 
+// API configuration
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://congenial-fortnight-1034520618737.europe-west1.run.app'
+  : 'http://localhost:8000';
+
 function App() {
   const [signals, setSignals] = useState([]);
   const [backtestResults, setBacktestResults] = useState(null);
@@ -14,7 +19,7 @@ function App() {
   }, []);
 
   const fetchSignals = () => {
-    axios.get('http://localhost:8000/api/signals/')
+    axios.get(`${API_BASE_URL}/api/signals/`)
       .then(response => {
         setSignals(response.data);
       })
@@ -24,7 +29,7 @@ function App() {
   };
 
   const runBacktest = () => {
-    axios.get(`http://localhost:8000/api/backtest/?pair=${backtestPair}&days=${backtestDays}`)
+    axios.get(`${API_BASE_URL}/api/backtest/?pair=${backtestPair}&days=${backtestDays}`)
       .then(response => {
         setBacktestResults(response.data);
       })
