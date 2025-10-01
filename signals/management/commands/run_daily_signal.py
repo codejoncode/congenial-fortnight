@@ -19,6 +19,45 @@ class Command(BaseCommand):
         parser.add_argument('--dry-run', action='store_true', help='Show what would be done without saving')
         parser.add_argument('--fetch-data', action='store_true', help='Fetch latest data from yfinance before generating signals')
 
+    def combine_model_predictions(self, rf_prob, xgb_prob, pair):
+        """
+        Advanced model combination logic based on agreement and historical performance
+        """
+        # Get historical performance metrics (simplified - in production, this would be tracked)
+        # For now, assume RF performs better on EURUSD, XGB on XAUUSD based on typical patterns
+        if pair == 'EURUSD':
+            rf_weight = 0.6
+            xgb_weight = 0.4
+        else:  # XAUUSD
+            rf_weight = 0.4
+            xgb_weight = 0.6
+        
+        prob_diff = abs(rf_prob - xgb_prob)
+        
+        if prob_diff < 0.1:
+            # Models agree closely - boost confidence with weighted average
+            combined = (rf_prob * rf_weight + xgb_prob * xgb_weight) / (rf_weight + xgb_weight)
+            # Add confidence boost for agreement
+            agreement_boost = 0.05 * (1 - prob_diff / 0.1)  # Up to 5% boost
+            if combined >= 0.5:
+                combined = min(0.95, combined + agreement_boost)
+            else:
+                combined = max(0.05, combined - agreement_boost)
+        elif prob_diff > 0.3:
+            # Models disagree significantly - follow the more confident model
+            rf_confidence = abs(rf_prob - 0.5) * 2
+            xgb_confidence = abs(xgb_prob - 0.5) * 2
+            
+            if rf_confidence > xgb_confidence:
+                combined = rf_prob
+            else:
+                combined = xgb_prob
+        else:
+            # Moderate disagreement - use weighted average with pair-specific weights
+            combined = (rf_prob * rf_weight + xgb_prob * xgb_weight) / (rf_weight + xgb_weight)
+        
+        return combined
+
     def handle(self, *args, **options):
         pairs = ['EURUSD', 'XAUUSD']
         data_path = 'data/raw'
@@ -56,23 +95,30 @@ class Command(BaseCommand):
                 X = df[features].iloc[-1:].values
                 X_scaled = scaler.transform(X)
 
-                # Ensemble prediction
+                # Ensemble prediction with advanced combination logic
                 rf_prob = rf_model.predict_proba(X_scaled)[0, 1]
                 xgb_prob = xgb_model.predict_proba(X_scaled)[0, 1]
+                
+                # Advanced model combination logic
+                combined_prob = self.combine_model_predictions(rf_prob, xgb_prob, pair)
+                
+                # Use calibrated ensemble for final probability
                 ensemble_preds = np.column_stack([rf_prob, xgb_prob])
                 p_up_calibrated = calibrator.predict_proba(ensemble_preds)[0, 1]
+                
+                # Use combined probability for signal decision
+                final_prob = (combined_prob + p_up_calibrated) / 2
 
-                # Signal logic
-                if p_up_calibrated > 0.8:
+                # Signal logic - always produce a signal based on final probability
+                if final_prob >= 0.5:
                     signal = 'bullish'
-                elif p_up_calibrated < 0.2:
-                    signal = 'bearish'
                 else:
-                    signal = 'no_signal'
+                    signal = 'bearish'
 
-                # Stop loss
+                # Stop loss with dynamic adjustment based on confidence
                 atr = df['atr_14'].iloc[-1]
-                stop_loss = atr * 0.5
+                confidence_multiplier = 1.0 + (abs(final_prob - 0.5) * 0.5)  # More confident = wider stop
+                stop_loss = atr * 0.5 * confidence_multiplier
 
                 date = df.index[-1].date()
 

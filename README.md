@@ -26,6 +26,45 @@ For comprehensive setup instructions, deployment options, and usage guides, see:
 
 **Performance**: EURUSD ensemble MAE 0.004973, 84%+ directional accuracy
 
+### 🎨 **Latest Chart Improvements (October 2025)**
+
+- **Gold Prediction Candles**: Future AI predictions outlined in gold with star indicators
+- **Professional Layout**: Improved spacing, modern design, better tooltips
+- **Current Data**: Charts now display up-to-date prices (2025-10-01)
+- **Chart Options**: Switch between Custom AI charts and TradingView-style displays
+
+### 📊 TradingView Integration Options
+
+For production-grade charts similar to TradingView, consider these React libraries:
+
+#### 1. **react-tradingview-widget** (Recommended for full TradingView experience)
+```bash
+npm install react-tradingview-widget
+```
+- ✅ Full TradingView charts with all indicators
+- ✅ Professional look and feel  
+- ✅ Advanced drawing tools
+- ⚠️ Requires TradingView account for premium features
+
+#### 2. **lightweight-charts** (High-performance alternative)
+```bash
+npm install lightweight-charts
+```
+- ✅ Similar to TradingView but lighter weight
+- ✅ Excellent performance
+- ✅ Free and open source
+- ✅ Modern API, easy customization
+
+#### 3. **react-financial-charts** (Advanced technical analysis)
+```bash
+npm install react-financial-charts
+```
+- ✅ Built on D3, highly customizable
+- ✅ Great for technical analysis
+- ⚠️ Steeper learning curve
+
+**Current Implementation**: Uses Recharts for custom charts with AI prediction visualization. Switch to "TradingView Style" in the chart selector to see integration placeholder.
+
 ## 🏃‍♂️ Quick Local Test
 
 ```bash

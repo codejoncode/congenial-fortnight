@@ -196,28 +196,41 @@ class CandlePredictionSystem:
         try:
             h4_file = f'data/raw/{pair}_H4.csv'
             if os.path.exists(h4_file):
-                h4_df = pd.read_csv(h4_file, sep='\t')
+                # Try to detect separator automatically
+                with open(h4_file, 'r') as f:
+                    first_line = f.readline()
+                    if '\t' in first_line:
+                        sep = '\t'
+                    elif ',' in first_line:
+                        sep = ','
+                    else:
+                        sep = '\s+'  # whitespace separator
+                
+                h4_temp = pd.read_csv(h4_file, sep=sep)
                 # Handle different CSV formats
-                if '<DATE>' in h4_df.columns and '<TIME>' in h4_df.columns:
+                if '<DATE>' in h4_temp.columns and '<TIME>' in h4_temp.columns:
                     # MT4 format
-                    h4_df['date'] = pd.to_datetime(h4_df['<DATE>'] + ' ' + h4_df['<TIME>'])
-                    h4_df = h4_df.rename(columns={
+                    h4_temp['date'] = pd.to_datetime(h4_temp['<DATE>'] + ' ' + h4_temp['<TIME>'])
+                    h4_temp = h4_temp.rename(columns={
                         '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
                         '<CLOSE>': 'close', '<TICKVOL>': 'tickvol', '<VOL>': 'vol', '<SPREAD>': 'spread'
                     })
-                elif 'date' not in h4_df.columns:
+                elif 'date' not in h4_temp.columns:
                     # Try to create date column from available columns
-                    if 'Date' in h4_df.columns:
-                        h4_df['date'] = pd.to_datetime(h4_df['Date'])
+                    if 'Date' in h4_temp.columns:
+                        h4_temp['date'] = pd.to_datetime(h4_temp['Date'])
                     else:
                         raise ValueError("No date column found in H4 data")
                 else:
-                    # Yahoo Finance format
-                    h4_df['date'] = pd.to_datetime(h4_df['date'])
-                h4_df = h4_df.set_index('date')
+                    # Standard format with date column
+                    h4_temp['date'] = pd.to_datetime(h4_temp['date'])
+                h4_temp = h4_temp.set_index('date')
+                h4_df = h4_temp  # Only assign if successful
                 print(f"Loaded H4 data: {len(h4_df)} rows")
         except Exception as e:
             print(f"Could not load H4 data: {e}")
+            h4_df = None  # Ensure it's None on failure
+            h4_df = None  # Ensure it's None on failure
 
         try:
             weekly_file = f'data/raw/{pair}_Weekly.csv'

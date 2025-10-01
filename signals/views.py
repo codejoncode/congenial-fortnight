@@ -24,15 +24,26 @@ def backtest_results(request):
         # Import the enhanced backtest system
         import sys
         import os
+        import logging
         sys.path.append(os.getcwd())
         from daily_forex_signal_system import DailyForexSignal
+
+        # Log backtest start
+        print(f"Starting backtest for {pair} over {days} days...")
+        logging.info(f"Backtest started: {pair}, {days} days")
 
         # Run enhanced backtest
         ds = DailyForexSignal()
         result = ds.backtest_last_n_days_enhanced(pair, n=days)
 
+        # Log backtest completion
+        print(f"Backtest completed for {pair}. Results: {result['total_signals']} signals, {result['wins']} wins, {result['losses']} losses")
+        logging.info(f"Backtest completed: {pair}, {result['total_signals']} signals")
+
         # Format response for frontend
         response_data = {
+            'status': 'completed',
+            'message': f'Backtest completed successfully for {pair} over {days} days',
             'pair': result['pair'],
             'days': result['period_days'],
             'overall_accuracy': result['accuracy'] / 100,  # Convert to decimal for frontend
@@ -73,7 +84,13 @@ def backtest_results(request):
         return Response(response_data)
 
     except Exception as e:
-        return Response({'error': str(e)})
+        print(f"Backtest failed for {pair}: {str(e)}")
+        logging.error(f"Backtest failed: {pair}, {days} days - {str(e)}")
+        return Response({
+            'status': 'error',
+            'message': f'Backtest failed for {pair}: {str(e)}',
+            'error': str(e)
+        })
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -102,6 +119,45 @@ def download_backtest_csv(request):
             return response
         else:
             return Response({'error': 'No trade data available'}, status=404)
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_historical_data(request):
+    """Get historical price data for charting"""
+    pair = request.GET.get('pair', 'EURUSD')
+    days = int(request.GET.get('days', 30))
+
+    try:
+        # Load historical data
+        import os
+        data_path = f'data/raw/{pair}_Daily.csv'
+        
+        if not os.path.exists(data_path):
+            return Response({'error': 'Data file not found'}, status=404)
+
+        df = pd.read_csv(data_path)
+        df['date'] = pd.to_datetime(df['date'])
+        df = df.sort_values('date')
+        
+        # Get last N days
+        recent_data = df.tail(days)
+        
+        # Format for frontend
+        chart_data = []
+        for _, row in recent_data.iterrows():
+            chart_data.append({
+                'date': row['date'].strftime('%Y-%m-%d'),
+                'open': float(row['open']),
+                'high': float(row['high']),
+                'low': float(row['low']),
+                'close': float(row['close']),
+                'volume': int(row.get('tickvol', 0))
+            })
+
+        return Response(chart_data)
 
     except Exception as e:
         return Response({'error': str(e)}, status=500)
