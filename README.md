@@ -18,10 +18,10 @@ For comprehensive setup instructions, deployment options, and usage guides, see:
 
 ## 🎯 Current Status
 
-✅ **Multi-timeframe ML models** with 251 features  
-✅ **200+ candlestick patterns** integrated  
-✅ **Automated GitHub Actions** training pipeline  
-✅ **Realistic backtesting** with proper entry/exit logic  
+✅ **Multi-timeframe ML models** with 251 features
+✅ **200+ candlestick patterns** integrated
+✅ **Automated GitHub Actions** training pipeline
+✅ **Realistic backtesting** with proper entry/exit logic
 ✅ **Cloud deployment** ready (GitHub Actions + Cloud Run)
 
 **Performance**: EURUSD ensemble MAE 0.004973, 84%+ directional accuracy
@@ -42,7 +42,7 @@ For production-grade charts similar to TradingView, consider these React librari
 npm install react-tradingview-widget
 ```
 - ✅ Full TradingView charts with all indicators
-- ✅ Professional look and feel  
+- ✅ Professional look and feel
 - ✅ Advanced drawing tools
 - ⚠️ Requires TradingView account for premium features
 
@@ -65,11 +65,119 @@ npm install react-financial-charts
 
 **Current Implementation**: Uses Recharts for custom charts with AI prediction visualization. Switch to "TradingView Style" in the chart selector to see integration placeholder.
 
+## 🗺️ **Project Roadmap & Feature Checklist**
+
+This outline integrates our in-depth conversation with your existing congenial-fortnight repository, organizing work into clear, incremental steps. Check off each item as you implement it.
+
+### 1. **Repository Structure Review**
+- [x] Confirm top-level directories:
+  - [x] `data/` - CSV files for FRED series, CFTC COT, modeling dataset
+  - [x] `scripts/` - ETL pipelines, forecasting, diagnostics, backtesting, signal generation
+  - [x] `charts/` - Front-end charting assets (HTML/JS)
+  - [x] `.github/workflows/` - GitHub Actions for daily jobs
+  - [x] `README.md` & feature spec (`congenial_fortnight_features.txt`)
+
+### 2. **Data Collection & Storage**
+
+#### 2.1 **Initial ETL Pipeline**
+- [x] **FundamentalDataPipeline**
+  - [x] Collect full history for all FRED series (CPI, Fed funds, USD index, Gold price, etc.)
+  - [x] Download & parse CFTC FinFut and weekly COT for EURFX & Gold
+  - [x] Save per-series CSV in `data/` and update `update_metadata.json`
+
+#### 2.2 **Daily Update Job**
+- [x] In `.github/workflows/data_update.yml`, schedule daily run:
+  ```yaml
+  on:
+    schedule:
+      - cron: '0 6 * * *'
+  jobs:
+    update:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v3
+        - name: Run ETL
+          run: python scripts/fundamental_pipeline.py
+  ```
+- [x] Ensure incremental fetch (only new observations)
+
+### 3. **Modeling & Forecasting**
+
+#### 3.1 **Hybrid Ensemble Models**
+- [x] **HybridPriceForecastingEnsemble** (in `scripts/forecasting.py`)
+  - [x] Classical (Prophet, StatsForecast), ML (LightGBM), DL (LSTM/RF) base models
+  - [x] Meta-model stacking (Ridge)
+- [x] **QuantumMultiTimeframeSignalGenerator** (in `scripts/signals.py`)
+  - [x] Prepare weekly/daily/4h features (technical + fundamental)
+  - [x] Train VotingRegressor ensembles per timeframe
+  - [x] Fuse into unified daily signal + entry/exit levels
+
+#### 3.2 **Diagnostics & Backtesting**
+- [x] **ModelDiagnosticsFramework** (`scripts/diagnostics.py`)
+  - [x] Performance metrics, feature importance, error analysis, stability
+  - [x] Export JSON report & actionable recommendations
+- [x] **AutomatedTradingBacktestOptimizer** (`scripts/backtesting.py`)
+  - [x] Simulate trades, calculate pips P&L
+  - [x] Cross-pair correlation & combined features
+  - [x] Automated parameter grid search until ≥75% accuracy
+  - [x] Export `optimization_results.csv`, `trading_performance_report.json`
+
+### 4. **Front-End Chart Integration**
+
+#### 4.1 **TradingView Lightweight Charts**
+- [x] In `charts/index.html` or React component:
+  - [x] Embed Lightweight Charts with `timeScale.rightOffset` and `rightPriceScale.scaleMargins`
+  - [x] Overlay daily signal markers, entry/exit lines
+  - [x] Responsive resizing hook
+
+#### 4.2 **TradingView Charting Library (Optional)**
+- [ ] Acquire license, host `charting_library.min.js`
+- [ ] Update `charts/tv_widget.html` configuration:
+  - [ ] `timeScale.rightOffset: 12`, `priceScale.rightMargin: 20`
+  - [ ] Custom UDF datafeed endpoint to your API
+
+### 5. **Backend API & Deployment**
+
+#### 5.1 **FastAPI Service** (`api/`)
+- [x] Endpoints: `/signals?pair=EURUSD`, `/fundamentals`, `/backtest/report`
+- [x] Reads CSVs, builds model, returns JSON
+
+#### 5.2 **Google Cloud Run**
+- [x] Containerize with Dockerfile
+- [x] Deploy daily update job + API service
+
+#### 5.3 **GitHub Actions**
+- [x] Build & push container on merge to main
+- [x] Trigger Cloud Run deploy
+
+### 6. **README.md Enhancements**
+- [x] Overview with architecture diagram
+- [x] Prerequisites (Python, FRED key, CFTC access)
+- [x] Getting Started
+  - [x] Clone repo, set env vars, install `requirements.txt`
+  - [x] Run `scripts/fundamental_pipeline.py --init`
+- [x] Daily Workflow
+  - [x] Describe GitHub Actions & Cloud Run schedule
+- [x] Usage
+  - [x] How to call API endpoints
+  - [x] How to view charts in `charts/`
+- [x] Development
+  - [x] Running tests/backtests
+  - [x] How to add new fundamentals or model variants
+- [x] Roadmap & Contribution
+  - [x] Link this feature checklist for tracking
+
+### 7. **Next Steps & To-Do**
+- [ ] Integrate correlation-based ensemble weights in signal generator
+- [ ] Add live backtester dashboard UI (optional)
+- [ ] Monitor model drift & schedule re-training triggers
+- [ ] Expand to additional pairs or asset classes
+
 ## ✅ **Project Setup Checklist**
 
 ### 🔧 **Environment Setup**
 - [x] Python 3.8+ installed
-- [x] Node.js 16+ installed  
+- [x] Node.js 16+ installed
 - [x] Git repository cloned
 - [x] Virtual environment created (`.venv`)
 - [x] Dependencies installed (`pip install -r requirements.txt`)
