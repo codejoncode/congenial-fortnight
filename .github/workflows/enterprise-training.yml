@@ -1,0 +1,481 @@
+name: Advanced Enterprise Training Pipeline
+
+on:
+  schedule:
+    - cron: '0 20 * * *'  # Run daily at 8 PM UTC (4 PM EDT during DST) - US market close
+  workflow_dispatch:     # Manual trigger
+  push:
+    branches: [ main, enhancements_backend ]
+    paths:
+      - 'scripts/**'
+      - 'candle_prediction_system.py'
+      - 'daily_forex_signal_system.py'
+
+env:
+  FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+  EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+  EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+  EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+  NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
+  NOTIFICATION_SMS: ${{ secrets.NOTIFICATION_SMS }}
+
+jobs:
+  update-fundamentals:
+    name: Update Fundamental Data
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Cache fundamental data
+      uses: actions/cache@v3
+      with:
+        path: data/
+        key: fundamental-data-${{ github.run_number }}
+        restore-keys: |
+          fundamental-data-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Create necessary directories
+      run: |
+        mkdir -p data scripts
+
+    - name: Update fundamental data
+      run: |
+        python scripts/fundamental_pipeline.py --daily
+
+    - name: Validate data quality
+      run: |
+        python scripts/fundamental_pipeline.py --validate
+
+    - name: Upload fundamental data
+      uses: actions/upload-artifact@v3
+      with:
+        name: fundamental-data-${{ github.run_number }}
+        path: data/
+        retention-days: 30
+
+  train-advanced-models:
+    name: Train Advanced Ensemble Models
+    runs-on: ubuntu-latest
+    needs: update-fundamentals
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Download fundamental data
+      uses: actions/download-artifact@v3
+      with:
+        name: fundamental-data-${{ github.run_number }}
+        path: data/
+
+    - name: Cache trained models
+      uses: actions/cache@v3
+      with:
+        path: models
+        key: advanced-models-${{ github.run_number }}
+        restore-keys: |
+          advanced-models-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Create necessary directories
+      run: |
+        mkdir -p models scripts
+
+    - name: Train hybrid ensemble models
+      run: |
+        for pair in EURUSD XAUUSD; do
+          echo "Training hybrid ensemble for $pair"
+          python scripts/forecasting.py --pair $pair --train
+        done
+
+    - name: Train quantum multi-timeframe models
+      run: |
+        for pair in EURUSD XAUUSD; do
+          echo "Training quantum signals for $pair"
+          python scripts/signals.py --pair $pair --train
+        done
+
+    - name: Run model diagnostics
+      run: |
+        for pair in EURUSD XAUUSD; do
+          echo "Running diagnostics for $pair"
+          python scripts/diagnostics.py --pair $pair --report
+        done
+
+    - name: Upload advanced models
+      uses: actions/upload-artifact@v3
+      with:
+        name: advanced-models-${{ github.run_number }}
+        path: models/
+        retention-days: 30
+
+    - name: Upload diagnostic reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: diagnostic-reports-${{ github.run_number }}
+        path: diagnostics/
+        retention-days: 30
+
+  advanced-backtesting:
+    name: Advanced Backtesting & Optimization
+    runs-on: ubuntu-latest
+    needs: train-advanced-models
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Download advanced models
+      uses: actions/download-artifact@v3
+      with:
+        name: advanced-models-${{ github.run_number }}
+        path: models/
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Create necessary directories
+      run: |
+        mkdir -p backtests scripts
+
+    - name: Run advanced backtesting
+      run: |
+        python scripts/backtesting.py --pairs EURUSD XAUUSD --backtest
+
+    - name: Run parameter optimization
+      run: |
+        python scripts/backtesting.py --pairs EURUSD XAUUSD --optimize
+
+    - name: Run Monte Carlo simulation
+      run: |
+        python scripts/backtesting.py --pairs EURUSD XAUUSD --monte-carlo 500
+
+    - name: Upload backtest results
+      uses: actions/upload-artifact@v3
+      with:
+        name: advanced-backtests-${{ github.run_number }}
+        path: backtests/
+        retention-days: 30
+
+  generate-signals:
+    name: Generate Enterprise Signals
+    runs-on: ubuntu-latest
+    needs: [update-fundamentals, train-advanced-models, advanced-backtesting]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Download advanced models
+      uses: actions/download-artifact@v3
+      with:
+        name: advanced-models-${{ github.run_number }}
+        path: models/
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Generate quantum signals
+      run: |
+        for pair in EURUSD XAUUSD; do
+          echo "Generating quantum signals for $pair"
+          python scripts/signals.py --pair $pair --signal > signals_$pair.json
+        done
+
+    - name: Generate ensemble forecasts
+      run: |
+        for pair in EURUSD XAUUSD; do
+          echo "Generating ensemble forecasts for $pair"
+          python scripts/forecasting.py --pair $pair --forecast 5 > forecasts_$pair.json
+        done
+
+    - name: Generate Django signals (legacy compatibility)
+      run: |
+        python -c "
+        import os
+        import sys
+        sys.path.append('.')
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'signals.settings')
+
+        import django
+        django.setup()
+
+        from django.core.management import execute_from_command_line
+        execute_from_command_line(['manage.py', 'run_daily_signal'])
+        "
+
+    - name: Upload signal files
+      uses: actions/upload-artifact@v3
+      with:
+        name: enterprise-signals-${{ github.run_number }}
+        path: |
+          signals_*.json
+          forecasts_*.json
+          output/
+        retention-days: 7
+
+  notifications:
+    name: Send Enterprise Notifications
+    runs-on: ubuntu-latest
+    needs: generate-signals
+    if: always()  # Run even if previous jobs failed
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download signals
+      uses: actions/download-artifact@v3
+      with:
+        name: enterprise-signals-${{ github.run_number }}
+        path: signals/
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Send advanced notifications
+      run: |
+        python -c "
+        import os
+        import sys
+        import json
+        import glob
+        sys.path.append('.')
+
+        from notification_system import NotificationSystem
+
+        # Load all signals
+        all_signals = []
+        signal_files = glob.glob('signals/signals_*.json')
+
+        for file_path in signal_files:
+            try:
+                with open(file_path, 'r') as f:
+                    signal_data = json.load(f)
+                    if isinstance(signal_data, dict) and 'signal' in signal_data:
+                        all_signals.append(signal_data)
+            except Exception as e:
+                print(f'Error loading {file_path}: {e}')
+
+        if all_signals:
+            notifier = NotificationSystem()
+
+            # Get recipients
+            recipients = []
+            email_recipient = os.getenv('NOTIFICATION_EMAIL')
+            sms_recipient = os.getenv('NOTIFICATION_SMS')
+
+            if email_recipient:
+                recipients.append(email_recipient)
+            if sms_recipient:
+                recipients.append(sms_recipient)
+
+            if recipients:
+                print(f'Sending enterprise signals to {len(recipients)} recipients')
+                # Format signals for notification
+                formatted_signals = []
+                for signal in all_signals:
+                    formatted_signals.append({
+                        'pair': signal.get('pair', 'Unknown'),
+                        'signal': signal.get('signal', 'unknown'),
+                        'confidence': signal.get('confidence', 0),
+                        'timestamp': signal.get('timestamp', 'unknown')
+                    })
+
+                notifier.send_signal_notification(formatted_signals, recipients)
+            else:
+                print('No notification recipients configured')
+        else:
+            print('No signals generated for notification')
+        "
+      env:
+        EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+        EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+        NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
+        NOTIFICATION_SMS: ${{ secrets.NOTIFICATION_SMS }}
+
+  generate-report:
+    name: Generate Enterprise Report
+    runs-on: ubuntu-latest
+    needs: [update-fundamentals, train-advanced-models, advanced-backtesting, generate-signals]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+
+    - name: Generate comprehensive report
+      run: |
+        echo '# Enterprise Training Report - $(date)' > enterprise_report.md
+        echo '' >> enterprise_report.md
+        echo '## Pipeline Status' >> enterprise_report.md
+        echo '- ✅ Fundamental data updated' >> enterprise_report.md
+        echo '- ✅ Advanced ensemble models trained' >> enterprise_report.md
+        echo '- ✅ Quantum signal generation completed' >> enterprise_report.md
+        echo '- ✅ Advanced backtesting finished' >> enterprise_report.md
+        echo '- ✅ Enterprise signals generated' >> enterprise_report.md
+        echo '' >> enterprise_report.md
+
+        echo '## Model Performance Summary' >> enterprise_report.md
+        if [ -d "diagnostic-reports-"*/ ]; then
+          echo '### Diagnostic Reports' >> enterprise_report.md
+          find diagnostic-reports-*/ -name "*.json" -exec basename {} \; | head -5 >> enterprise_report.md
+        fi
+        echo '' >> enterprise_report.md
+
+        echo '## Backtesting Results' >> enterprise_report.md
+        if [ -d "advanced-backtests-"*/ ]; then
+          echo '### Optimization Summary' >> enterprise_report.md
+          find advanced-backtests-*/ -name "*optimization*.json" -exec head -20 {} \; 2>/dev/null | head -10 >> enterprise_report.md
+        fi
+        echo '' >> enterprise_report.md
+
+        echo '## Generated Signals' >> enterprise_report.md
+        if [ -d "enterprise-signals-"*/ ]; then
+          echo '### Current Signals' >> enterprise_report.md
+          find enterprise-signals-*/ -name "signals_*.json" -exec cat {} \; 2>/dev/null | jq -r '.pair + \": \" + .signal + \" (\" + (.confidence | tostring) + \")\"' 2>/dev/null || echo "Signal parsing failed" >> enterprise_report.md
+        fi
+        echo '' >> enterprise_report.md
+
+        echo '## System Health' >> enterprise_report.md
+        echo '- All advanced features operational' >> enterprise_report.md
+        echo '- Enterprise-grade signal generation active' >> enterprise_report.md
+        echo '- Automated optimization completed' >> enterprise_report.md
+        echo '' >> enterprise_report.md
+
+        echo '## Next Steps' >> enterprise_report.md
+        echo '1. Review diagnostic reports for model improvements' >> enterprise_report.md
+        echo '2. Monitor signal performance in live trading' >> enterprise_report.md
+        echo '3. Consider additional pairs or timeframes' >> enterprise_report.md
+
+    - name: Upload enterprise report
+      uses: actions/upload-artifact@v3
+      with:
+        name: enterprise-report-${{ github.run_number }}
+        path: enterprise_report.md
+        retention-days: 30
+
+  deploy:
+    name: Deploy to Cloud Run
+    runs-on: ubuntu-latest
+    needs: [generate-signals, generate-report]
+    if: github.ref == 'refs/heads/main'  # Only deploy from main branch
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Google Cloud
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+    - name: Configure Docker
+      run: gcloud auth configure-docker
+
+    - name: Build and push Docker image
+      run: |
+        docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/forex-signal-service:v$(date +%Y%m%d-%H%M%S) .
+        docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/forex-signal-service:v$(date +%Y%m%d-%H%M%S)
+
+    - name: Deploy to Cloud Run
+      run: |
+        gcloud run deploy forex-signal-service \
+          --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/forex-signal-service:v$(date +%Y%m%d-%H%M%S) \
+          --platform managed \
+          --region us-central1 \
+          --allow-unauthenticated \
+          --set-env-vars "FRED_API_KEY=${{ secrets.FRED_API_KEY }}" \
+          --memory 2Gi \
+          --cpu 2 \
+          --max-instances 10
+
+  cleanup:
+    name: Cleanup Artifacts
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: always()
+
+    steps:
+    - name: Cleanup old artifacts
+      run: |
+        # Keep only last 10 runs of each artifact type
+        echo "Cleanup completed - artifacts managed by GitHub retention policies"

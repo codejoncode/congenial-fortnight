@@ -1,0 +1,55 @@
+__pycache__/
+*.pyc
+db.sqlite3
+env/
+venv/
+.venv/
+.env
+*.log
+logs/
+*.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+node_modules/
+frontend/build/
+
+# Data artifacts (raw & processed); keep README if present
+data/raw/
+data/processed/
+data/cache/
+!data/**/README.md
+
+# Model artifacts: ignore heavy binary files but keep manifest & feature lists
+models/*
+!models/manifest.json
+!models/*/manifest.json
+!models/*/feature_list.json
+!models/*/*_features.json
+*.joblib
+*.pkl
+*.h5
+
+# Jupyter / notebook checkpoints
+.ipynb_checkpoints/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Mypy & Ruff caches
+.mypy_cache/
+.ruff_cache/
+
+# Encryption / secrets (explicitly name if you add one)
+secret.key
+
+# Ignore any temporary export bundles
+exports/

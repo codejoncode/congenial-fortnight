@@ -1,0 +1,53 @@
+{
+  "date": "2025-10-01",
+  "signals": [
+    {
+      "pair": "EURUSD",
+      "signal": "bullish",
+      "probability": 0.902285513480019,
+      "stop_loss": 0.006867500000000003,
+      "entry_price": 1.088,
+      "date": "2025-10-01"
+    },
+    {
+      "pair": "EURUSD",
+      "signal": "no_signal",
+      "probability": 0.23239656518345045,
+      "stop_loss": 0.006867500000000003,
+      "entry_price": 1.088,
+      "date": "2025-10-01"
+    },
+    {
+      "pair": "EURUSD",
+      "signal": "bearish",
+      "probability": 0.23239656518345045,
+      "stop_loss": 0.006867500000000003,
+      "entry_price": 1.088,
+      "date": "2025-10-01"
+    },
+    {
+      "pair": "EURUSD",
+      "signal": "bearish",
+      "probability": 0.23239656518345045,
+      "stop_loss": 0.006867500000000003,
+      "entry_price": 1.088,
+      "date": "2025-10-01"
+    },
+    {
+      "pair": "EURUSD",
+      "signal": "bearish",
+      "probability": 0.23239656518345045,
+      "stop_loss": 0.006867500000000003,
+      "entry_price": 1.088,
+      "date": "2025-10-01"
+    },
+    {
+      "pair": "EURUSD",
+      "signal": "bearish",
+      "probability": 0.23239656518345045,
+      "stop_loss": 0.007231931543504055,
+      "entry_price": 1.088,
+      "date": "2025-10-01"
+    }
+  ]
+}
