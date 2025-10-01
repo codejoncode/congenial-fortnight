@@ -1,4 +1,4 @@
-name: Deploy to Cloud Run
+name: Deploy to Cloud Run & Train Models
 
 on:
   push:
@@ -6,17 +6,35 @@ on:
     paths:
       - 'forex_signal/**'
       - 'signals/**'
+      - 'scripts/**'
       - 'requirements.txt'
       - 'Dockerfile'
+      - 'cloudbuild.yaml'
       - 'manage.py'
   workflow_dispatch:
+    inputs:
+      target_accuracy:
+        description: 'Target accuracy for automated training'
+        required: false
+        default: '0.85'
+        type: string
+      max_iterations:
+        description: 'Maximum iterations for training'
+        required: false
+        default: '50'
+        type: string
 
 env:
   GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+  FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+  EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+  EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+  NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
+  NOTIFICATION_SMS: ${{ secrets.NOTIFICATION_SMS }}
 
 jobs:
-  deploy:
+  deploy-and-train:
     runs-on: ubuntu-latest
 
     steps:
@@ -31,23 +49,40 @@ jobs:
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
 
-    - name: Build and push Docker image
+    - name: Build and Deploy with Cloud Build
       run: |
-        gcloud builds submit --tag gcr.io/${{ env.GCP_PROJECT_ID }}/forex-trading-api:$GITHUB_SHA .
+        gcloud builds submit --config cloudbuild.yaml \
+          --substitutions _REGION="us-central1",_FRED_API_KEY="${{ env.FRED_API_KEY }}",_EMAIL_USERNAME="${{ env.EMAIL_USERNAME }}",_EMAIL_FROM="${{ env.EMAIL_FROM }}",_NOTIFICATION_EMAIL="${{ env.NOTIFICATION_EMAIL }}",_NOTIFICATION_SMS="${{ env.NOTIFICATION_SMS }}" \
+          .
 
-    - name: Deploy to Cloud Run
+    - name: Run Automated Training Job
       run: |
-        gcloud run deploy forex-trading-api \
-          --image gcr.io/${{ env.GCP_PROJECT_ID }}/forex-trading-api:$GITHUB_SHA \
-          --platform managed \
-          --region europe-west1 \
-          --allow-unauthenticated \
-          --set-env-vars="DJANGO_SETTINGS_MODULE=forex_signal.settings,DEBUG=False" \
-          --memory=2Gi \
-          --cpu=1 \
-          --max-instances=10 \
-          --timeout=300 \
-          --port=8000
+        # Extract target accuracy and max iterations from workflow inputs or defaults
+        TARGET_ACCURACY="${{ github.event.inputs.target_accuracy || '0.85' }}"
+        MAX_ITERATIONS="${{ github.event.inputs.max_iterations || '50' }}"
+
+        echo "Starting automated training with target accuracy: $TARGET_ACCURACY, max iterations: $MAX_ITERATIONS"
+
+        # Run the training job
+        gcloud run jobs execute automated-training \
+          --region us-central1 \
+          --args="--target,$TARGET_ACCURACY,--max-iterations,$MAX_ITERATIONS" \
+          --wait
+
+    - name: Check Training Results
+      run: |
+        echo "Checking training job status..."
+        gcloud run jobs describe automated-training --region us-central1 --format "value(status.conditions[0].message)"
+
+    - name: Notify on Completion
+      if: always()
+      run: |
+        if [ ${{ job.status }} == 'success' ]; then
+          echo "Deployment and training completed successfully!"
+        else
+          echo "Deployment or training failed. Check logs above."
+          exit 1
+        fi
 
     - name: Upload CSV files to Cloud Storage
       run: |

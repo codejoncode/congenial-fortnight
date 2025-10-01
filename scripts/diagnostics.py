@@ -138,7 +138,9 @@ class ModelDiagnosticsFramework:
             price_file = self.data_dir / "raw" / f"{self.pair}_Daily.csv"
             if price_file.exists():
                 self.price_data = pd.read_csv(price_file)
-                self.price_data['Date'] = pd.to_datetime(self.price_data['Date'])
+                # Handle both 'date' and 'Date' column names
+                date_col = 'date' if 'date' in self.price_data.columns else 'Date'
+                self.price_data['Date'] = pd.to_datetime(self.price_data[date_col])
                 self.price_data = self.price_data.set_index('Date')
                 logger.info(f"Loaded {len(self.price_data)} price observations")
 

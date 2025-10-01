@@ -116,7 +116,7 @@ class HybridPriceForecastingEnsemble:
 
         # Configuration
         self.forecast_horizon = 5  # days ahead
-        self.lookback_window = 252  # ~1 year of daily data
+        self.lookback_window = 200  # ~1 year of daily data, reduced for XAUUSD
         self.validation_splits = 5
 
         # Model configurations
@@ -247,14 +247,26 @@ class HybridPriceForecastingEnsemble:
 
         try:
             df = pd.read_csv(csv_file)
-            df['Date'] = pd.to_datetime(df['Date'])
+            # Handle both 'date' and 'Date' column names
+            date_col = 'date' if 'date' in df.columns else 'Date'
+            df['Date'] = pd.to_datetime(df[date_col])
             df = df.sort_values('Date').set_index('Date')
 
-            # Ensure we have OHLC columns
+            # Ensure we have OHLC columns (handle both cases)
             required_cols = ['Open', 'High', 'Low', 'Close']
+            actual_cols = ['open', 'high', 'low', 'close']
             if not all(col in df.columns for col in required_cols):
-                logger.error(f"Missing required OHLC columns in {csv_file}")
-                return pd.DataFrame()
+                if all(col in df.columns for col in actual_cols):
+                    # Rename lowercase columns to uppercase
+                    df = df.rename(columns={
+                        'open': 'Open',
+                        'high': 'High',
+                        'low': 'Low',
+                        'close': 'Close'
+                    })
+                else:
+                    logger.error(f"Missing required OHLC columns in {csv_file}")
+                    return pd.DataFrame()
 
             logger.info(f"Loaded {len(df)} price observations for {self.pair}")
             return df
@@ -267,14 +279,28 @@ class HybridPriceForecastingEnsemble:
         """Load fundamental economic data."""
         fundamental_df = pd.DataFrame()
 
-        # Load key economic indicators
+        # Load comprehensive economic indicators from FRED
         key_series = [
-            'FEDFUNDS',  # Fed Funds Rate
-            'CPIAUCSL',  # US CPI
-            'DEXUSEU',   # EUR/USD rate
-            'GOLDAMGBD228NLBM',  # Gold price
-            'DGS10',     # 10Y Treasury
-            'VIXCLS'     # VIX volatility
+            'FEDFUNDS',      # Federal Funds Rate
+            'DFF',           # Federal Funds Target Rate
+            'CPIAUCSL',      # Consumer Price Index
+            'CPALTT01USM661S', # Core CPI
+            'UNRATE',        # Unemployment Rate
+            'PAYEMS',        # Nonfarm Payrolls
+            'INDPRO',        # Industrial Production Index
+            'DGORDER',       # Durable Goods Orders
+            'DEXUSEU',       # USD/EUR Exchange Rate
+            'DEXJPUS',       # USD/JPY Exchange Rate
+            'DEXCHUS',       # USD/China Exchange Rate
+            'ECBDFR',        # ECB Deposit Facility Rate
+            'CP0000EZ19M086NEST', # Eurozone CPI
+            'LRHUTTTTDEM156S',   # Eurozone Unemployment
+            'DCOILWTICO',    # WTI Crude Oil Price
+            'DCOILBRENTEU',  # Brent Crude Oil Price
+            'VIXCLS',        # CBOE Volatility Index
+            'DGS10',         # 10-Year Treasury Rate
+            'DGS2',          # 2-Year Treasury Rate
+            'BOPGSTB'        # US Trade Balance
         ]
 
         for series_id in key_series:
@@ -365,14 +391,30 @@ class HybridPriceForecastingEnsemble:
 
             # Calculate changes in fundamental indicators
             for col in fundamental_cols:
-                df[f'{col}_change_1m'] = df[col].pct_change(20)  # ~1 month
-                df[f'{col}_change_3m'] = df[col].pct_change(60)  # ~3 months
+                # Use robust percentage change calculation to avoid division by zero
+                pct_change_1m = df[col].pct_change(20)
+                pct_change_3m = df[col].pct_change(60)
+                
+                # Cap extreme values to prevent infinity
+                pct_change_1m = pct_change_1m.clip(-10, 10)  # Cap at -1000% to +1000%
+                pct_change_3m = pct_change_3m.clip(-10, 10)
+                
+                df[f'{col}_change_1m'] = pct_change_1m
+                df[f'{col}_change_3m'] = pct_change_3m
 
-        # Drop rows with NaN values
-        df = df.dropna()
-
-        logger.info(f"Engineered {len(df.columns)} features from {len(df)} observations")
-        return df
+        # Drop rows with NaN values, but be more lenient with technical indicators
+        # Only drop rows where essential columns (OHLC) have NaN
+        essential_cols = ['Open', 'High', 'Low', 'Close', 'returns']
+        df_clean = df.dropna(subset=essential_cols)
+        
+        # Replace infinite values with NaN, then fill
+        df_clean = df_clean.replace([np.inf, -np.inf], np.nan)
+        
+        # Fill NaN values in technical indicators with forward/backward fill or zeros
+        df_clean = df_clean.fillna(method='ffill').fillna(method='bfill').fillna(0)
+        
+        logger.info(f"Engineered {len(df_clean.columns)} features from {len(df_clean)} observations")
+        return df_clean
 
     def _calculate_atr(self, df: pd.DataFrame, period: int) -> pd.Series:
         """Calculate Average True Range."""
@@ -636,7 +678,7 @@ class HybridPriceForecastingEnsemble:
         # Prepare training data
         target_col = 'target_1d'  # 1-day ahead returns
         feature_cols = [col for col in feature_df.columns
-                       if not col.startswith('target_') and col != 'Close']
+                       if not col.startswith('target_') and col not in ['Close', 'date', 'Date']]
 
         self.feature_columns = feature_cols
 
@@ -669,15 +711,15 @@ class HybridPriceForecastingEnsemble:
 
         # Generate predictions for meta-model training
         logger.info("Generating base model predictions for meta-learning")
-        train_predictions = self._generate_base_predictions(train_df, X_train_scaled)
-        val_predictions = self._generate_base_predictions(val_df, X_val_scaled)
+        train_predictions = self._generate_base_predictions(train_df, X_train_scaled, single_point=False)
+        val_predictions = self._generate_base_predictions(val_df, X_val_scaled, single_point=False)
 
         # Train meta-model
         if len(train_predictions) > 0:
             self._train_meta_model(train_predictions, y_train)
 
         # Calculate ensemble performance
-        ensemble_predictions = self._generate_ensemble_predictions(val_df, X_val_scaled)
+        ensemble_predictions = self._generate_ensemble_predictions_batch(val_df, X_val_scaled)
 
         metrics = {}
         if len(ensemble_predictions) > 0:
@@ -694,49 +736,94 @@ class HybridPriceForecastingEnsemble:
 
         return metrics
 
-    def _generate_base_predictions(self, df: pd.DataFrame, X_scaled: np.ndarray) -> np.ndarray:
+    def _generate_base_predictions(self, df: pd.DataFrame, X_scaled: np.ndarray, single_point: bool = False) -> np.ndarray:
         """Generate predictions from all trained base models."""
+        if single_point:
+            return self._generate_single_predictions(df, X_scaled)
+        else:
+            return self._generate_batch_predictions(df, X_scaled)
+
+    def _generate_single_predictions(self, df: pd.DataFrame, X_scaled: np.ndarray) -> np.ndarray:
+        """Generate predictions for a single data point."""
         predictions = []
 
-        # Statistical model predictions
-        if 'prophet' in self.models:
-            try:
-                future = self.models['prophet'].make_future_dataframe(periods=1)
-                forecast = self.models['prophet'].predict(future)
-                pred = forecast['yhat'].iloc[-1] / df['Close'].iloc[-1] - 1  # Convert to return
-                predictions.append(pred)
-            except Exception as e:
-                logger.error(f"Error generating Prophet prediction: {e}")
+        # Use the same order as training to ensure consistency
+        model_order = ['prophet', 'lightgbm', 'xgboost', 'random_forest', 'extra_trees', 'lstm', 'bilstm']
 
-        # ML model predictions
-        ml_models = ['lightgbm', 'xgboost', 'random_forest', 'extra_trees']
-        for model_name in ml_models:
+        for model_name in model_order:
             if model_name in self.models:
                 try:
-                    pred = self.models[model_name].predict(X_scaled[-1].reshape(1, -1))[0]
+                    if model_name == 'prophet':
+                        future = self.models['prophet'].make_future_dataframe(periods=1)
+                        forecast = self.models['prophet'].predict(future)
+                        pred = forecast['yhat'].iloc[-1] / df['Close'].iloc[-1] - 1
+                    elif model_name in ['lightgbm', 'xgboost', 'random_forest', 'extra_trees']:
+                        pred = self.models[model_name].predict(X_scaled[-1].reshape(1, -1))[0]
+                    elif model_name in ['lstm', 'bilstm']:
+                        sequence_length = 30
+                        if len(X_scaled) >= sequence_length:
+                            X_seq = X_scaled[-sequence_length:].reshape(1, sequence_length, -1)
+                            pred = self.models[model_name].predict(X_seq, verbose=0)[0][0]
+                        else:
+                            pred = 0.0  # Fallback
                     predictions.append(pred)
                 except Exception as e:
-                    logger.error(f"Error generating {model_name} prediction: {e}")
+                    logger.warning(f"Error generating {model_name} prediction: {e}")
+                    predictions.append(0.0)  # Consistent fallback
+            else:
+                predictions.append(0.0)  # Model not available
 
-        # DL model predictions
-        dl_models = ['lstm', 'bilstm']
-        for model_name in dl_models:
+        return np.array(predictions).reshape(1, -1)
+
+    def _generate_batch_predictions(self, df: pd.DataFrame, X_scaled: np.ndarray) -> np.ndarray:
+        """Generate predictions for a batch of data points."""
+        n_samples = len(X_scaled)
+        predictions = []
+
+        # Use the same order as training to ensure consistency
+        model_order = ['prophet', 'lightgbm', 'xgboost', 'random_forest', 'extra_trees', 'lstm', 'bilstm']
+
+        for model_name in model_order:
             if model_name in self.models:
                 try:
-                    # For DL models, we need sequence data
-                    sequence_length = 30
-                    if len(X_scaled) >= sequence_length:
-                        X_seq = X_scaled[-sequence_length:].reshape(1, sequence_length, -1)
-                        pred = self.models[model_name].predict(X_seq, verbose=0)[0][0]
-                        predictions.append(pred)
+                    if model_name == 'prophet':
+                        # Prophet predictions (single point, repeat for all samples)
+                        future = self.models['prophet'].make_future_dataframe(periods=1)
+                        forecast = self.models['prophet'].predict(future)
+                        prophet_pred = forecast['yhat'].iloc[-1] / df['Close'].iloc[-1] - 1
+                        predictions.append(np.full(n_samples, prophet_pred))
+                    elif model_name in ['lightgbm', 'xgboost', 'random_forest', 'extra_trees']:
+                        preds = self.models[model_name].predict(X_scaled)
+                        predictions.append(preds)
+                    elif model_name in ['lstm', 'bilstm']:
+                        # DL model predictions (sequence-based)
+                        dl_preds = []
+                        sequence_length = 30
+                        for i in range(n_samples):
+                            if i >= sequence_length:
+                                X_seq = X_scaled[i-sequence_length:i].reshape(1, sequence_length, -1)
+                                pred = self.models[model_name].predict(X_seq, verbose=0)[0][0]
+                            else:
+                                # For early samples, use the first available prediction
+                                X_seq = X_scaled[:sequence_length].reshape(1, sequence_length, -1)
+                                pred = self.models[model_name].predict(X_seq, verbose=0)[0][0]
+                            dl_preds.append(pred)
+                        predictions.append(np.array(dl_preds))
                 except Exception as e:
-                    logger.error(f"Error generating {model_name} prediction: {e}")
+                    logger.warning(f"Error generating {model_name} batch predictions: {e}")
+                    predictions.append(np.zeros(n_samples))  # Fallback
+            else:
+                predictions.append(np.zeros(n_samples))  # Model not available
 
-        return np.array(predictions).reshape(1, -1) if predictions else np.array([])
+        # Stack predictions: shape should be (n_samples, n_models)
+        if predictions:
+            return np.column_stack(predictions)
+        else:
+            return np.array([])
 
-    def _generate_ensemble_predictions(self, df: pd.DataFrame, X_scaled: np.ndarray) -> np.ndarray:
-        """Generate ensemble predictions using meta-model."""
-        base_predictions = self._generate_base_predictions(df, X_scaled)
+    def _generate_ensemble_predictions_batch(self, df: pd.DataFrame, X_scaled: np.ndarray) -> np.ndarray:
+        """Generate ensemble predictions for a batch using meta-model."""
+        base_predictions = self._generate_base_predictions(df, X_scaled, single_point=False)
 
         if len(base_predictions) == 0 or self.meta_model is None:
             return np.array([])
@@ -744,7 +831,20 @@ class HybridPriceForecastingEnsemble:
         try:
             return self.meta_model.predict(base_predictions)
         except Exception as e:
-            logger.error(f"Error generating ensemble prediction: {e}")
+            logger.error(f"Error generating ensemble batch predictions: {e}")
+            return np.array([])
+
+    def _generate_ensemble_predictions(self, df: pd.DataFrame, X_scaled: np.ndarray) -> np.ndarray:
+        """Generate ensemble predictions for single data point using meta-model."""
+        base_predictions = self._generate_base_predictions(df, X_scaled, single_point=True)
+
+        if len(base_predictions) == 0 or self.meta_model is None:
+            return np.array([])
+
+        try:
+            return self.meta_model.predict(base_predictions)
+        except Exception as e:
+            logger.error(f"Error generating ensemble predictions: {e}")
             return np.array([])
 
     def generate_forecast(self, days_ahead: int = 5) -> Dict:
@@ -781,24 +881,26 @@ class HybridPriceForecastingEnsemble:
         current_price = forecast['current_price']
 
         for day in range(1, days_ahead + 1):
-            prediction = self._generate_ensemble_predictions(
+            base_predictions = self._generate_single_predictions(
                 feature_df.iloc[-1:], latest_features_scaled
             )
 
-            if len(prediction) > 0:
-                predicted_return = prediction[0]
-                predicted_price = current_price * (1 + predicted_return)
-
-                forecast['forecasts'].append({
-                    'day': day,
-                    'predicted_return': float(predicted_return),
-                    'predicted_price': float(predicted_price),
-                    'confidence': self._estimate_confidence(prediction)
-                })
-
-                current_price = predicted_price
+            if len(base_predictions) > 0 and self.meta_model is not None:
+                prediction = self.meta_model.predict(base_predictions)
+                predicted_return = prediction[0] if hasattr(prediction, '__len__') else prediction
             else:
-                break
+                predicted_return = 0.0  # Fallback
+
+            predicted_price = current_price * (1 + predicted_return)
+
+            forecast['forecasts'].append({
+                'day': day,
+                'predicted_return': float(predicted_return),
+                'predicted_price': float(predicted_price),
+                'confidence': self._estimate_confidence(np.array([predicted_return]))
+            })
+
+            current_price = predicted_price
 
         return forecast
 
@@ -1020,6 +1122,14 @@ def main():
         metrics = ensemble.train_full_ensemble()
         print(f"Training completed. Metrics: {metrics}")
 
+    elif args.backtest:
+        # Load models and run backtest
+        if ensemble.load_models():
+            results = ensemble.backtest_ensemble(args.start_date, args.end_date)
+            print(f"Backtest Results: {results}")
+        else:
+            print("Error: Models not found. Run --train first.")
+
     elif args.forecast:
         # Load models and generate forecast
         if ensemble.load_models():
@@ -1033,14 +1143,6 @@ def main():
         if ensemble.load_models():
             signal = ensemble.get_trading_signal()
             print(f"Signal: {signal}")
-        else:
-            print("Error: Models not found. Run --train first.")
-
-    elif args.backtest:
-        # Load models and run backtest
-        if ensemble.load_models():
-            results = ensemble.backtest_ensemble(args.start_date, args.end_date)
-            print(f"Backtest Results: {results}")
         else:
             print("Error: Models not found. Run --train first.")
 
