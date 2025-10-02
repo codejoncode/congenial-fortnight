@@ -40,13 +40,13 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # ML and statistical libraries
-from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor
-from sklearn.linear_model import Ridge
+from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, RandomForestRegressor
+from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler, RobustScaler
 from sklearn.model_selection import TimeSeriesSplit
-from sklearn.metrics import mean_absolute_error, mean_squared_error
-from lightgbm import LGBMRegressor
-from xgboost import XGBRegressor
+from sklearn.metrics import accuracy_score, classification_report
+from lightgbm import LGBMClassifier
+from xgboost import XGBClassifier
 
 # Time series and forecasting
 try:
@@ -183,7 +183,7 @@ class HybridPriceForecastingEnsemble:
                 'early_stopping': {
                     'enabled': True,
                     'rounds': 100,
-                    'metric': 'l2'
+                    'metric': 'binary_logloss'
                 }
             },
             'xgboost': {
@@ -207,7 +207,7 @@ class HybridPriceForecastingEnsemble:
                 'early_stopping': {
                     'enabled': True,
                     'rounds': 100,
-                    'metric': 'rmse'
+                    'metric': 'logloss'
                 }
             },
             'random_forest': {
@@ -262,7 +262,11 @@ class HybridPriceForecastingEnsemble:
                     'batch_size': 64,       # Larger batch for stability
                     'learning_rate': 0.001,
                     'l1_reg': 0.01,        # L1 regularization
-                    'l2_reg': 0.01         # L2 regularization
+                    'l2_reg': 0.01,        # L2 regularization
+                    'loss': 'binary_crossentropy',  # Binary classification
+                    'activation': 'sigmoid',  # Sigmoid for binary
+                    'optimizer': 'adam',
+                    'metrics': ['accuracy', 'binary_accuracy']
                 },
                 'early_stopping': {
                     'enabled': True,
@@ -292,7 +296,11 @@ class HybridPriceForecastingEnsemble:
                     'batch_size': 64,
                     'learning_rate': 0.001,
                     'l1_reg': 0.01,
-                    'l2_reg': 0.01
+                    'l2_reg': 0.01,
+                    'loss': 'binary_crossentropy',  # Binary classification
+                    'activation': 'sigmoid',  # Sigmoid for binary
+                    'optimizer': 'adam',
+                    'metrics': ['accuracy', 'binary_accuracy']
                 },
                 'early_stopping': {
                     'enabled': True,
@@ -424,22 +432,25 @@ class HybridPriceForecastingEnsemble:
             df[f'sma_{period}'] = df['Close'].rolling(period).mean()
             df[f'ema_{period}'] = df['Close'].ewm(span=period).mean()
 
-        # Volatility measures
+        # Volatility measures (remove ATR as it's candle size dependent)
         df['volatility_20'] = df['returns'].rolling(20).std()
         df['volatility_50'] = df['returns'].rolling(50).std()
-        df['atr_14'] = self._calculate_atr(df, 14)
+        # df['atr_14'] = self._calculate_atr(df, 14)  # Removed: candle size dependent
 
         # Momentum indicators
         df['rsi_14'] = self._calculate_rsi(df['Close'], 14)
         df['macd'], df['macd_signal'], df['macd_hist'] = self._calculate_macd(df['Close'])
 
-        # Trend indicators
-        df['adx_14'] = self._calculate_adx(df, 14)
+        # Add Holloway Algorithm features
+        df = self._calculate_holloway_features(df)
 
-        # Support/Resistance levels
-        df['pivot_point'] = (df['High'] + df['Low'] + df['Close']) / 3
-        df['r1'] = 2 * df['pivot_point'] - df['Low']
-        df['s1'] = 2 * df['pivot_point'] - df['High']
+        # Trend indicators (remove ADX as it uses TR which is candle size dependent)
+        # df['adx_14'] = self._calculate_adx(df, 14)  # Removed: depends on candle ranges
+
+        # Support/Resistance levels (remove pivot points as they use OHLC ranges)
+        # df['pivot_point'] = (df['High'] + df['Low'] + df['Close']) / 3  # Removed: candle size dependent
+        # df['r1'] = 2 * df['pivot_point'] - df['Low']  # Removed: candle size dependent
+        # df['s1'] = 2 * df['pivot_point'] - df['High']  # Removed: candle size dependent
 
         # Volume-based indicators (if volume exists)
         if 'Volume' in df.columns:
@@ -451,9 +462,9 @@ class HybridPriceForecastingEnsemble:
             df[f'close_lag_{lag}'] = df['Close'].shift(lag)
             df[f'returns_lag_{lag}'] = df['returns'].shift(lag)
 
-        # Target variables (future returns)
+        # Target variables (binary classification: 1 for bull, 0 for bear)
         for horizon in [1, 3, 5]:
-            df[f'target_{horizon}d'] = df['Close'].shift(-horizon) / df['Close'] - 1
+            df[f'target_{horizon}d'] = (df['Close'].shift(-horizon) > df['Open'].shift(-horizon)).astype(int)
 
         # Add fundamental features if available
         if not self.fundamental_data.empty:
@@ -522,34 +533,296 @@ class HybridPriceForecastingEnsemble:
         macd_hist = macd - macd_signal
         return macd, macd_signal, macd_hist
 
-    def _calculate_adx(self, df: pd.DataFrame, period: int) -> pd.Series:
-        """Calculate Average Directional Index."""
-        high = df['High']
-        low = df['Low']
-        close = df['Close']
+    def _calculate_holloway_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Calculate Holloway Algorithm features for trend analysis.
+        
+        Based on the PineScript indicator that counts bullish and bearish signals
+        across multiple moving averages and their relationships.
+        
+        Args:
+            df: DataFrame with OHLC data
+            
+        Returns:
+            DataFrame with Holloway features added
+        """
+        df = df.copy()
+        
+        # Define periods used in Holloway algorithm
+        periods = [5, 7, 10, 14, 20, 28, 50, 56, 100, 112, 200, 225]
+        
+        # Calculate EMAs and SMAs for all periods
+        emas = {}
+        smas = {}
+        
+        for period in periods:
+            emas[period] = df['Close'].ewm(span=period).mean()
+            smas[period] = df['Close'].rolling(period).mean()
+            
+            df[f'ema_{period}'] = emas[period]
+            df[f'sma_{period}'] = smas[period]
+        
+        # Initialize bull and bear signal arrays (using lists to simulate PineScript arrays)
+        bull_signals = []
+        bear_signals = []
+        
+        # Current status signals (close vs MAs)
+        for period in periods:
+            bull_signals.append(df['Close'] > emas[period])
+            bull_signals.append(df['Close'] > smas[period])
+            bear_signals.append(df['Close'] < emas[period])
+            bear_signals.append(df['Close'] < smas[period])
+        
+        # Moving averages in agreement (exponential)
+        ema_periods = [5, 7, 10, 14, 20, 28, 50, 56, 100, 112, 200, 225]
+        for i in range(len(ema_periods) - 1):
+            for j in range(i + 1, len(ema_periods)):
+                p1, p2 = ema_periods[i], ema_periods[j]
+                bull_signals.append(emas[p1] > emas[p2])
+                bear_signals.append(emas[p1] < emas[p2])
+        
+        # Moving averages in agreement (simple)
+        sma_periods = [5, 7, 10, 14, 20, 28, 50, 56, 100, 112, 200, 225]
+        for i in range(len(sma_periods) - 1):
+            for j in range(i + 1, len(sma_periods)):
+                p1, p2 = sma_periods[i], sma_periods[j]
+                bull_signals.append(smas[p1] > smas[p2])
+                bear_signals.append(smas[p1] < smas[p2])
+        
+        # EMA vs SMA relationships
+        for ep in ema_periods:
+            for sp in sma_periods:
+                bull_signals.append(emas[ep] > smas[sp])
+                bear_signals.append(emas[ep] < smas[sp])
+        
+        # Fresh crossovers and changes
+        for period in periods:
+            # Fresh above/below EMA
+            bull_signals.append((df['Close'] > emas[period]) & (df['Close'].shift(1) <= emas[period].shift(1)))
+            bear_signals.append((df['Close'] < emas[period]) & (df['Close'].shift(1) >= emas[period].shift(1)))
+            
+            # Fresh above/below SMA
+            bull_signals.append((df['Close'] > smas[period]) & (df['Close'].shift(1) <= smas[period].shift(1)))
+            bear_signals.append((df['Close'] < smas[period]) & (df['Close'].shift(1) >= smas[period].shift(1)))
+        
+        # EMA vs SMA crossovers
+        for ep in ema_periods[:5]:  # Limit to avoid too many features
+            for sp in sma_periods[:5]:
+                bull_signals.append((emas[ep] > smas[sp]) & (emas[ep].shift(1) <= smas[sp].shift(1)))
+                bear_signals.append((emas[ep] < smas[sp]) & (emas[ep].shift(1) >= smas[sp].shift(1)))
+        
+        # Count true signals
+        df['holloway_bull_count'] = sum(bull_signals)
+        df['holloway_bear_count'] = sum(bear_signals)
+        
+        # Moving averages of counts (similar to PineScript)
+        df['holloway_bull_avg'] = df['holloway_bull_count'].ewm(span=27).mean()
+        df['holloway_bear_avg'] = df['holloway_bear_count'].ewm(span=27).mean()
+        
+        # Additional Holloway-inspired features
+        # Count differences and ratios
+        df['holloway_count_diff'] = df['holloway_bull_count'] - df['holloway_bear_count']
+        df['holloway_count_ratio'] = df['holloway_bull_count'] / (df['holloway_bear_count'] + 1)  # Avoid division by zero
+        
+        # Rolling max/min of counts
+        df['holloway_bull_max_20'] = df['holloway_bull_count'].rolling(20).max()
+        df['holloway_bull_min_20'] = df['holloway_bull_count'].rolling(20).min()
+        df['holloway_bear_max_20'] = df['holloway_bear_count'].rolling(20).max()
+        df['holloway_bear_min_20'] = df['holloway_bear_count'].rolling(20).min()
+        
+        # Direction changes (when faster count crosses slower)
+        df['holloway_bull_cross_up'] = (df['holloway_bull_count'] > df['holloway_bull_avg']) & (df['holloway_bull_count'].shift(1) <= df['holloway_bull_avg'].shift(1))
+        df['holloway_bull_cross_down'] = (df['holloway_bull_count'] < df['holloway_bull_avg']) & (df['holloway_bull_count'].shift(1) >= df['holloway_bull_avg'].shift(1))
+        df['holloway_bear_cross_up'] = (df['holloway_bear_count'] > df['holloway_bear_avg']) & (df['holloway_bear_count'].shift(1) <= df['holloway_bear_avg'].shift(1))
+        df['holloway_bear_cross_down'] = (df['holloway_bear_count'] < df['holloway_bear_avg']) & (df['holloway_bear_count'].shift(1) >= df['holloway_bear_avg'].shift(1))
+        
+        # RSI integration (from PineScript)
+        df['rsi_14'] = self._calculate_rsi(df['Close'], 14)
+        
+        # RSI signals
+        df['rsi_overbought'] = df['rsi_14'] > 70
+        df['rsi_oversold'] = df['rsi_14'] < 30
+        df['rsi_bounce_resistance'] = (df['rsi_14'] >= 51) & (df['rsi_14'].shift(1) < 51)
+        df['rsi_bounce_support'] = (df['rsi_14'] <= 49) & (df['rsi_14'].shift(1) > 49)
+        
+        # Combined signals
+        df['holloway_bull_signal'] = df['holloway_bull_cross_up'] & ~df['rsi_overbought']
+        df['holloway_bear_signal'] = df['holloway_bear_cross_up'] & ~df['rsi_oversold']
+        
+        return df
 
-        # Calculate True Range
-        tr = pd.concat([
-            high - low,
-            (high - close.shift(1)).abs(),
-            (low - close.shift(1)).abs()
-        ], axis=1).max(axis=1)
+    def _engineer_candle_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Engineer features specifically for candle size prediction.
+        
+        This is separate from directional prediction to avoid interference.
+        Focuses on ATR, ADX, pivot points, and other candle size dependent features.
+        
+        Args:
+            df: DataFrame with OHLC data
+            
+        Returns:
+            DataFrame with candle size features
+        """
+        if df.empty:
+            return df
 
-        # Calculate Directional Movement
-        dm_plus = np.where((high - high.shift(1)) > (low.shift(1) - low),
-                          np.maximum(high - high.shift(1), 0), 0)
-        dm_minus = np.where((low.shift(1) - low) > (high - high.shift(1)),
-                           np.maximum(low.shift(1) - low, 0), 0)
+        df = df.copy()
 
-        # Calculate Directional Indicators
-        di_plus = 100 * (pd.Series(dm_plus).rolling(period).mean() / tr.rolling(period).mean())
-        di_minus = 100 * (pd.Series(dm_minus).rolling(period).mean() / tr.rolling(period).mean())
+        # Candle size features
+        df['candle_range'] = df['High'] - df['Low']
+        df['candle_body'] = abs(df['Close'] - df['Open'])
+        df['upper_wick'] = df['High'] - np.maximum(df['Open'], df['Close'])
+        df['lower_wick'] = np.minimum(df['Open'], df['Close']) - df['Low']
+        df['candle_body_ratio'] = df['candle_body'] / (df['candle_range'] + 0.0001)  # Avoid division by zero
+        
+        # ATR (Average True Range) - candle size dependent
+        df['atr_14'] = self._calculate_atr(df, 14)
+        df['atr_20'] = self._calculate_atr(df, 20)
+        df['atr_50'] = self._calculate_atr(df, 50)
+        
+        # ADX (Average Directional Index) - uses True Range
+        df['adx_14'] = self._calculate_adx(df, 14)
+        df['adx_20'] = self._calculate_adx(df, 20)
+        
+        # Pivot points - candle size dependent
+        df['pivot_point'] = (df['High'] + df['Low'] + df['Close']) / 3
+        df['r1'] = 2 * df['pivot_point'] - df['Low']
+        df['s1'] = 2 * df['pivot_point'] - df['High']
+        df['r2'] = df['pivot_point'] + (df['High'] - df['Low'])
+        df['s2'] = df['pivot_point'] - (df['High'] - df['Low'])
+        
+        # Rolling statistics of candle sizes
+        for period in [5, 10, 20, 50]:
+            df[f'candle_range_sma_{period}'] = df['candle_range'].rolling(period).mean()
+            df[f'candle_body_sma_{period}'] = df['candle_body'].rolling(period).mean()
+            df[f'candle_range_std_{period}'] = df['candle_range'].rolling(period).std()
+            df[f'candle_body_std_{period}'] = df['candle_body'].rolling(period).std()
+        
+        # Volatility ratios
+        df['atr_ratio_14'] = df['atr_14'] / df['Close']
+        df['atr_ratio_20'] = df['atr_20'] / df['Close']
+        
+        # Candle type classification
+        df['is_doji'] = df['candle_body'] / (df['candle_range'] + 0.0001) < 0.1
+        df['is_marubozu'] = df['candle_body'] / (df['candle_range'] + 0.0001) > 0.8
+        df['is_hammer'] = (df['lower_wick'] > 2 * df['candle_body']) & (df['upper_wick'] < df['candle_body'])
+        df['is_shooting_star'] = (df['upper_wick'] > 2 * df['candle_body']) & (df['lower_wick'] < df['candle_body'])
+        
+        # Target for candle size prediction (next candle's range)
+        df['target_candle_range_1d'] = df['candle_range'].shift(-1)
+        df['target_candle_body_1d'] = df['candle_body'].shift(-1)
+        
+        # Clean up
+        df = df.replace([np.inf, -np.inf], np.nan)
+        df = df.fillna(method='ffill').fillna(method='bfill').fillna(0)
+        
+        return df
 
-        # Calculate ADX
-        dx = 100 * abs(di_plus - di_minus) / (di_plus + di_minus)
-        adx = dx.rolling(period).mean()
-
-        return adx
+    def train_candle_size_model(self) -> Dict[str, float]:
+        """
+        Train a separate model for candle size prediction.
+        
+        This is independent of the directional prediction model.
+        """
+        logger.info("Training candle size prediction model")
+        
+        # Engineer candle features
+        candle_df = self._engineer_candle_features(self.price_data)
+        
+        if len(candle_df) < 100:
+            raise ValueError("Insufficient data for candle size training")
+        
+        # Define candle feature columns (exclude directional features)
+        candle_feature_cols = [
+            col for col in candle_df.columns 
+            if col.startswith(('candle_', 'atr_', 'adx_', 'pivot_', 'r1', 's1', 'r2', 's2'))
+            and not col.startswith('target_')
+        ]
+        
+        # Add some basic price features that don't depend on direction
+        basic_cols = ['Close', 'returns', 'log_returns', 'volatility_20', 'volatility_50']
+        candle_feature_cols.extend([col for col in basic_cols if col in candle_df.columns])
+        
+        # Prepare data
+        X = candle_df[candle_feature_cols].values
+        y_range = candle_df['target_candle_range_1d'].values
+        y_body = candle_df['target_candle_body_1d'].values
+        
+        # Remove NaN targets
+        valid_idx = ~np.isnan(y_range) & ~np.isnan(y_body)
+        X = X[valid_idx]
+        y_range = y_range[valid_idx]
+        y_body = y_body[valid_idx]
+        
+        if len(X) < 50:
+            raise ValueError("Insufficient valid data for candle size training")
+        
+        # Split data
+        split_idx = int(len(X) * 0.8)
+        X_train, X_test = X[:split_idx], X[split_idx:]
+        y_range_train, y_range_test = y_range[:split_idx], y_range[split_idx:]
+        y_body_train, y_body_test = y_body[:split_idx], y_body[split_idx:]
+        
+        # Scale features
+        self.scalers['candle_features'] = StandardScaler()
+        X_train_scaled = self.scalers['candle_features'].fit_transform(X_train)
+        X_test_scaled = self.scalers['candle_features'].transform(X_test)
+        
+        # Scale targets
+        self.scalers['candle_range_target'] = StandardScaler()
+        self.scalers['candle_body_target'] = StandardScaler()
+        
+        y_range_train_scaled = self.scalers['candle_range_target'].fit_transform(y_range_train.reshape(-1, 1)).ravel()
+        y_body_train_scaled = self.scalers['candle_body_target'].fit_transform(y_body_train.reshape(-1, 1)).ravel()
+        
+        # Train models for range and body separately
+        candle_models = {}
+        
+        # Range prediction model
+        range_model = RandomForestRegressor(
+            n_estimators=200,
+            max_depth=10,
+            random_state=42,
+            n_jobs=-1
+        )
+        range_model.fit(X_train_scaled, y_range_train_scaled)
+        candle_models['candle_range_model'] = range_model
+        
+        # Body prediction model
+        body_model = RandomForestRegressor(
+            n_estimators=200,
+            max_depth=10,
+            random_state=42,
+            n_jobs=-1
+        )
+        body_model.fit(X_train_scaled, y_body_train_scaled)
+        candle_models['candle_body_model'] = body_model
+        
+        # Save candle models
+        self.models.update(candle_models)
+        self._save_models()
+        
+        # Calculate metrics
+        y_range_pred_scaled = range_model.predict(X_test_scaled)
+        y_body_pred_scaled = body_model.predict(X_test_scaled)
+        
+        y_range_pred = self.scalers['candle_range_target'].inverse_transform(y_range_pred_scaled.reshape(-1, 1)).ravel()
+        y_body_pred = self.scalers['candle_body_target'].inverse_transform(y_body_pred_scaled.reshape(-1, 1)).ravel()
+        
+        range_mae = np.mean(np.abs(y_range_pred - y_range_test))
+        body_mae = np.mean(np.abs(y_body_pred - y_body_test))
+        
+        metrics = {
+            'candle_range_mae': float(range_mae),
+            'candle_body_mae': float(body_mae),
+            'candle_range_mape': float(np.mean(np.abs((y_range_pred - y_range_test) / (y_range_test + 1e-8))) * 100),
+            'candle_body_mape': float(np.mean(np.abs((y_body_pred - y_body_test) / (y_body_test + 1e-8))) * 100)
+        }
+        
+        logger.info(f"Candle size model training completed. Range MAE: {range_mae:.6f}, Body MAE: {body_mae:.6f}")
+        
+        return metrics
 
     def _train_statistical_models(self, train_df: pd.DataFrame) -> Dict:
         """Train statistical forecasting models."""
@@ -608,21 +881,35 @@ class HybridPriceForecastingEnsemble:
             try:
                 logger.info("Training LightGBM model with early stopping")
                 config = self.model_configs['lightgbm']
-                model = LGBMRegressor(**config['params'])
+                model = LGBMClassifier(**config['params'])
                 
                 if config.get('early_stopping', {}).get('enabled', False):
+                    rounds = config['early_stopping']['rounds']
                     eval_set = [(X_val_split, y_val_split)]
-                    model.fit(
-                        X_train_split, y_train_split,
-                        eval_set=eval_set,
-                        eval_metric=config['early_stopping']['metric'],
-                        callbacks=[
-                            LGBMRegressor().early_stopping(
-                                stopping_rounds=config['early_stopping']['rounds'],
+                    # Try the common sklearn-wrapper argument first, then fallback to
+                    # lightgbm callback API if the sklearn wrapper/version doesn't support it.
+                    try:
+                        model.fit(
+                            X_train_split, y_train_split,
+                            eval_set=eval_set,
+                            eval_metric=config['early_stopping'].get('metric', None),
+                            early_stopping_rounds=rounds,
+                            verbose=False
+                        )
+                    except TypeError as e:
+                        try:
+                            import lightgbm as lgb
+                            cb = [lgb.callback.early_stopping(rounds, verbose=False)]
+                            model.fit(
+                                X_train_split, y_train_split,
+                                eval_set=eval_set,
+                                eval_metric=config['early_stopping'].get('metric', None),
+                                callbacks=cb,
                                 verbose=False
                             )
-                        ]
-                    )
+                        except Exception as e2:
+                            logger.warning(f"LightGBM early stopping not available: {e2}. Training without early stopping.")
+                            model.fit(X_train, y_train)
                 else:
                     model.fit(X_train, y_train)
                     
@@ -636,15 +923,34 @@ class HybridPriceForecastingEnsemble:
             try:
                 logger.info("Training XGBoost model with early stopping")
                 config = self.model_configs['xgboost']
-                model = XGBRegressor(**config['params'])
+                model = XGBClassifier(**config['params'])
                 
                 if config.get('early_stopping', {}).get('enabled', False):
-                    model.fit(
-                        X_train_split, y_train_split,
-                        eval_set=[(X_val_split, y_val_split)],
-                        early_stopping_rounds=config['early_stopping']['rounds'],
-                        verbose=False
-                    )
+                    rounds = config['early_stopping']['rounds']
+                    try:
+                        model.fit(
+                            X_train_split, y_train_split,
+                            eval_set=[(X_val_split, y_val_split)],
+                            eval_metric=config['early_stopping'].get('metric', 'rmse'),
+                            early_stopping_rounds=rounds,
+                            verbose=False
+                        )
+                    except TypeError:
+                        # Some xgboost versions expect callbacks or don't accept the
+                        # early_stopping_rounds kwarg on the sklearn wrapper. Try callback API,
+                        # otherwise fallback to basic fit.
+                        try:
+                            import xgboost as xgb
+                            cb = [xgb.callback.EarlyStopping(rounds)]
+                            model.fit(
+                                X_train_split, y_train_split,
+                                eval_set=[(X_val_split, y_val_split)],
+                                callbacks=cb,
+                                verbose=False
+                            )
+                        except Exception as e:
+                            logger.warning(f"XGBoost early stopping not available: {e}. Training without early stopping.")
+                            model.fit(X_train, y_train)
                 else:
                     model.fit(X_train, y_train)
                     
@@ -658,7 +964,7 @@ class HybridPriceForecastingEnsemble:
             try:
                 logger.info("Training Random Forest model with regularization")
                 config = self.model_configs['random_forest']
-                model = RandomForestRegressor(**config['params'])
+                model = RandomForestClassifier(**config['params'])
                 model.fit(X_train, y_train)
                 
                 # Check OOB score if available
@@ -680,7 +986,7 @@ class HybridPriceForecastingEnsemble:
             try:
                 logger.info("Training Extra Trees model with regularization")
                 config = self.model_configs['extra_trees']
-                model = ExtraTreesRegressor(**config['params'])
+                model = ExtraTreesClassifier(**config['params'])
                 model.fit(X_train, y_train)
                 
                 # Evaluate performance for early termination
@@ -745,13 +1051,13 @@ class HybridPriceForecastingEnsemble:
                           )),
                     Dropout(0.3),
                     Dense(32, activation='relu'),
-                    Dense(1)
+                    Dense(1, activation='sigmoid')  # Binary classification output
                 ])
 
                 model.compile(
                     optimizer=Adam(learning_rate=params['learning_rate']),
-                    loss='mse',
-                    metrics=['mae']
+                    loss=params.get('loss', 'binary_crossentropy'),
+                    metrics=params.get('metrics', ['accuracy', 'binary_accuracy'])
                 )
 
                 # Setup callbacks
@@ -826,13 +1132,13 @@ class HybridPriceForecastingEnsemble:
                           )),
                     Dropout(0.3),
                     Dense(32, activation='relu'),
-                    Dense(1)
+                    Dense(1, activation='sigmoid')  # Binary classification output
                 ])
 
                 model.compile(
                     optimizer=Adam(learning_rate=params['learning_rate']),
-                    loss='mse',
-                    metrics=['mae']
+                    loss=params.get('loss', 'binary_crossentropy'),
+                    metrics=params.get('metrics', ['accuracy', 'binary_accuracy'])
                 )
 
                 # Setup callbacks
@@ -884,7 +1190,7 @@ class HybridPriceForecastingEnsemble:
         """Train meta-model for ensemble stacking."""
         try:
             logger.info("Training meta-model for ensemble stacking")
-            self.meta_model = Ridge(alpha=0.1, random_state=42)
+            self.meta_model = LogisticRegression(random_state=42, max_iter=1000)
             self.meta_model.fit(predictions, y_true)
         except Exception as e:
             logger.error(f"Error training meta-model: {e}")
@@ -955,12 +1261,12 @@ class HybridPriceForecastingEnsemble:
 
         metrics = {}
         if len(ensemble_predictions) > 0:
-            metrics['mae'] = mean_absolute_error(y_val, ensemble_predictions)
-            metrics['rmse'] = np.sqrt(mean_squared_error(y_val, ensemble_predictions))
-            metrics['directional_accuracy'] = np.mean((ensemble_predictions > 0) == (y_val > 0))
+            # For binary classification, threshold predictions at 0.5
+            binary_predictions = (ensemble_predictions > 0.5).astype(int)
+            metrics['accuracy'] = accuracy_score(y_val, binary_predictions)
+            metrics['directional_accuracy'] = metrics['accuracy']  # Same for binary classification
 
-            logger.info(f"Ensemble validation metrics: MAE={metrics['mae']:.6f}, "
-                       f"RMSE={metrics['rmse']:.6f}, "
+            logger.info(f"Ensemble validation metrics: Accuracy={metrics['accuracy']:.6f}, "
                        f"Directional Accuracy={metrics['directional_accuracy']:.3f}")
 
         # Save models
@@ -1287,9 +1593,8 @@ class HybridPriceForecastingEnsemble:
         # Calculate metrics
         results = {
             'total_trades': len(predictions),
-            'mae': float(mean_absolute_error(actuals, predictions)),
-            'rmse': float(np.sqrt(mean_squared_error(actuals, predictions))),
-            'directional_accuracy': float(np.mean((predictions > 0) == (actuals > 0))),
+            'accuracy': float(accuracy_score(actuals, (predictions > 0.5).astype(int))),
+            'directional_accuracy': float(accuracy_score(actuals, (predictions > 0.5).astype(int))),  # Same for binary
             'profit_factor': self._calculate_profit_factor(predictions, actuals),
             'max_drawdown': self._calculate_max_drawdown(predictions, actuals),
             'sharpe_ratio': self._calculate_sharpe_ratio(predictions, actuals)
