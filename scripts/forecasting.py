@@ -45,6 +45,11 @@ try:
 except ImportError:  # pragma: no cover - support standalone execution
     from fundamental_features import FundamentalFeatureEngineer
 
+try:
+    from .holloway_algorithm import CompleteHollowayAlgorithm
+except ImportError:  # pragma: no cover - support standalone execution
+    from holloway_algorithm import CompleteHollowayAlgorithm
+
 # ML and statistical libraries
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
@@ -147,6 +152,7 @@ class HybridPriceForecastingEnsemble:
 
         # Feature engineering
         self.feature_columns = []
+        self._holloway_algo = CompleteHollowayAlgorithm(str(self.data_dir))
 
     def _get_model_configs(self) -> Dict:
         """Get configuration for all base models."""
@@ -987,14 +993,97 @@ class HybridPriceForecastingEnsemble:
             return df
 
         df = df.copy()
+        price_col = 'Close' if 'Close' in df.columns else 'close'
+
+        if price_col not in df.columns:
+            logger.warning("Missing price column for Holloway features.")
+            return df
+
+        try:
+            df = self._holloway_algo.calculate_complete_holloway_algorithm(df, price_col=price_col)
+        except Exception:  # pragma: no cover - defensive fallback
+            logger.exception("Complete Holloway Algorithm failed; falling back to legacy implementation.")
+            return self._calculate_holloway_features_legacy(df, price_col)
+
+        df['holloway_bull_count'] = df['bull_ma_count'].astype(float)
+        df['holloway_bear_count'] = df['bear_ma_count'].astype(float)
+        df['holloway_bull_avg'] = df['bull_ma_count_average'].astype(float)
+        df['holloway_bear_avg'] = df['bear_ma_count_average'].astype(float)
+        df['holloway_bull_cross_up'] = df['bull_rise_crossover']
+        df['holloway_bull_cross_down'] = df['bull_rise_crossunder']
+        df['holloway_bear_cross_up'] = df['bear_rise_crossover']
+        df['holloway_bear_cross_down'] = df['bear_rise_crossunder']
+        df['holloway_bull_signal_raw'] = df['bull_rise_signal']
+        df['holloway_bear_signal_raw'] = df['bear_rise_signal']
+        df['holloway_days_bull_over_avg'] = df['days_bull_count_over_average']
+        df['holloway_days_bull_under_avg'] = df['days_bull_count_under_average']
+        df['holloway_days_bear_over_avg'] = df['days_bear_count_over_average']
+        df['holloway_days_bear_under_avg'] = df['days_bear_count_under_average']
+
+        df['holloway_count_diff'] = df['holloway_bull_count'] - df['holloway_bear_count']
+        df['holloway_count_ratio'] = df['holloway_bull_count'] / (df['holloway_bear_count'] + 1)
+
+        df['holloway_bull_max_20'] = df['holloway_bull_count'].rolling(20, min_periods=5).max()
+        df['holloway_bull_min_20'] = df['holloway_bull_count'].rolling(20, min_periods=5).min()
+        df['holloway_bear_max_20'] = df['holloway_bear_count'].rolling(20, min_periods=5).max()
+        df['holloway_bear_min_20'] = df['holloway_bear_count'].rolling(20, min_periods=5).min()
+
+        support_window = 40
+        df['holloway_bull_support'] = df['holloway_bull_count'].rolling(support_window, min_periods=10).quantile(0.2)
+        df['holloway_bull_resistance'] = df['holloway_bull_count'].rolling(support_window, min_periods=10).quantile(0.8)
+        df['holloway_bear_support'] = df['holloway_bear_count'].rolling(support_window, min_periods=10).quantile(0.2)
+        df['holloway_bear_resistance'] = df['holloway_bear_count'].rolling(support_window, min_periods=10).quantile(0.8)
+
+        df['holloway_bull_dist_support'] = df['holloway_bull_count'] - df['holloway_bull_support']
+        df['holloway_bull_dist_resistance'] = df['holloway_bull_resistance'] - df['holloway_bull_count']
+        df['holloway_bear_dist_support'] = df['holloway_bear_count'] - df['holloway_bear_support']
+        df['holloway_bear_dist_resistance'] = df['holloway_bear_resistance'] - df['holloway_bear_count']
+
+        df['holloway_bull_pct_of_range'] = df['holloway_bull_dist_support'] / (
+            (df['holloway_bull_resistance'] - df['holloway_bull_support']).replace(0, np.nan)
+        )
+        df['holloway_bear_pct_of_range'] = df['holloway_bear_dist_support'] / (
+            (df['holloway_bear_resistance'] - df['holloway_bear_support']).replace(0, np.nan)
+        )
+
+        for lookback in [3, 5, 10]:
+            df[f'holloway_bull_momentum_{lookback}'] = df['holloway_bull_count'].diff(lookback)
+            df[f'holloway_bear_momentum_{lookback}'] = df['holloway_bear_count'].diff(lookback)
+
+        df['holloway_bull_zscore_40'] = (
+            df['holloway_bull_count'] - df['holloway_bull_count'].rolling(support_window, min_periods=10).mean()
+        ) / (df['holloway_bull_count'].rolling(support_window, min_periods=10).std() + 1e-6)
+        df['holloway_bear_zscore_40'] = (
+            df['holloway_bear_count'] - df['holloway_bear_count'].rolling(support_window, min_periods=10).mean()
+        ) / (df['holloway_bear_count'].rolling(support_window, min_periods=10).std() + 1e-6)
+
+        df['rsi_14'] = self._calculate_rsi(df[price_col], 14)
+        df['rsi_overbought'] = df['rsi_14'] > 70
+        df['rsi_oversold'] = df['rsi_14'] < 30
+        df['rsi_overbought_70'] = df['rsi_overbought']
+        df['rsi_oversold_30'] = df['rsi_oversold']
+        df['rsi_bounce_resistance'] = (df['rsi_14'] >= 51) & (df['rsi_14'].shift(1) < 51)
+        df['rsi_bounce_support'] = (df['rsi_14'] <= 49) & (df['rsi_14'].shift(1) > 49)
+
+        df['holloway_bull_signal'] = df['holloway_bull_cross_up'] & ~df['rsi_overbought']
+        df['holloway_bear_signal'] = df['holloway_bear_cross_up'] & ~df['rsi_oversold']
+
+        return df
+
+    def _calculate_holloway_features_legacy(self, df: pd.DataFrame, price_col: str) -> pd.DataFrame:
+        """Legacy Holloway computation used as a safety fallback."""
+        if df.empty or price_col not in df.columns:
+            return df
+
+        df = df.copy()
 
         periods = [5, 7, 10, 14, 20, 28, 50, 56, 100, 112, 200, 225]
         emas: Dict[int, pd.Series] = {}
         smas: Dict[int, pd.Series] = {}
 
         for period in periods:
-            emas[period] = df['Close'].ewm(span=period, min_periods=max(3, period // 2)).mean()
-            smas[period] = df['Close'].rolling(period, min_periods=max(3, period // 2)).mean()
+            emas[period] = df[price_col].ewm(span=period, min_periods=max(3, period // 2)).mean()
+            smas[period] = df[price_col].rolling(period, min_periods=max(3, period // 2)).mean()
 
             df[f'ema_{period}'] = emas[period]
             df[f'sma_{period}'] = smas[period]
@@ -1003,10 +1092,10 @@ class HybridPriceForecastingEnsemble:
         bear_signals: List[pd.Series] = []
 
         for period in periods:
-            bull_signals.append(df['Close'] > emas[period])
-            bull_signals.append(df['Close'] > smas[period])
-            bear_signals.append(df['Close'] < emas[period])
-            bear_signals.append(df['Close'] < smas[period])
+            bull_signals.append(df[price_col] > emas[period])
+            bull_signals.append(df[price_col] > smas[period])
+            bear_signals.append(df[price_col] < emas[period])
+            bear_signals.append(df[price_col] < smas[period])
 
         for i in range(len(periods) - 1):
             for j in range(i + 1, len(periods)):
@@ -1022,10 +1111,10 @@ class HybridPriceForecastingEnsemble:
                 bear_signals.append(emas[ep] < smas[sp])
 
         for period in periods:
-            bull_signals.append((df['Close'] > emas[period]) & (df['Close'].shift(1) <= emas[period].shift(1)))
-            bear_signals.append((df['Close'] < emas[period]) & (df['Close'].shift(1) >= emas[period].shift(1)))
-            bull_signals.append((df['Close'] > smas[period]) & (df['Close'].shift(1) <= smas[period].shift(1)))
-            bear_signals.append((df['Close'] < smas[period]) & (df['Close'].shift(1) >= smas[period].shift(1)))
+            bull_signals.append((df[price_col] > emas[period]) & (df[price_col].shift(1) <= emas[period].shift(1)))
+            bear_signals.append((df[price_col] < emas[period]) & (df[price_col].shift(1) >= emas[period].shift(1)))
+            bull_signals.append((df[price_col] > smas[period]) & (df[price_col].shift(1) <= smas[period].shift(1)))
+            bear_signals.append((df[price_col] < smas[period]) & (df[price_col].shift(1) >= smas[period].shift(1)))
 
         for ep in periods[:5]:
             for sp in periods[:5]:
@@ -1089,7 +1178,7 @@ class HybridPriceForecastingEnsemble:
         )
 
         if 'rsi_14' not in df.columns:
-            df['rsi_14'] = self._calculate_rsi(df['Close'], 14)
+            df['rsi_14'] = self._calculate_rsi(df[price_col], 14)
 
         df['rsi_overbought'] = df['rsi_14'] > 70
         df['rsi_oversold'] = df['rsi_14'] < 30
