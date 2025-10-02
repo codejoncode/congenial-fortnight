@@ -41,6 +41,7 @@ A modern React application for displaying forex trading signals with professiona
 - [x] Backtesting results display
 - [x] Error handling for API failures
 - [x] Loading states and user feedback
+- [x] Holloway algorithm parity fields (weighted counts, critical level flags) surfaced in UI payloads
 
 ### 🎯 **TradingView Integration Options**
 - [x] react-tradingview-widget setup (optional)

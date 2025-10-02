@@ -1,513 +1,1013 @@
-"""Complete Holloway Algorithm translated from PineScript.
+"""Complete Holloway Algorithm - exact PineScript translation.
 
-This module provides a production-ready implementation of the Holloway Algorithm
-with all 400+ bull/bear condition features, signal tracking, and summary
-utilities. The implementation follows the PineScript reference closely while
-remaining idiomatic Python.
+This module provides a direct port of the better-Holloway-Algorithm.txt
+PineScript indicator into Python. It includes weighted historical scoring,
+multi-average smoothing (SMA/EMA/HMA/RMA), trend diagnostics, critical level
+tracking, and double-failure pattern detection.
 """
 
 from __future__ import annotations
 
 import logging
 import os
-from typing import Dict, Tuple
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
+import warnings
+
+warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
 
 
+def _weighted_average(values: np.ndarray) -> float:
+    """Weighted moving average helper used for HMA calculations."""
+    if values.size == 0:
+        return np.nan
+    mask = ~np.isnan(values)
+    if not mask.any():
+        return np.nan
+    filtered = values[mask]
+    weights = np.arange(1, filtered.size + 1, dtype=float)
+    return np.average(filtered, weights=weights)
+
+
 class CompleteHollowayAlgorithm:
-    """Full Holloway Algorithm implementation with all PineScript features."""
+    """Exact PineScript translation of the Holloway Algorithm."""
 
     def __init__(self, data_dir: str = "data") -> None:
-        """Create a new algorithm instance.
-
-        Args:
-            data_dir: Directory where derived Holloway CSV exports are stored.
-        """
         self.data_dir = data_dir
         self.ensure_data_dir()
 
-        # All moving average periods from PineScript
-        self.ma_periods = [5, 7, 10, 14, 20, 28, 50, 56, 100, 112, 200, 225]
+        # Weighted scoring ladder from PineScript implementation
+        self.historical_weights = [3.0, 2.7, 2.4, 2.1, 1.8, 1.5, 1.2, 0.9, 0.6]
 
-        # Initialize tracking variables
-        self.reset_counts()
+        # Critical level thresholds for regime monitoring
+        self.resistance_level = 95.0
+        self.support_level = 12.0
 
-    # ------------------------------------------------------------------
-    # Core setup helpers
-    # ------------------------------------------------------------------
+        print("🎯 Complete Holloway Algorithm initialized with:")
+        print(f"   📊 Historical weighting: {self.historical_weights}")
+        print(f"   📈 Resistance level: {self.resistance_level}")
+        print(f"   📉 Support level: {self.support_level}")
+
     def ensure_data_dir(self) -> None:
-        """Create the data directory if it doesn't already exist."""
+        """Create the data directory if it does not yet exist."""
         if self.data_dir and not os.path.exists(self.data_dir):
             os.makedirs(self.data_dir)
-            logger.info("Created Holloway data directory: %s", self.data_dir)
+            print(f"✅ Created data directory: {self.data_dir}")
 
-    def reset_counts(self) -> None:
-        """Reset all internal counting variables (for future extensions)."""
-        self.days_bull_count_over_average = 0
-        self.days_bull_count_under_average = 0
-        self.days_bear_count_over_average = 0
-        self.days_bear_count_under_average = 0
-
-    # ------------------------------------------------------------------
-    # Moving average calculations
-    # ------------------------------------------------------------------
-    def calculate_all_moving_averages(
-        self, df: pd.DataFrame, price_col: str = "close"
-    ) -> pd.DataFrame:
-        """Calculate all 24 moving averages (12 EMA + 12 SMA).
-
-        Args:
-            df: Price dataframe with at least the price column.
-            price_col: Column name to use for price calculations.
-
-        Returns:
-            DataFrame with all EMA/SMA columns appended.
-        """
+    def calculate_parabolic_sar(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Calculate Parabolic SAR exactly as defined in PineScript."""
         df = df.copy()
+        if df.empty:
+            return df
 
-        for period in self.ma_periods:
-            df[f"ema_{period}"] = df[price_col].ewm(span=period, adjust=False).mean()
-            df[f"sma_{period}"] = df[price_col].rolling(window=period).mean()
+        start = 0.02
+        inc = 0.02
+        max_af = 0.2  # PineScript reference uses 0.2
 
+        sar = np.zeros(len(df))
+        ep = np.zeros(len(df))
+        af = np.zeros(len(df))
+        direction = np.ones(len(df))
+
+        sar[0] = df["low"].iat[0]
+        ep[0] = df["high"].iat[0]
+        af[0] = start
+        direction[0] = 1
+
+        for i in range(1, len(df)):
+            high = df["high"].iat[i]
+            low = df["low"].iat[i]
+            prev_high = df["high"].iat[i - 1]
+            prev_low = df["low"].iat[i - 1]
+
+            prev_sar = sar[i - 1]
+            prev_ep = ep[i - 1]
+            prev_af = af[i - 1]
+            prev_dir = direction[i - 1]
+
+            if prev_dir == 1:
+                new_sar = prev_sar + prev_af * (prev_ep - prev_sar)
+                if low <= new_sar:
+                    direction[i] = -1
+                    sar[i] = max(high, prev_ep)
+                    ep[i] = low
+                    af[i] = start
+                else:
+                    direction[i] = 1
+                    sar[i] = max(new_sar, prev_low, low)
+                    if high > prev_ep:
+                        ep[i] = high
+                        af[i] = min(max_af, prev_af + inc)
+                    else:
+                        ep[i] = prev_ep
+                        af[i] = prev_af
+            else:
+                new_sar = prev_sar - prev_af * (prev_sar - prev_ep)
+                if high >= new_sar:
+                    direction[i] = 1
+                    sar[i] = min(low, prev_ep)
+                    ep[i] = high
+                    af[i] = start
+                else:
+                    direction[i] = -1
+                    sar[i] = min(new_sar, prev_high, high)
+                    if low < prev_ep:
+                        ep[i] = low
+                        af[i] = min(max_af, prev_af + inc)
+                    else:
+                        ep[i] = prev_ep
+                        af[i] = prev_af
+
+        df["sar"] = sar
+        df["bull_sar"] = df["close"] > df["sar"]
+        df["bear_sar"] = df["close"] < df["sar"]
         return df
 
-    # ------------------------------------------------------------------
-    # Bull/Bear condition calculation
-    # ------------------------------------------------------------------
-    def calculate_bull_bear_conditions(
-        self, df: pd.DataFrame, price_col: str = "close"
-    ) -> pd.DataFrame:
-        """Recreate the full PineScript bull/bear condition arrays."""
+    def calculate_pattern_signals(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Generate pattern-based signals (engulfing, inside bars, SAR touches)."""
         df = df.copy()
-        close_price = df[price_col]
+        if df.empty:
+            return df
 
-        bull_conditions = []
-        bear_conditions = []
-        max_period = max(self.ma_periods)
+        df["key_sma"] = df["close"].rolling(window=7, min_periods=1).mean()
+        df["sma22"] = df["close"].rolling(window=22, min_periods=1).mean()
+        df["sma3"] = df["close"].rolling(window=3, min_periods=1).mean()
 
-        for idx in range(len(df)):
-            bull_count = 0
-            bear_count = 0
-            current_close = close_price.iloc[idx]
+        df["engulf"] = (df["high"] > df["high"].shift(1)) & (df["low"] < df["low"].shift(1))
+        df["inside"] = (df["high"].shift(1) > df["high"]) & (df["low"].shift(1) < df["low"])
 
-            if idx < max_period:
-                bull_conditions.append(np.nan)
-                bear_conditions.append(np.nan)
+        df["confirmed_bull_engulf"] = df["engulf"].shift(1) & (df["high"] > df["high"].shift(1))
+        df["confirmed_bear_engulf"] = df["engulf"].shift(1) & (df["low"] < df["low"].shift(1))
+        df["confirmed_bull_inside"] = df["inside"].shift(1) & (df["high"] > df["high"].shift(2))
+        df["confirmed_bear_inside"] = df["inside"].shift(1) & (df["low"] < df["low"].shift(2))
+
+        df["ema50"] = df["close"].ewm(span=50, adjust=False).mean()
+
+        df["bullish_signal"] = (
+            (df["bull_sar"] & ~df["bull_sar"].shift(1))
+            & (
+                df["inside"] | df["inside"].shift(1) | df["inside"].shift(2)
+                | df["engulf"] | df["engulf"].shift(1) | df["engulf"].shift(2)
+            )
+            & (df["high"] > df["ema50"])
+        )
+        df["bearish_signal"] = (
+            (df["bear_sar"] & ~df["bear_sar"].shift(1))
+            & (
+                df["inside"] | df["inside"].shift(1) | df["inside"].shift(2)
+                | df["engulf"] | df["engulf"].shift(1) | df["engulf"].shift(2)
+            )
+            & (df["low"] < df["ema50"])
+        )
+
+        consecutive_min = 2
+        consecutive_max = 10
+
+        bars_above = np.zeros(len(df), dtype=int)
+        bars_below = np.zeros(len(df), dtype=int)
+        close = df["close"].to_numpy()
+        key_sma = df["key_sma"].to_numpy()
+
+        for i in range(1, len(df)):
+            if np.isnan(close[i]) or np.isnan(key_sma[i]):
                 continue
 
-            # PART 1: Price relative to each MA
-            for period in self.ma_periods:
-                ema_val = df[f"ema_{period}"].iloc[idx]
-                sma_val = df[f"sma_{period}"].iloc[idx]
+            prev_close = close[i - 1]
+            prev_key = key_sma[i - 1]
 
-                if pd.notna(ema_val):
-                    bull_count += current_close > ema_val
-                    bear_count += current_close < ema_val
-                if pd.notna(sma_val):
-                    bull_count += current_close > sma_val
-                    bear_count += current_close < sma_val
+            if (
+                not np.isnan(prev_close)
+                and not np.isnan(prev_key)
+                and prev_close > prev_key
+                and close[i] > key_sma[i]
+            ):
+                bars_above[i] = bars_above[i - 1] + 1
+            elif close[i] > key_sma[i]:
+                bars_above[i] = 1
+            else:
+                bars_above[i] = 0
 
-            # PART 2: EMA alignment
-            ema_pairs = [
-                (5, 10), (5, 20), (5, 50), (5, 100), (5, 200),
-                (7, 14), (7, 28), (7, 56), (7, 112), (7, 225),
-                (10, 20), (10, 50), (10, 100), (10, 200),
-                (14, 28), (14, 56), (14, 112), (14, 225),
-                (20, 50), (20, 100), (20, 200),
-                (28, 56), (28, 112), (28, 225),
-                (50, 100), (50, 200),
-                (56, 112), (56, 225),
-                (100, 200), (112, 225),
-            ]
+            if (
+                not np.isnan(prev_close)
+                and not np.isnan(prev_key)
+                and prev_close < prev_key
+                and close[i] < key_sma[i]
+            ):
+                bars_below[i] = bars_below[i - 1] + 1
+            elif close[i] < key_sma[i]:
+                bars_below[i] = 1
+            else:
+                bars_below[i] = 0
 
-            for shorter, longer in ema_pairs:
-                shorter_ema = df[f"ema_{shorter}"].iloc[idx]
-                longer_ema = df[f"ema_{longer}"].iloc[idx]
-                if pd.notna(shorter_ema) and pd.notna(longer_ema):
-                    bull_count += shorter_ema > longer_ema
-                    bear_count += shorter_ema < longer_ema
+        df["bars_above_key_sma"] = bars_above
+        df["bars_below_key_sma"] = bars_below
 
-            # PART 3: SMA alignment (same pairs)
-            for shorter, longer in ema_pairs:
-                shorter_sma = df[f"sma_{shorter}"].iloc[idx]
-                longer_sma = df[f"sma_{longer}"].iloc[idx]
-                if pd.notna(shorter_sma) and pd.notna(longer_sma):
-                    bull_count += shorter_sma > longer_sma
-                    bear_count += shorter_sma < longer_sma
+        df["bull_close_indicator"] = (
+            (df["bars_above_key_sma"] >= consecutive_min)
+            & (df["bars_above_key_sma"] < consecutive_max)
+        )
+        df["bear_close_indicator"] = (
+            (df["bars_below_key_sma"] >= consecutive_min)
+            & (df["bars_below_key_sma"] < consecutive_max)
+        )
 
-            # PART 4: EMA vs SMA comparisons
-            ema_sma_pairs = [
-                (5, 5), (5, 10), (5, 20), (5, 50), (5, 100), (5, 200),
-                (7, 7), (7, 14), (7, 28), (7, 56), (7, 112), (7, 225),
-                (10, 10), (10, 20), (10, 50), (10, 100), (10, 200),
-                (14, 14), (14, 28), (14, 56), (14, 112), (14, 225),
-                (20, 50), (20, 100), (20, 200),
-                (28, 56), (28, 112), (28, 225),
-                (50, 100), (50, 200),
-                (56, 112), (56, 225),
-                (100, 200), (112, 225),
-            ]
+        df["new_cross_bull"] = (
+            (df["key_sma"] > df["sma22"])
+            & (df["key_sma"].shift(1) <= df["sma22"].shift(1))
+        )
+        df["new_cross_bear"] = (
+            (df["key_sma"] < df["sma22"])
+            & (df["key_sma"].shift(1) >= df["sma22"].shift(1))
+        )
 
-            for ema_period, sma_period in ema_sma_pairs:
-                ema_val = df[f"ema_{ema_period}"].iloc[idx]
-                sma_val = df[f"sma_{sma_period}"].iloc[idx]
-                if pd.notna(ema_val) and pd.notna(sma_val):
-                    bull_count += ema_val > sma_val
-                    bear_count += ema_val < sma_val
+        df["bull_signal"] = (
+            (df["bars_above_key_sma"] == consecutive_min)
+            & (df["sma3"] > df["key_sma"])
+            & (df["close"] > df["sma22"])
+        )
+        df["bear_signal"] = (
+            (df["bars_below_key_sma"] == consecutive_min)
+            & (df["sma3"] < df["key_sma"])
+            & (df["close"] < df["sma22"])
+        )
 
-            # PART 5: Fresh breakouts
-            if idx > 0:
-                prev_close = close_price.iloc[idx - 1]
-                for period in self.ma_periods:
-                    ema_curr = df[f"ema_{period}"].iloc[idx]
-                    ema_prev = df[f"ema_{period}"].iloc[idx - 1]
-                    sma_curr = df[f"sma_{period}"].iloc[idx]
-                    sma_prev = df[f"sma_{period}"].iloc[idx - 1]
+        df["bull_sar2"] = (
+            (df["close"] > df["sar"])
+            & (df["close"].shift(1) < df["sar"].shift(1))
+            & (df["close"] > df["key_sma"])
+            & (df["close"].shift(1) < df["key_sma"].shift(1))
+        )
+        df["bear_sar2"] = (
+            (df["close"] < df["sar"])
+            & (df["close"].shift(1) > df["sar"].shift(1))
+            & (df["close"] < df["key_sma"])
+            & (df["close"].shift(1) > df["key_sma"].shift(1))
+        )
 
-                    if pd.notna(ema_curr) and pd.notna(ema_prev):
-                        bull_count += current_close > ema_curr and prev_close <= ema_prev
-                        bear_count += current_close < ema_curr and prev_close >= ema_prev
-                    if pd.notna(sma_curr) and pd.notna(sma_prev):
-                        bull_count += current_close > sma_curr and prev_close <= sma_prev
-                        bear_count += current_close < sma_curr and prev_close >= sma_prev
+        lookback = 10
+        df["max15"] = df["high"].rolling(window=lookback, min_periods=1).max()
+        df["min15"] = df["low"].rolling(window=lookback, min_periods=1).min()
 
-            # PART 6 & 7: Fresh MA changes + crossovers
-            if idx > 0:
-                for ema_period, sma_period in ema_sma_pairs:
-                    ema_curr = df[f"ema_{ema_period}"].iloc[idx]
-                    sma_curr = df[f"sma_{sma_period}"].iloc[idx]
-                    ema_prev = df[f"ema_{ema_period}"].iloc[idx - 1]
-                    sma_prev = df[f"sma_{sma_period}"].iloc[idx - 1]
+        df["bull_sig"] = df["high"] == df["max15"]
+        df["bear_sig"] = df["low"] == df["min15"]
 
-                    if (
-                        pd.notna(ema_curr)
-                        and pd.notna(sma_curr)
-                        and pd.notna(ema_prev)
-                        and pd.notna(sma_prev)
-                    ):
-                        bull_count += ema_curr > sma_curr and ema_prev <= sma_prev
-                        bear_count += ema_curr < sma_curr and ema_prev >= sma_prev
-                        bull_count += ema_curr > sma_curr and ema_prev <= sma_prev
-                        bear_count += ema_curr < sma_curr and ema_prev >= sma_prev
+        df["bear_touch"] = (
+            (df["high"] >= df["sma22"])
+            & (df["close"] < df["key_sma"])
+            & (df["key_sma"] < df["sma22"])
+        )
+        df["bull_touch"] = (
+            (df["low"] <= df["sma22"])
+            & (df["close"] > df["key_sma"])
+            & (df["key_sma"] > df["sma22"])
+        )
 
-            bull_conditions.append(bull_count)
-            bear_conditions.append(bear_count)
+        df["new_bear"] = df["bear_touch"] & ~(
+            df["bear_touch"].shift(1) | df["bear_touch"].shift(2) | df["bear_touch"].shift(3)
+        )
+        df["new_bull"] = df["bull_touch"] & ~(
+            df["bull_touch"].shift(1) | df["bull_touch"].shift(2) | df["bull_touch"].shift(3)
+        )
 
-        df["bull_ma_count"] = bull_conditions
-        df["bear_ma_count"] = bear_conditions
         return df
 
-    # ------------------------------------------------------------------
-    # DEMA smoothing & signals
-    # ------------------------------------------------------------------
-    def calculate_dema_averages(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Apply 27-period DEMA smoothing to bull/bear counts."""
+    def calculate_bull_count(self, df: pd.DataFrame) -> pd.Series:
+        """Weighted bull condition sum using PineScript scoring ladder."""
+        bull_count = np.zeros(len(df), dtype=float)
+
+        conditions = [
+            "bull_sar",
+            "engulf",
+            "inside",
+            "confirmed_bull_engulf",
+            "confirmed_bull_inside",
+            "bullish_signal",
+            "bull_close_indicator",
+            "new_cross_bull",
+            "bull_signal",
+            "bull_sar2",
+            "bull_sig",
+            "new_bull",
+        ]
+
+        price_conditions = [
+            ("close", "key_sma", ">"),
+            ("close", "sma22", ">"),
+        ]
+
+        alignment_conditions = [
+            (
+                "bull_close_sig",
+                lambda frame, idx: idx > 0
+                and pd.notna(frame["close"].iat[idx])
+                and pd.notna(frame["key_sma"].iat[idx])
+                and pd.notna(frame["close"].iat[idx - 1])
+                and pd.notna(frame["key_sma"].iat[idx - 1])
+                and frame["close"].iat[idx] > frame["key_sma"].iat[idx]
+                and frame["close"].iat[idx - 1] < frame["key_sma"].iat[idx - 1],
+            ),
+            (
+                "bull_aligned",
+                lambda frame, idx: pd.notna(frame["close"].iat[idx])
+                and pd.notna(frame["key_sma"].iat[idx])
+                and pd.notna(frame["sma22"].iat[idx])
+                and frame["close"].iat[idx] > frame["key_sma"].iat[idx]
+                and frame["key_sma"].iat[idx] > frame["sma22"].iat[idx],
+            ),
+        ]
+
+        for i in range(len(df)):
+            total = 0.0
+
+            for condition in conditions:
+                if condition not in df.columns:
+                    continue
+                for j, weight in enumerate(self.historical_weights):
+                    idx = i - j
+                    if idx < 0:
+                        break
+                    value = df[condition].iat[idx]
+                    if pd.notna(value) and bool(value):
+                        total += weight
+
+            for price_col, ma_col, operator in price_conditions:
+                if price_col not in df.columns or ma_col not in df.columns:
+                    continue
+                for j, weight in enumerate(self.historical_weights):
+                    idx = i - j
+                    if idx < 0:
+                        break
+                    price_val = df[price_col].iat[idx]
+                    ma_val = df[ma_col].iat[idx]
+                    if pd.isna(price_val) or pd.isna(ma_val):
+                        continue
+                    if operator == ">" and price_val > ma_val:
+                        total += weight
+                    elif operator == "<" and price_val < ma_val:
+                        total += weight
+
+            for _, condition_func in alignment_conditions:
+                for j, weight in enumerate(self.historical_weights):
+                    idx = i - j
+                    if idx < 0:
+                        break
+                    try:
+                        if condition_func(df, idx):
+                            total += weight
+                    except (IndexError, KeyError):
+                        continue
+
+            bull_count[i] = total
+
+        return pd.Series(bull_count, index=df.index, name="bull_count")
+
+    def calculate_bear_count(self, df: pd.DataFrame) -> pd.Series:
+        """Weighted bear condition sum using PineScript scoring ladder."""
+        bear_count = np.zeros(len(df), dtype=float)
+
+        conditions = [
+            "bear_sar",
+            "engulf",
+            "inside",
+            "confirmed_bear_engulf",
+            "confirmed_bear_inside",
+            "bearish_signal",
+            "bear_close_indicator",
+            "new_cross_bear",
+            "bear_signal",
+            "bear_sar2",
+            "bear_sig",
+            "new_bear",
+        ]
+
+        price_conditions = [
+            ("close", "key_sma", "<"),
+            ("close", "sma22", "<"),
+        ]
+
+        alignment_conditions = [
+            (
+                "bear_close_sig",
+                lambda frame, idx: idx > 0
+                and pd.notna(frame["close"].iat[idx])
+                and pd.notna(frame["key_sma"].iat[idx])
+                and pd.notna(frame["close"].iat[idx - 1])
+                and pd.notna(frame["key_sma"].iat[idx - 1])
+                and frame["close"].iat[idx] < frame["key_sma"].iat[idx]
+                and frame["close"].iat[idx - 1] > frame["key_sma"].iat[idx - 1],
+            ),
+            (
+                "bear_aligned",
+                lambda frame, idx: pd.notna(frame["close"].iat[idx])
+                and pd.notna(frame["key_sma"].iat[idx])
+                and pd.notna(frame["sma22"].iat[idx])
+                and frame["close"].iat[idx] < frame["key_sma"].iat[idx]
+                and frame["key_sma"].iat[idx] < frame["sma22"].iat[idx],
+            ),
+        ]
+
+        for i in range(len(df)):
+            total = 0.0
+
+            for condition in conditions:
+                if condition not in df.columns:
+                    continue
+                for j, weight in enumerate(self.historical_weights):
+                    idx = i - j
+                    if idx < 0:
+                        break
+                    value = df[condition].iat[idx]
+                    if pd.notna(value) and bool(value):
+                        total += weight
+
+            for price_col, ma_col, operator in price_conditions:
+                if price_col not in df.columns or ma_col not in df.columns:
+                    continue
+                for j, weight in enumerate(self.historical_weights):
+                    idx = i - j
+                    if idx < 0:
+                        break
+                    price_val = df[price_col].iat[idx]
+                    ma_val = df[ma_col].iat[idx]
+                    if pd.isna(price_val) or pd.isna(ma_val):
+                        continue
+                    if operator == ">" and price_val > ma_val:
+                        total += weight
+                    elif operator == "<" and price_val < ma_val:
+                        total += weight
+
+            for _, condition_func in alignment_conditions:
+                for j, weight in enumerate(self.historical_weights):
+                    idx = i - j
+                    if idx < 0:
+                        break
+                    try:
+                        if condition_func(df, idx):
+                            total += weight
+                    except (IndexError, KeyError):
+                        continue
+
+            bear_count[i] = total
+
+        return pd.Series(bear_count, index=df.index, name="bear_count")
+
+    def calculate_multi_average_smoothing(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Create SMA/EMA/RMA/HMA smoothed counts for bull and bear totals."""
         df = df.copy()
-        bull_ema1 = df["bull_ma_count"].ewm(span=27, adjust=False).mean()
-        df["bull_ma_count_average"] = bull_ema1.ewm(span=27, adjust=False).mean()
-        bear_ema1 = df["bear_ma_count"].ewm(span=27, adjust=False).mean()
-        df["bear_ma_count_average"] = bear_ema1.ewm(span=27, adjust=False).mean()
+        if df.empty:
+            return df
+
+        period = 27
+        half_window = max(1, period // 2)
+        sqrt_window = max(1, int(np.sqrt(period)))
+
+        df["sma_bull_count"] = df["bull_count"].rolling(window=period, min_periods=period).mean()
+        df["ema_bull_count"] = df["bull_count"].ewm(span=period, adjust=False).mean()
+        df["rma_bull_count"] = df["bull_count"].ewm(alpha=1 / period, adjust=False).mean()
+
+        wma_half = df["bull_count"].rolling(window=half_window, min_periods=half_window).apply(
+            _weighted_average, raw=True
+        )
+        wma_full = df["bull_count"].rolling(window=period, min_periods=period).apply(
+            _weighted_average, raw=True
+        )
+        hma_input = 2 * wma_half - wma_full
+        df["hma_bull_count"] = hma_input.rolling(window=sqrt_window, min_periods=sqrt_window).apply(
+            _weighted_average, raw=True
+        )
+
+        df["sma_bear_count"] = df["bear_count"].rolling(window=period, min_periods=period).mean()
+        df["ema_bear_count"] = df["bear_count"].ewm(span=period, adjust=False).mean()
+        df["rma_bear_count"] = df["bear_count"].ewm(alpha=1 / period, adjust=False).mean()
+
+        wma_half_bear = df["bear_count"].rolling(window=half_window, min_periods=half_window).apply(
+            _weighted_average, raw=True
+        )
+        wma_full_bear = df["bear_count"].rolling(window=period, min_periods=period).apply(
+            _weighted_average, raw=True
+        )
+        hma_input_bear = 2 * wma_half_bear - wma_full_bear
+        df["hma_bear_count"] = hma_input_bear.rolling(window=sqrt_window, min_periods=sqrt_window).apply(
+            _weighted_average, raw=True
+        )
+
+        df["bully"] = (
+            df["sma_bull_count"]
+            + df["ema_bull_count"]
+            + df["hma_bull_count"]
+            + df["rma_bull_count"]
+        ) / 4
+        df["beary"] = (
+            df["sma_bear_count"]
+            + df["ema_bear_count"]
+            + df["hma_bear_count"]
+            + df["rma_bear_count"]
+        ) / 4
+
         return df
 
-    def calculate_crossover_signals(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Generate crossover and crossunder boolean signals."""
+    def integrate_rsi(self, df: pd.DataFrame, price_col: str = "close") -> pd.DataFrame:
+        """Compute RSI(14) with overbought/oversold state tracking."""
         df = df.copy()
-        df["bull_rise_crossover"] = (
-            (df["bull_ma_count"] > df["bull_ma_count_average"])
-            & (df["bull_ma_count"].shift(1) <= df["bull_ma_count_average"].shift(1))
-        )
-        df["bear_rise_crossunder"] = (
-            (df["bear_ma_count"] < df["bear_ma_count_average"])
-            & (df["bear_ma_count"].shift(1) >= df["bear_ma_count_average"].shift(1))
-        )
-        df["bear_rise_crossover"] = (
-            (df["bear_ma_count"] > df["bear_ma_count_average"])
-            & (df["bear_ma_count"].shift(1) <= df["bear_ma_count_average"].shift(1))
-        )
-        df["bull_rise_crossunder"] = (
-            (df["bull_ma_count"] < df["bull_ma_count_average"])
-            & (df["bull_ma_count"].shift(1) >= df["bull_ma_count_average"].shift(1))
-        )
-        return df
+        if df.empty:
+            return df
 
-    def calculate_combined_signals(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Combine crossovers into bullish/bearish signal flags."""
-        df = df.copy()
-        df["bull_rise_signal"] = df["bull_rise_crossover"] | df["bear_rise_crossunder"]
-        df["bear_rise_signal"] = df["bear_rise_crossover"] | df["bull_rise_crossunder"]
-        return df
-
-    # ------------------------------------------------------------------
-    # RSI + days tracking
-    # ------------------------------------------------------------------
-    def calculate_rsi_integration(
-        self, df: pd.DataFrame, price_col: str = "close"
-    ) -> pd.DataFrame:
-        """Add RSI(14) and associated crossover conditions."""
-        df = df.copy()
         delta = df[price_col].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-        rs = gain / loss
+        gain = delta.clip(lower=0)
+        loss = -delta.clip(upper=0)
+
+        avg_gain = gain.rolling(window=14, min_periods=14).mean()
+        avg_loss = loss.rolling(window=14, min_periods=14).mean()
+
+        rs = avg_gain / avg_loss.replace(0, np.nan)
         df["rsi_14"] = 100 - (100 / (1 + rs))
-        df["rsi_above_50_cross"] = (df["rsi_14"] > 50) & (df["rsi_14"].shift(1) <= 50)
-        df["rsi_below_50_cross"] = (df["rsi_14"] < 50) & (df["rsi_14"].shift(1) >= 50)
-        df["rsi_overbought_70"] = df["rsi_14"] > 70
-        df["rsi_oversold_30"] = df["rsi_14"] < 30
+        df["rsi_overbought"] = df["rsi_14"] > 70
+        df["rsi_oversold"] = df["rsi_14"] < 30
+        df["rsi_midline_cross_up"] = (df["rsi_14"] > 51) & (df["rsi_14"].shift(1) <= 51)
+        df["rsi_midline_cross_down"] = (df["rsi_14"] < 49) & (df["rsi_14"].shift(1) >= 49)
+        return df
+
+    def detect_momentum_changes(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Identify slowing momentum and average cross confirmations."""
+        df = df.copy()
+        if df.empty:
+            return df
+
+        df["bear_slowing"] = (
+            (df["beary"] < df["beary"].shift(1))
+            & (df["beary"].shift(1) < df["beary"].shift(2))
+            & (df["beary"].shift(2) < df["beary"].shift(3))
+            & (df["beary"] > df["bully"])
+        ).fillna(False)
+
+        df["bull_slowing"] = (
+            (df["bully"] < df["bully"].shift(1))
+            & (df["bully"].shift(1) < df["bully"].shift(2))
+            & (df["bully"].shift(2) < df["bully"].shift(3))
+            & (df["bully"] > df["beary"])
+        ).fillna(False)
+
+        df["bull_strength_increasing"] = (df["bull_count"] > df["bull_count"].shift(1)).fillna(False)
+        df["bear_strength_increasing"] = (df["bear_count"] > df["bear_count"].shift(1)).fillna(False)
+
+        df["bully_over_beary"] = (df["bully"] > df["beary"]).fillna(False)
+        df["beary_over_bully"] = (df["beary"] > df["bully"]).fillna(False)
+
+        df["bull_over_average"] = (df["bull_count"] > df["bully"]).fillna(False)
+        df["bull_under_average"] = (df["bull_count"] < df["bully"]).fillna(False)
+        df["bear_over_average"] = (df["bear_count"] > df["beary"]).fillna(False)
+        df["bear_under_average"] = (df["bear_count"] < df["beary"]).fillna(False)
+
         return df
 
     def calculate_days_count_tracking(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Track consecutive periods bull/bear counts are above/below averages."""
+        """Track consecutive periods counts stay above or below their averages."""
         df = df.copy()
+        if df.empty:
+            return df
+
         df["days_bull_count_over_average"] = 0
         df["days_bull_count_under_average"] = 0
         df["days_bear_count_over_average"] = 0
         df["days_bear_count_under_average"] = 0
 
+        bull_over_idx = df.columns.get_loc("days_bull_count_over_average")
+        bull_under_idx = df.columns.get_loc("days_bull_count_under_average")
+        bear_over_idx = df.columns.get_loc("days_bear_count_over_average")
+        bear_under_idx = df.columns.get_loc("days_bear_count_under_average")
+
         for i in range(1, len(df)):
-            # Bull over average
-            if (
-                pd.notna(df.iloc[i]["bull_ma_count"])
-                and pd.notna(df.iloc[i]["bull_ma_count_average"])
-                and df.iloc[i]["bull_ma_count"] > df.iloc[i]["bull_ma_count_average"]
-            ):
-                prev = df.iloc[i - 1]["bull_ma_count"]
-                prev_avg = df.iloc[i - 1]["bull_ma_count_average"]
-                if pd.notna(prev) and pd.notna(prev_avg) and prev > prev_avg:
-                    df.iloc[i, df.columns.get_loc("days_bull_count_over_average")] = (
-                        df.iloc[i - 1]["days_bull_count_over_average"] + 1
-                    )
-                else:
-                    df.iloc[i, df.columns.get_loc("days_bull_count_over_average")] = 1
+            bull_count = df["bull_count"].iat[i]
+            bull_avg = df["bully"].iat[i]
+            prev_bull_count = df["bull_count"].iat[i - 1]
+            prev_bull_avg = df["bully"].iat[i - 1]
 
-            # Bull under average
-            if (
-                pd.notna(df.iloc[i]["bull_ma_count"])
-                and pd.notna(df.iloc[i]["bull_ma_count_average"])
-                and df.iloc[i]["bull_ma_count"] < df.iloc[i]["bull_ma_count_average"]
-            ):
-                prev = df.iloc[i - 1]["bull_ma_count"]
-                prev_avg = df.iloc[i - 1]["bull_ma_count_average"]
-                if pd.notna(prev) and pd.notna(prev_avg) and prev < prev_avg:
-                    df.iloc[i, df.columns.get_loc("days_bull_count_under_average")] = (
-                        df.iloc[i - 1]["days_bull_count_under_average"] + 1
-                    )
-                else:
-                    df.iloc[i, df.columns.get_loc("days_bull_count_under_average")] = 1
+            bear_count = df["bear_count"].iat[i]
+            bear_avg = df["beary"].iat[i]
+            prev_bear_count = df["bear_count"].iat[i - 1]
+            prev_bear_avg = df["beary"].iat[i - 1]
 
-            # Bear over average
-            if (
-                pd.notna(df.iloc[i]["bear_ma_count"])
-                and pd.notna(df.iloc[i]["bear_ma_count_average"])
-                and df.iloc[i]["bear_ma_count"] > df.iloc[i]["bear_ma_count_average"]
-            ):
-                prev = df.iloc[i - 1]["bear_ma_count"]
-                prev_avg = df.iloc[i - 1]["bear_ma_count_average"]
-                if pd.notna(prev) and pd.notna(prev_avg) and prev > prev_avg:
-                    df.iloc[i, df.columns.get_loc("days_bear_count_over_average")] = (
-                        df.iloc[i - 1]["days_bear_count_over_average"] + 1
-                    )
+            if pd.notna(bull_count) and pd.notna(bull_avg) and bull_count > bull_avg:
+                if pd.notna(prev_bull_count) and pd.notna(prev_bull_avg) and prev_bull_count > prev_bull_avg:
+                    df.iat[i, bull_over_idx] = df.iat[i - 1, bull_over_idx] + 1
                 else:
-                    df.iloc[i, df.columns.get_loc("days_bear_count_over_average")] = 1
+                    df.iat[i, bull_over_idx] = 1
 
-            # Bear under average
-            if (
-                pd.notna(df.iloc[i]["bear_ma_count"])
-                and pd.notna(df.iloc[i]["bear_ma_count_average"])
-                and df.iloc[i]["bear_ma_count"] < df.iloc[i]["bear_ma_count_average"]
-            ):
-                prev = df.iloc[i - 1]["bear_ma_count"]
-                prev_avg = df.iloc[i - 1]["bear_ma_count_average"]
-                if pd.notna(prev) and pd.notna(prev_avg) and prev < prev_avg:
-                    df.iloc[i, df.columns.get_loc("days_bear_count_under_average")] = (
-                        df.iloc[i - 1]["days_bear_count_under_average"] + 1
-                    )
+            if pd.notna(bull_count) and pd.notna(bull_avg) and bull_count < bull_avg:
+                if pd.notna(prev_bull_count) and pd.notna(prev_bull_avg) and prev_bull_count < prev_bull_avg:
+                    df.iat[i, bull_under_idx] = df.iat[i - 1, bull_under_idx] + 1
                 else:
-                    df.iloc[i, df.columns.get_loc("days_bear_count_under_average")] = 1
+                    df.iat[i, bull_under_idx] = 1
+
+            if pd.notna(bear_count) and pd.notna(bear_avg) and bear_count > bear_avg:
+                if pd.notna(prev_bear_count) and pd.notna(prev_bear_avg) and prev_bear_count > prev_bear_avg:
+                    df.iat[i, bear_over_idx] = df.iat[i - 1, bear_over_idx] + 1
+                else:
+                    df.iat[i, bear_over_idx] = 1
+
+            if pd.notna(bear_count) and pd.notna(bear_avg) and bear_count < bear_avg:
+                if pd.notna(prev_bear_count) and pd.notna(prev_bear_avg) and prev_bear_count < prev_bear_avg:
+                    df.iat[i, bear_under_idx] = df.iat[i - 1, bear_under_idx] + 1
+                else:
+                    df.iat[i, bear_under_idx] = 1
 
         return df
 
-    # ------------------------------------------------------------------
-    # Pipeline orchestration
-    # ------------------------------------------------------------------
-    def calculate_complete_holloway_algorithm(
-        self, df: pd.DataFrame, price_col: str = "close"
-    ) -> pd.DataFrame:
-        """Run the full Holloway pipeline for the provided dataframe."""
+    def detect_critical_levels(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Monitor 95+ resistance and <12 support streaks."""
+        df = df.copy()
         if df.empty:
-            logger.warning("Received empty dataframe for Holloway calculation.")
             return df
 
-        logger.debug("Starting Holloway Algorithm calculation with %d rows", len(df))
-        df = self.calculate_all_moving_averages(df, price_col)
-        df = self.calculate_bull_bear_conditions(df, price_col)
-        df = self.calculate_dema_averages(df)
-        df = self.calculate_crossover_signals(df)
-        df = self.calculate_combined_signals(df)
-        df = self.calculate_rsi_integration(df, price_col)
-        df = self.calculate_days_count_tracking(df)
-        logger.debug("Holloway Algorithm calculation complete.")
+        df["bully_at_resistance"] = (df["bully"] >= self.resistance_level).fillna(False)
+        df["beary_at_resistance"] = (df["beary"] >= self.resistance_level).fillna(False)
+        df["bully_at_support"] = (df["bully"] <= self.support_level).fillna(False)
+        df["beary_at_support"] = (df["beary"] <= self.support_level).fillna(False)
+
+        bully_res = np.zeros(len(df), dtype=int)
+        beary_res = np.zeros(len(df), dtype=int)
+        bully_sup = np.zeros(len(df), dtype=int)
+        beary_sup = np.zeros(len(df), dtype=int)
+
+        for i in range(1, len(df)):
+            if df["bully_at_resistance"].iat[i]:
+                bully_res[i] = bully_res[i - 1] + 1 if df["bully_at_resistance"].iat[i - 1] else 1
+            if df["beary_at_resistance"].iat[i]:
+                beary_res[i] = beary_res[i - 1] + 1 if df["beary_at_resistance"].iat[i - 1] else 1
+            if df["bully_at_support"].iat[i]:
+                bully_sup[i] = bully_sup[i - 1] + 1 if df["bully_at_support"].iat[i - 1] else 1
+            if df["beary_at_support"].iat[i]:
+                beary_sup[i] = beary_sup[i - 1] + 1 if df["beary_at_support"].iat[i - 1] else 1
+
+        df["bully_resistance_periods"] = bully_res
+        df["beary_resistance_periods"] = beary_res
+        df["bully_support_periods"] = bully_sup
+        df["beary_support_periods"] = beary_sup
+
+        df["resistance_reversal_signal"] = (
+            (df["bully_at_resistance"].shift(1) & ~df["bully_at_resistance"])
+            | (df["beary_at_resistance"].shift(1) & ~df["beary_at_resistance"])
+        ).fillna(False)
+        df["support_reversal_signal"] = (
+            (df["bully_at_support"].shift(1) & ~df["bully_at_support"])
+            | (df["beary_at_support"].shift(1) & ~df["beary_at_support"])
+        ).fillna(False)
+
         return df
 
-    # ------------------------------------------------------------------
-    # Export helpers & summaries
-    # ------------------------------------------------------------------
-    def save_holloway_results(self, df: pd.DataFrame, pair: str, timeframe: str) -> str:
-        """Persist Holloway output for inspection or downstream workflows."""
-        filename = f"{pair}_{timeframe}_holloway_complete.csv"
-        filepath = os.path.join(self.data_dir, filename)
+    def detect_double_failure_pattern(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Detect consecutive lower peaks (double failure) for bull/bear counts."""
+        df = df.copy()
+        if df.empty:
+            return df
 
-        holloway_columns = [
-            "bull_ma_count",
-            "bear_ma_count",
-            "bull_ma_count_average",
-            "bear_ma_count_average",
-            "bull_rise_crossover",
-            "bear_rise_crossunder",
-            "bear_rise_crossover",
-            "bull_rise_crossunder",
-            "bull_rise_signal",
-            "bear_rise_signal",
-            "rsi_14",
-            "rsi_above_50_cross",
-            "rsi_below_50_cross",
-            "days_bull_count_over_average",
-            "days_bull_count_under_average",
-            "days_bear_count_over_average",
-            "days_bear_count_under_average",
-        ]
+        df["bully_peak"] = (df["bully"] > df["bully"].shift(1)) & (df["bully"] > df["bully"].shift(-1))
+        df["beary_peak"] = (df["beary"] > df["beary"].shift(1)) & (df["beary"] > df["beary"].shift(-1))
 
-        available_columns = [col for col in holloway_columns if col in df.columns]
-        if df.index.name:
-            df[available_columns].to_csv(filepath)
-        else:
-            df[available_columns].to_csv(filepath, index=False)
+        df["bull_double_failure"] = False
+        df["bear_double_failure"] = False
 
-        logger.info("Saved Holloway results to %s", filepath)
-        return filepath
+        bull_col = df.columns.get_loc("bull_double_failure")
+        bear_col = df.columns.get_loc("bear_double_failure")
+
+        bull_peaks: List[float] = []
+        bear_peaks: List[float] = []
+
+        for i in range(len(df)):
+            if df["bully_peak"].iat[i]:
+                bull_peaks.append(df["bully"].iat[i])
+                if len(bull_peaks) >= 3 and bull_peaks[-1] < bull_peaks[-2] < bull_peaks[-3]:
+                    df.iat[i, bull_col] = True
+                elif len(bull_peaks) >= 2 and bull_peaks[-1] < bull_peaks[-2]:
+                    df.iat[i, bull_col] = True
+
+            if df["beary_peak"].iat[i]:
+                bear_peaks.append(df["beary"].iat[i])
+                if len(bear_peaks) >= 3 and bear_peaks[-1] < bear_peaks[-2] < bear_peaks[-3]:
+                    df.iat[i, bear_col] = True
+                elif len(bear_peaks) >= 2 and bear_peaks[-1] < bear_peaks[-2]:
+                    df.iat[i, bear_col] = True
+
+        return df
+
+    def calculate_complete_holloway_algorithm(
+        self, df: pd.DataFrame, price_col: str = "close", verbose: bool = False
+    ) -> pd.DataFrame:
+        """Run the full Holloway feature pipeline."""
+        if df.empty:
+            logger.warning("Empty dataframe supplied to Holloway calculation.")
+            return df.copy()
+
+        printer = print if verbose else (lambda *args, **kwargs: None)
+
+        printer("🚀 Starting Complete Holloway Algorithm calculation...")
+        work_df = df.copy()
+
+        printer("  📊 Calculating Parabolic SAR...")
+        work_df = self.calculate_parabolic_sar(work_df)
+
+        printer("  🎯 Calculating pattern signals...")
+        work_df = self.calculate_pattern_signals(work_df)
+
+        printer("  📈 Calculating bull count with weighted history...")
+        work_df["bull_count"] = self.calculate_bull_count(work_df)
+
+        printer("  📉 Calculating bear count with weighted history...")
+        work_df["bear_count"] = self.calculate_bear_count(work_df)
+
+        printer("  🌊 Calculating multi-average smoothing...")
+        work_df = self.calculate_multi_average_smoothing(work_df)
+
+        printer("  ♻️ Integrating RSI analysis...")
+        work_df = self.integrate_rsi(work_df, price_col)
+
+        printer("  ⚡ Detecting momentum changes...")
+        work_df = self.detect_momentum_changes(work_df)
+
+        printer("  📆 Tracking regime durations...")
+        work_df = self.calculate_days_count_tracking(work_df)
+
+        printer("  📊 Detecting critical levels (95+ / <12)...")
+        work_df = self.detect_critical_levels(work_df)
+
+        printer("  ⚠️ Detecting double failure patterns...")
+        work_df = self.detect_double_failure_pattern(work_df)
+
+        printer("  🎯 Computing final Holloway signals...")
+
+        work_df["holloway_bull_count"] = work_df["bull_count"]
+        work_df["holloway_bear_count"] = work_df["bear_count"]
+        work_df["holloway_bull_avg"] = work_df["bully"]
+        work_df["holloway_bear_avg"] = work_df["beary"]
+
+        work_df["holloway_count_diff"] = work_df["bull_count"] - work_df["bear_count"]
+        work_df["holloway_count_ratio"] = work_df["bull_count"] / (work_df["bear_count"] + 1)
+        work_df["holloway_bull_max_20"] = work_df["bull_count"].rolling(window=20, min_periods=1).max()
+        work_df["holloway_bull_min_20"] = work_df["bull_count"].rolling(window=20, min_periods=1).min()
+
+        work_df["holloway_bull_cross_up"] = (
+            (work_df["holloway_bull_count"] > work_df["holloway_bull_avg"])
+            & (work_df["holloway_bull_count"].shift(1) <= work_df["holloway_bull_avg"].shift(1))
+        ).fillna(False)
+        work_df["holloway_bull_cross_down"] = (
+            (work_df["holloway_bull_count"] < work_df["holloway_bull_avg"])
+            & (work_df["holloway_bull_count"].shift(1) >= work_df["holloway_bull_avg"].shift(1))
+        ).fillna(False)
+        work_df["holloway_bear_cross_up"] = (
+            (work_df["holloway_bear_count"] > work_df["holloway_bear_avg"])
+            & (work_df["holloway_bear_count"].shift(1) <= work_df["holloway_bear_avg"].shift(1))
+        ).fillna(False)
+        work_df["holloway_bear_cross_down"] = (
+            (work_df["holloway_bear_count"] < work_df["holloway_bear_avg"])
+            & (work_df["holloway_bear_count"].shift(1) >= work_df["holloway_bear_avg"].shift(1))
+        ).fillna(False)
+
+        work_df["bull_rise_signal"] = work_df["holloway_bull_cross_up"]
+        work_df["bear_rise_signal"] = work_df["holloway_bear_cross_up"]
+
+        work_df["holloway_bull_signal"] = work_df["holloway_bull_cross_up"] & ~work_df["rsi_overbought"]
+        work_df["holloway_bear_signal"] = work_df["holloway_bear_cross_up"] & ~work_df["rsi_oversold"]
+
+        work_df["bull_strength_signal"] = (
+            work_df["bull_over_average"] & work_df["bull_strength_increasing"] & ~work_df["bully_at_resistance"]
+        )
+        work_df["bear_strength_signal"] = (
+            work_df["bear_over_average"] & work_df["bear_strength_increasing"] & ~work_df["beary_at_resistance"]
+        )
+
+        work_df["reversal_signal"] = (
+            work_df["resistance_reversal_signal"]
+            | work_df["support_reversal_signal"]
+            | work_df["bull_double_failure"]
+            | work_df["bear_double_failure"]
+        )
+
+        work_df["weakness_signal"] = work_df["bull_slowing"] | work_df["bear_slowing"]
+
+        work_df["holloway_bull_signal_raw"] = work_df["bull_rise_signal"]
+        work_df["holloway_bear_signal_raw"] = work_df["bear_rise_signal"]
+        work_df["holloway_days_bull_over_avg"] = work_df["days_bull_count_over_average"]
+        work_df["holloway_days_bull_under_avg"] = work_df["days_bull_count_under_average"]
+        work_df["holloway_days_bear_over_avg"] = work_df["days_bear_count_over_average"]
+        work_df["holloway_days_bear_under_avg"] = work_df["days_bear_count_under_average"]
+
+        printer("✅ Complete Holloway Algorithm calculation finished!")
+        return work_df
+
+    def calculate_complete_holloway_system(
+        self, df: pd.DataFrame, price_col: str = "close", verbose: bool = False
+    ) -> pd.DataFrame:
+        """Backward compatible alias for external scripts."""
+        return self.calculate_complete_holloway_algorithm(df, price_col=price_col, verbose=verbose)
 
     def get_holloway_summary(self, df: pd.DataFrame) -> Dict:
-        """Return key statistics summarising Holloway outputs."""
-        if "bull_ma_count" not in df.columns:
+        """Return summary statistics for the latest Holloway run."""
+        if "bull_count" not in df.columns:
             return {"error": "Holloway Algorithm not calculated yet"}
 
+        latest = df.iloc[-1]
+
         summary = {
-            "total_periods": len(df),
-            "bull_ma_count": {
-                "mean": df["bull_ma_count"].mean(),
-                "max": df["bull_ma_count"].max(),
-                "min": df["bull_ma_count"].min(),
-                "current": df["bull_ma_count"].iloc[-1] if len(df) > 0 else None,
-            },
-            "bear_ma_count": {
-                "mean": df["bear_ma_count"].mean(),
-                "max": df["bear_ma_count"].max(),
-                "min": df["bear_ma_count"].min(),
-                "current": df["bear_ma_count"].iloc[-1] if len(df) > 0 else None,
+            "current_state": {
+                "bull_count": float(latest["bull_count"]),
+                "bear_count": float(latest["bear_count"]),
+                "bully": float(latest["bully"]),
+                "beary": float(latest["beary"]),
+                "trend_direction": "BULLISH" if latest["bully"] > latest["beary"] else "BEARISH",
             },
             "signals": {
-                "bull_rise_signals": df["bull_rise_signal"].sum()
-                if "bull_rise_signal" in df.columns
-                else 0,
-                "bear_rise_signals": df["bear_rise_signal"].sum()
-                if "bear_rise_signal" in df.columns
-                else 0,
-                "total_signals": (
-                    df["bull_rise_signal"].sum() + df["bear_rise_signal"].sum()
-                )
-                if "bull_rise_signal" in df.columns and "bear_rise_signal" in df.columns
-                else 0,
+                "holloway_bull_signals": int(df["holloway_bull_signal"].sum()),
+                "holloway_bear_signals": int(df["holloway_bear_signal"].sum()),
+                "strength_signals": int(df["bull_strength_signal"].sum() + df["bear_strength_signal"].sum()),
+                "reversal_signals": int(df["reversal_signal"].sum()),
+                "weakness_signals": int(df["weakness_signal"].sum()),
             },
-            "rsi": {
-                "current": df["rsi_14"].iloc[-1]
-                if "rsi_14" in df.columns and len(df) > 0
-                else None,
-                "overbought_periods": df["rsi_overbought_70"].sum()
-                if "rsi_overbought_70" in df.columns
-                else 0,
-                "oversold_periods": df["rsi_oversold_30"].sum()
-                if "rsi_oversold_30" in df.columns
-                else 0,
+            "critical_levels": {
+                "at_resistance": bool(latest["bully_at_resistance"] or latest["beary_at_resistance"]),
+                "at_support": bool(latest["bully_at_support"] or latest["beary_at_support"]),
+                "resistance_periods": int(latest["bully_resistance_periods"] + latest["beary_resistance_periods"]),
+                "support_periods": int(latest["bully_support_periods"] + latest["beary_support_periods"]),
+            },
+            "momentum": {
+                "bull_slowing": bool(latest["bull_slowing"]),
+                "bear_slowing": bool(latest["bear_slowing"]),
+                "bull_over_beary": bool(latest["bully_over_beary"]),
+                "double_failure": bool(latest["bull_double_failure"] or latest["bear_double_failure"]),
+            },
+            "statistics": {
+                "total_periods": len(df),
+                "avg_bull_count": float(df["bull_count"].mean()),
+                "avg_bear_count": float(df["bear_count"].mean()),
+                "max_bull_count": float(df["bull_count"].max()),
+                "max_bear_count": float(df["bear_count"].max()),
             },
         }
 
         return summary
 
+    def save_holloway_results(self, df: pd.DataFrame, pair: str, timeframe: str) -> str:
+        """Persist Holloway output columns to CSV for further analysis."""
+        filename = f"{pair}_{timeframe}_complete_holloway.csv"
+        filepath = os.path.join(self.data_dir, filename)
 
-def load_data_file(pair: str, timeframe: str, data_dir: str = "data") -> pd.DataFrame:
-    """Utility helper used by the standalone runner for loading CSV data."""
+        output_columns = [
+            "open",
+            "high",
+            "low",
+            "close",
+            "bull_count",
+            "bear_count",
+            "bully",
+            "beary",
+            "holloway_bull_signal",
+            "holloway_bear_signal",
+            "bull_strength_signal",
+            "bear_strength_signal",
+            "reversal_signal",
+            "weakness_signal",
+            "bull_slowing",
+            "bear_slowing",
+            "bully_over_beary",
+            "bully_at_resistance",
+            "beary_at_resistance",
+            "bully_at_support",
+            "beary_at_support",
+            "bull_double_failure",
+            "bear_double_failure",
+            "holloway_bull_signal_raw",
+            "holloway_bear_signal_raw",
+            "holloway_days_bull_over_avg",
+            "holloway_days_bull_under_avg",
+            "holloway_days_bear_over_avg",
+            "holloway_days_bear_under_avg",
+        ]
+
+        available_columns = [col for col in output_columns if col in df.columns]
+        df_to_save = df[available_columns]
+
+        if df_to_save.index.name:
+            df_to_save.to_csv(filepath)
+        else:
+            df_to_save.to_csv(filepath, index=False)
+
+        print(f"✅ Holloway results saved: {filepath}")
+        return filepath
+
+    def save_results(self, df: pd.DataFrame, pair: str, timeframe: str) -> str:
+        """Alias for legacy scripts."""
+        return self.save_holloway_results(df, pair, timeframe)
+
+
+def load_data_file(pair: str, timeframe: str = "daily", data_dir: str = "data") -> pd.DataFrame:
+    """Load OHLC data for the specified pair/timeframe."""
     possible_names = [
         f"{pair}_{timeframe}.csv",
         f"{pair.lower()}_{timeframe}.csv",
-        f"{pair}_{timeframe}_data.csv",
-        f"{pair.lower()}_{timeframe}_data.csv",
+        f"{pair}.csv",
+        f"{pair.lower()}.csv",
     ]
 
-    for filename in possible_names:
-        filepath = os.path.join(data_dir, filename)
-        if os.path.exists(filepath):
-            try:
-                df = pd.read_csv(filepath)
-                for date_col in ["date", "Date", "timestamp", "time"]:
-                    if date_col in df.columns:
-                        df[date_col] = pd.to_datetime(df[date_col])
-                        df.set_index(date_col, inplace=True)
-                        break
-                logger.info("Loaded %s %s data from %s (%d rows)", pair, timeframe, filepath, len(df))
-                return df
-            except Exception as exc:
-                logger.error("Error loading %s: %s", filepath, exc)
+    for name in possible_names:
+        filepath = os.path.join(data_dir, name)
+        if not os.path.exists(filepath):
+            continue
+        try:
+            df = pd.read_csv(filepath)
+            date_columns = ["date", "Date", "timestamp", "time"]
+            for column in date_columns:
+                if column in df.columns:
+                    df[column] = pd.to_datetime(df[column])
+                    df.set_index(column, inplace=True)
+                    break
+
+            required = {"open", "high", "low", "close"}
+            if not required.issubset(df.columns):
+                print(f"⚠️ Missing required OHLC columns in {filepath}")
                 continue
 
-    logger.warning("Could not find data file for %s %s", pair, timeframe)
+            print(f"✅ Loaded {pair} {timeframe}: {len(df)} records")
+            return df
+        except Exception as exc:
+            print(f"❌ Error loading {filepath}: {exc}")
+
+    print(f"❌ Could not find data for {pair} {timeframe}")
     return pd.DataFrame()
 
 
-def run_complete_holloway_system() -> Dict[str, Dict[str, Dict[str, float]]]:
-    """Standalone driver to process all configured pairs/timeframes."""
-    logger.info("Starting complete Holloway Algorithm system")
+def run_complete_holloway_analysis() -> Dict[str, Dict[str, Dict]]:
+    """Standalone runner used for manual diagnostics."""
+    print("🚀 STARTING COMPLETE HOLLOWAY ALGORITHM ANALYSIS")
+    print("=" * 70)
+
     holloway = CompleteHollowayAlgorithm()
+
     pairs = ["EURUSD", "XAUUSD"]
-    timeframes = ["daily", "weekly", "4h"]
-    results: Dict[str, Dict[str, Dict[str, float]]] = {}
+    timeframes = ["daily"]
+    results: Dict[str, Dict[str, Dict]] = {}
 
     for pair in pairs:
         results[pair] = {}
         for timeframe in timeframes:
-            logger.info("Processing %s %s", pair, timeframe)
+            print(f"\n📊 Processing {pair} {timeframe}...")
             df = load_data_file(pair, timeframe)
             if df.empty:
-                logger.warning("No data found for %s %s", pair, timeframe)
+                print(f"⚠️ No data found for {pair} {timeframe}")
                 continue
 
-            df_holloway = holloway.calculate_complete_holloway_algorithm(df)
+            df_holloway = holloway.calculate_complete_holloway_algorithm(df, verbose=True)
             filepath = holloway.save_holloway_results(df_holloway, pair, timeframe)
             summary = holloway.get_holloway_summary(df_holloway)
+
             results[pair][timeframe] = {
                 "summary": summary,
                 "filepath": filepath,
                 "data_points": len(df_holloway),
             }
 
-    logger.info("Completed Holloway Algorithm processing")
+            print(f"\n📋 RESULTS FOR {pair} {timeframe}:")
+            if "current_state" in summary:
+                current = summary["current_state"]
+                signals = summary["signals"]
+                levels = summary["critical_levels"]
+                momentum = summary["momentum"]
+
+                print(f"  🎯 Current Trend: {current['trend_direction']}")
+                print(f"  📈 Bull Count: {current['bull_count']:.1f}")
+                print(f"  📉 Bear Count: {current['bear_count']:.1f}")
+                print(f"  🌊 Bully: {current['bully']:.1f}")
+                print(f"  🌊 Beary: {current['beary']:.1f}")
+                print(f"  🎯 Bull Signals: {signals['holloway_bull_signals']}")
+                print(f"  🎯 Bear Signals: {signals['holloway_bear_signals']}")
+                print(f"  ⚡ Strength Signals: {signals['strength_signals']}")
+                print(f"  🔄 Reversal Signals: {signals['reversal_signals']}")
+                print(f"  ⚠️ Weakness Signals: {signals['weakness_signals']}")
+                print(f"  📊 At Resistance: {'YES' if levels['at_resistance'] else 'NO'}")
+                print(f"  📊 At Support: {'YES' if levels['at_support'] else 'NO'}")
+                print(f"  📈 Bull Slowing: {'YES' if momentum['bull_slowing'] else 'NO'}")
+                print(f"  📉 Bear Slowing: {'YES' if momentum['bear_slowing'] else 'NO'}")
+
+    print("\n🎉 COMPLETE HOLLOWAY ANALYSIS FINISHED!")
+    print("=" * 70)
     return results
 
 
-if __name__ == "__main__":  # pragma: no cover - convenience runner
-    logging.basicConfig(level=logging.INFO)
-    final_results = run_complete_holloway_system()
-    for pair, timeframes in final_results.items():
-        logger.info("%s:", pair)
+if __name__ == "__main__":
+    analysis_results = run_complete_holloway_analysis()
+
+    print("\n📋 FINAL SUMMARY:")
+    for pair, timeframes in analysis_results.items():
+        print(f"\n{pair}:")
         for timeframe, result in timeframes.items():
-            if "summary" in result:
-                summary = result["summary"]
-                logger.info(
-                    "  %s: %d data points, %d total signals",
-                    timeframe,
-                    result["data_points"],
-                    summary["signals"]["total_signals"],
-                )
+            summary = result.get("summary", {})
+            current = summary.get("current_state", {})
+            signals = summary.get("signals", {})
+            print(
+                f"  {timeframe}: {result.get('data_points', 0)} periods, "
+                f"Trend: {current.get('trend_direction', 'N/A')}, "
+                f"Signals: {signals.get('holloway_bull_signals', 0)} bull / "
+                f"{signals.get('holloway_bear_signals', 0)} bear"
+            )

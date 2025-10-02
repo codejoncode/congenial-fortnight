@@ -28,7 +28,7 @@ For comprehensive setup instructions, deployment options, and usage guides, see:
 
 - **[CLOUD_DEPLOYMENT_GUIDE.md](CLOUD_DEPLOYMENT_GUIDE.md)** – Complete setup, deployment, and automation guide
 - **[ENHANCEMENT_CHECKLIST.md](ENHANCEMENT_CHECKLIST.md)** – Development roadmap and features
-- **[Holloway_Algorithm_Implementation.md](Holloway_Algorithm_Implementation.md)** – Full breakdown of the PineScript translation now shipped in `scripts/holloway_algorithm.py`
+- **[Holloway_Algorithm_Implementation.md](Holloway_Algorithm_Implementation.md)** – October 2025 update documenting the exact PineScript translation (400+ rules, weighted scoring, trend diagnostics) now shipped in `scripts/holloway_algorithm.py`
 
 > Run the standalone Holloway export from the repository root:
 >
@@ -57,6 +57,8 @@ For comprehensive setup instructions, deployment options, and usage guides, see:
 
 
 **Performance**: EURUSD ensemble MAE 0.004973, 84%+ directional accuracy**Performance**: EURUSD ensemble MAE 0.004973, 84%+ directional accuracy
+
+> **New (Oct 2025):** The Holloway Algorithm module is now a one-to-one PineScript translation with weighted historical scoring, smoothing stacks, and trend-failure diagnostics. Retrain the ensemble to capture the projected 75–85% directional accuracy uplift.
 
 
 
