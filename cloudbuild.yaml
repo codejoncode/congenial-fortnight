@@ -51,6 +51,16 @@ steps:
         'FRED_API_KEY=${_FRED_API_KEY},GMAIL_USERNAME=${_GMAIL_USERNAME},GMAIL_APP_PASSWORD=${_GMAIL_APP_PASSWORD},NOTIFICATION_EMAIL=${_NOTIFICATION_EMAIL},NOTIFICATION_SMS=${_NOTIFICATION_SMS}',
       ]
 
+  # Delete existing training job if it exists
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      [
+        '-c',
+        'gcloud run jobs delete automated-training --region ${_REGION} --quiet || true',
+      ]
+    waitFor: ['-']
+
   # Run automated training job after deployment
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
