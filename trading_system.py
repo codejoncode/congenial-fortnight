@@ -38,7 +38,8 @@ class TradingDataCollector:
             'finnhub': 0,
             'fmp': 0,
             'yahoo': 0,
-            'ecb': 0
+            'ecb': 0,
+            'alpha_vantage': 0
         }
 
         self.daily_limits = {
@@ -46,7 +47,8 @@ class TradingDataCollector:
             'finnhub': 100,
             'fmp': 250,
             'yahoo': 100,
-            'ecb': float('inf')
+            'ecb': float('inf'),
+            'alpha_vantage': 500
         }
 
     def _check_rate_limit(self, api_name: str) -> bool:
@@ -205,6 +207,40 @@ class TradingDataCollector:
 
         return pd.DataFrame()
 
+    def collect_alpha_vantage_data(self, symbol: str, function: str = 'FX_DAILY') -> pd.DataFrame:
+        """Collect data from Alpha Vantage (5 calls/minute, 500/day free)"""
+        if not self._check_rate_limit('alpha_vantage'):
+            return pd.DataFrame()
+
+        base_url = "https://www.alphavantage.co/query"
+        params = {
+            'function': function,
+            'from_symbol': symbol.split('/')[0] if '/' in symbol else symbol,
+            'to_symbol': symbol.split('/')[1] if '/' in symbol else 'USD',
+            'apikey': self.api_keys['alpha_vantage'],
+            'outputsize': 'full'
+        }
+
+        try:
+            response = requests.get(base_url, params=params)
+            response.raise_for_status()
+            data = response.json()
+
+            if 'Time Series FX (Daily)' in data:
+                df = pd.DataFrame.from_dict(data['Time Series FX (Daily)'], orient='index')
+                df.index = pd.to_datetime(df.index)
+                df = df.astype(float)
+                df.columns = ['Open', 'High', 'Low', 'Close']
+                df = df.sort_index()
+                self._increment_call('alpha_vantage')
+                logger.info(f"Collected {len(df)} Alpha Vantage records for {symbol}")
+                return df
+
+        except Exception as e:
+            logger.error(f"Error collecting Alpha Vantage data for {symbol}: {e}")
+
+        return pd.DataFrame()
+
     def collect_all_data(self) -> Dict[str, pd.DataFrame]:
         """Collect all data from free APIs"""
         logger.info("Starting complete data collection...")
@@ -216,9 +252,24 @@ class TradingDataCollector:
         ]
         fred_data = self.collect_fred_data(fred_series)
 
-        # Yahoo Finance Data - Fix tickers
+        # Yahoo Finance Data - Fix tickers and use Alpha Vantage as backup
         yahoo_tickers = ['DX-Y.NYB', 'GC=F', '^VIX']  # DXY ticker, Gold futures, VIX
         yahoo_data = self.collect_yahoo_finance_data(yahoo_tickers)
+
+        # Alpha Vantage FX data for DXY and EUR
+        alpha_vantage_data = {}
+        dxy_data = self.collect_alpha_vantage_data('USD/EUR', 'FX_DAILY')  # DXY equivalent
+        if not dxy_data.empty:
+            alpha_vantage_data['DXY_AV'] = dxy_data
+        eurusd_data = self.collect_alpha_vantage_data('EUR/USD', 'FX_DAILY')
+        if not eurusd_data.empty:
+            alpha_vantage_data['EURUSD_AV'] = eurusd_data
+
+        # Store Alpha Vantage data for strategies to access
+        self.alpha_vantage_data = alpha_vantage_data
+
+        # Store Alpha Vantage data for strategies to access
+        self.alpha_vantage_data = alpha_vantage_data
 
         # Load local EURUSD and XAUUSD daily data
         local_data = {}
@@ -246,6 +297,7 @@ class TradingDataCollector:
         all_data = {
             **fred_data,
             **yahoo_data,
+            **alpha_vantage_data,
             **local_data,
             'economic_calendar': finnhub_data,
             'ecb_rates': ecb_data
@@ -315,49 +367,126 @@ class TradingStrategies:
 
         return signals
 
-    def dxy_exy_crossover_strategy(self) -> pd.Series:
-        """DXY/EXY Crossover with Resistance/Support Confirmation"""
-        # Get DXY and EXY data
-        dxy_data = self.data_collector.collect_yahoo_finance_data(['DX-Y.NYB'])
-        exy_data = self.data_collector.collect_yahoo_finance_data(['FXE'])
+    def dxy_exy_crossover_strategy(self, df: pd.DataFrame) -> pd.Series:
+        """DXY/EXY Crossover with Resistance/Support Confirmation using Alpha Vantage"""
+        # Use Alpha Vantage data directly
+        dxy_data = None
+        eurusd_data = None
 
-        if 'DX-Y.NYB' not in dxy_data or 'FXE' not in exy_data:
-            return pd.Series()
+        # Check for Alpha Vantage data in collector
+        if hasattr(self.data_collector, 'alpha_vantage_data'):
+            if 'DXY_AV' in self.data_collector.alpha_vantage_data:
+                dxy_data = self.data_collector.alpha_vantage_data['DXY_AV']
+            if 'EURUSD_AV' in self.data_collector.alpha_vantage_data:
+                eurusd_data = self.data_collector.alpha_vantage_data['EURUSD_AV']
 
-        dxy = dxy_data['DX-Y.NYB']['Close']
-        exy = exy_data['FXE']['Close']
+        if dxy_data is None or eurusd_data is None or dxy_data.empty or eurusd_data.empty:
+            logger.warning("No DXY or EUR data available for crossover strategy")
+            return pd.Series(0, index=df.index)
 
-        # Normalize for comparison
-        dxy_norm = (dxy - dxy.rolling(252).min()) / (dxy.rolling(252).max() - dxy.rolling(252).min()) * 100
-        exy_norm = (exy - exy.rolling(252).min()) / (exy.rolling(252).max() - exy.rolling(252).min()) * 100
+        # Use close prices for analysis
+        dxy_close = dxy_data['Close'] if 'Close' in dxy_data.columns else dxy_data.iloc[:, 0]
+        eurusd_close = eurusd_data['Close'] if 'Close' in eurusd_data.columns else eurusd_data.iloc[:, 0]
 
-        # Crossover signals
-        dxy_crosses_above_exy = (dxy_norm > exy_norm) & (dxy_norm.shift(1) <= exy_norm.shift(1))
-        exy_crosses_above_dxy = (exy_norm > dxy_norm) & (exy_norm.shift(1) <= dxy_norm.shift(1))
+        # Normalize for comparison (DXY is USD strength, EURUSD is EUR strength)
+        # When DXY rises, EURUSD typically falls (inverse relationship)
+        dxy_norm = (dxy_close - dxy_close.rolling(252).min()) / (dxy_close.rolling(252).max() - dxy_close.rolling(252).min()) * 100
+        eurusd_norm = (eurusd_close - eurusd_close.rolling(252).min()) / (eurusd_close.rolling(252).max() - eurusd_close.rolling(252).min()) * 100
+
+        # Align indices
+        common_index = dxy_norm.index.intersection(eurusd_norm.index)
+        dxy_norm = dxy_norm.loc[common_index]
+        eurusd_norm = eurusd_norm.loc[common_index]
+
+        if len(dxy_norm) < 50 or len(eurusd_norm) < 50:
+            logger.warning("Insufficient data for crossover analysis")
+            return pd.Series(0, index=df.index)
+
+        # Crossover signals (DXY crossing above EURUSD norm = bearish for EURUSD)
+        dxy_crosses_above_eurusd = (dxy_norm > eurusd_norm) & (dxy_norm.shift(1) <= eurusd_norm.shift(1))
+        eurusd_crosses_above_dxy = (eurusd_norm > dxy_norm) & (eurusd_norm.shift(1) <= dxy_norm.shift(1))
 
         # Resistance/Support levels
         dxy_resistance = dxy_norm.rolling(50).max()
         dxy_support = dxy_norm.rolling(50).min()
-        exy_resistance = exy_norm.rolling(50).max()
-        exy_support = exy_norm.rolling(50).min()
+        eurusd_resistance = eurusd_norm.rolling(50).max()
+        eurusd_support = eurusd_norm.rolling(50).min()
 
         # Confirmation signals
         eurusd_bearish = (
-            dxy_crosses_above_exy |
+            dxy_crosses_above_eurusd |
             ((dxy_norm >= dxy_support * 1.01) & (dxy_norm > dxy_norm.shift(1))) |
-            ((exy_norm >= exy_resistance * 0.99) & (exy_norm < exy_norm.shift(1)))
+            ((eurusd_norm >= eurusd_resistance * 0.99) & (eurusd_norm < eurusd_norm.shift(1)))
         )
 
         eurusd_bullish = (
-            exy_crosses_above_dxy |
-            ((exy_norm >= exy_support * 1.01) & (exy_norm > exy_norm.shift(1))) |
+            eurusd_crosses_above_dxy |
+            ((eurusd_norm >= eurusd_support * 1.01) & (eurusd_norm > eurusd_norm.shift(1))) |
             ((dxy_norm >= dxy_resistance * 0.99) & (dxy_norm < dxy_norm.shift(1)))
         )
 
-        # Convert to signal series
-        signals = pd.Series(0, index=dxy_norm.index)
-        signals[eurusd_bullish] = 1
-        signals[eurusd_bearish] = -1
+        # Convert to signal series aligned with main data
+        signals = pd.Series(0, index=df.index)
+        bullish_aligned = eurusd_bullish.reindex(df.index, method='ffill').fillna(0).astype(bool)
+        bearish_aligned = eurusd_bearish.reindex(df.index, method='ffill').fillna(0).astype(bool)
+
+        signals[bullish_aligned] = 1
+        signals[bearish_aligned] = -1
+
+        return signals
+
+    def fundamental_bias_strategy(self, df: pd.DataFrame) -> pd.Series:
+        """Fundamental Bias Strategy using Fed vs ECB rate differentials"""
+        # Collect FRED data for rate differentials
+        fred_series = ['FEDFUNDS', 'ECBDFR']  # Fed Funds Rate and ECB Deposit Rate
+        fred_data = self.data_collector.collect_fred_data(fred_series)
+
+        if 'FEDFUNDS' not in fred_data or 'ECBDFR' not in fred_data:
+            logger.warning("FRED data not available for fundamental bias strategy")
+            return pd.Series(0, index=df.index)
+
+        fed_rates = fred_data['FEDFUNDS']
+        ecb_rates = fred_data['ECBDFR']
+
+        # Calculate rate differential (Fed - ECB)
+        # Positive differential favors USD/EUR down (EURUSD down)
+        # Negative differential favors EUR/USD up (EURUSD up)
+        rate_diff = fed_rates['FEDFUNDS'] - ecb_rates['ECBDFR']
+
+        # Resample to daily frequency and forward fill
+        rate_diff_daily = rate_diff.resample('D').ffill()
+
+        # Align with trading data
+        aligned_diff = rate_diff_daily.reindex(df.index, method='ffill').ffill().bfill()
+
+        # Calculate rate differential changes and trends
+        diff_change = aligned_diff.diff()
+        diff_trend = aligned_diff.rolling(30).mean() - aligned_diff.rolling(90).mean()
+
+        # Fundamental bias signals
+        # Strong positive differential (Fed > ECB) = bearish for EURUSD
+        strong_positive_diff = aligned_diff > aligned_diff.rolling(252).quantile(0.75)
+        # Strong negative differential (ECB > Fed) = bullish for EURUSD
+        strong_negative_diff = aligned_diff < aligned_diff.rolling(252).quantile(0.25)
+
+        # Rate differential expansion (widening gap)
+        expanding_diff = diff_change > diff_change.rolling(20).quantile(0.8)
+        contracting_diff = diff_change < diff_change.rolling(20).quantile(0.2)
+
+        # Trend signals
+        bullish_trend = diff_trend < diff_trend.rolling(20).quantile(0.3)  # Contracting differential favors EUR
+        bearish_trend = diff_trend > diff_trend.rolling(20).quantile(0.7)  # Expanding differential favors USD
+
+        # Combine signals
+        signals = pd.Series(0, index=df.index)
+
+        # Strong fundamental signals
+        signals[strong_negative_diff & bullish_trend] = 1   # Bullish EURUSD
+        signals[strong_positive_diff & bearish_trend] = -1  # Bearish EURUSD
+
+        # Moderate signals based on changes
+        signals[expanding_diff & (aligned_diff > 0)] = -1   # Widening positive diff = bearish
+        signals[contracting_diff & (aligned_diff < 0)] = 1  # Narrowing negative diff = bullish
 
         return signals
 
@@ -366,14 +495,15 @@ class TradingStrategies:
         # Get individual strategy signals
         asian_signals = self.asian_range_breakout(df)
         gap_signals = self.gap_fill_strategy(df)
-        dxy_signals = self.dxy_exy_crossover_strategy()
-        
+        dxy_signals = self.dxy_exy_crossover_strategy(df)
+        fundamental_signals = self.fundamental_bias_strategy(df)
+
         # Strategy weights based on expected accuracy
         weights = {
-            'asian_breakout': 0.40,      # 67% accuracy - increased weight
-            'gap_fill': 0.30,            # 90% fill rate - increased weight  
+            'asian_breakout': 0.35,      # 67% accuracy
+            'gap_fill': 0.25,            # 90% fill rate
             'dxy_exy_crossover': 0.15,   # Custom edge (when available)
-            'fundamental_bias': 0.15     # Rate differentials (placeholder)
+            'fundamental_bias': 0.25     # Rate differentials (high impact)
         }
 
         # Combine signals
@@ -388,6 +518,8 @@ class TradingStrategies:
             # Align indices and add DXY signals
             aligned_dxy = dxy_signals.reindex(df.index, method='ffill').fillna(0)
             master_score += aligned_dxy * weights['dxy_exy_crossover']
+        if not fundamental_signals.empty:
+            master_score += fundamental_signals * weights['fundamental_bias']
 
         # Final signals (lower threshold for testing)
         final_signals = pd.Series(0, index=df.index)
@@ -402,13 +534,73 @@ if __name__ == "__main__":
     collector = TradingDataCollector()
     strategies = TradingStrategies(collector)
 
-    # Collect all data
-    data = collector.collect_all_data()
+    # Quick test with local data only
+    data = {}
 
-    # Example: Run strategies on EURUSD data
-    if 'EURUSD=X' in data:
-        eurusd_data = data['EURUSD=X']
+    # Load local EURUSD data
+    try:
+        df = pd.read_csv('data/raw/EURUSD_Daily.csv')
+        df['date'] = pd.to_datetime(df['date'])
+        df = df.set_index('date')
+        df.columns = df.columns.str.title()
+        data['EURUSD'] = df
+        print(f"Loaded {len(df)} records for EURUSD")
+    except Exception as e:
+        print(f"Error loading EURUSD data: {e}")
+        exit(1)
+
+    # Collect minimal FRED data for fundamental bias
+    print("Collecting FRED data for fundamental bias...")
+    fred_series = ['FEDFUNDS', 'ECBDFR']
+    fred_data = collector.collect_fred_data(fred_series)
+    data.update(fred_data)
+
+    # Collect Alpha Vantage data for DXY
+    print("Collecting Alpha Vantage data...")
+    dxy_data = collector.collect_alpha_vantage_data('USD/EUR', 'FX_DAILY')
+    if not dxy_data.empty:
+        data['DXY_AV'] = dxy_data
+        collector.alpha_vantage_data = {'DXY_AV': dxy_data}
+        print(f"Stored {len(dxy_data)} DXY records in collector")
+    eurusd_av_data = collector.collect_alpha_vantage_data('EUR/USD', 'FX_DAILY')
+    if not eurusd_av_data.empty:
+        if not hasattr(collector, 'alpha_vantage_data'):
+            collector.alpha_vantage_data = {}
+        collector.alpha_vantage_data['EURUSD_AV'] = eurusd_av_data
+        print(f"Stored {len(eurusd_av_data)} EURUSD records in collector")
+
+    # Run strategies
+    if 'EURUSD' in data:
+        eurusd_data = data['EURUSD']
         signals = strategies.master_signal_system(eurusd_data)
         print(f"Generated {len(signals[signals != 0])} signals for EURUSD")
+        print(f"Signal distribution: {signals.value_counts()}")
+
+        # Proper backtest accuracy check (matching Django implementation)
+        returns = eurusd_data['Close'].pct_change()
+        signal_returns = signals.shift(1) * returns  # Shift signals to avoid lookahead bias
+
+        total_trades = signals.abs().sum()
+        winning_trades = (signal_returns > 0).sum()
+        accuracy = (winning_trades / total_trades * 100) if total_trades > 0 else 0
+
+        print(f"Total trades: {int(total_trades)}")
+        print(f"Winning trades: {int(winning_trades)}")
+        print(".1f")
+
+        # Also show the simple next-day check for comparison
+        df_test = eurusd_data.copy()
+        df_test['signal'] = signals
+        df_test['next_return'] = df_test['Close'].pct_change().shift(-1)
+        simple_correct = ((df_test['signal'] > 0) & (df_test['next_return'] > 0)).sum() + ((df_test['signal'] < 0) & (df_test['next_return'] < 0)).sum()
+        simple_total = (df_test['signal'] != 0).sum()
+        simple_accuracy = (simple_correct / simple_total * 100) if simple_total > 0 else 0
+        print(".1f")
+
+        if total_trades > 0:
+            improvement = accuracy - 35  # From 35% baseline
+            print(".1f")
+            if improvement > 0:
+                print(f"Progress toward 43% target: {improvement/43*100:.1f}% complete")
 
     logger.info("Trading system execution complete.")
