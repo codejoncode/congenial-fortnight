@@ -1,5 +1,5 @@
 options:
-  logging: CLOUD_LOGGING
+  logging: LEGACY
 
 steps:
   # Build the Docker image
