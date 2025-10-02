@@ -120,11 +120,12 @@ class TradingDataCollector:
         return results
 
     def collect_finnhub_data(self) -> pd.DataFrame:
-        """Collect economic calendar from Finnhub (100 calls/day free)"""
+        """Collect economic calendar from Finnhub (100 calls/day free) - Updated to v2 API"""
         if not self._check_rate_limit('finnhub'):
             return pd.DataFrame()
 
-        base_url = "https://finnhub.io/api/v1/calendar/economic"
+        # Try v2 endpoint first (newer API)
+        base_url = "https://finnhub.io/api/v2/calendar/economic"
         params = {
             'token': self.api_keys['finnhub'],
             'from': (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'),
@@ -132,7 +133,31 @@ class TradingDataCollector:
         }
 
         try:
-            response = requests.get(base_url, params=params)
+            response = requests.get(base_url, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+
+            if 'events' in data and data['events']:
+                df = pd.DataFrame(data['events'])
+                df['date'] = pd.to_datetime(df['date'])
+                df = df.set_index('date')
+                self._increment_call('finnhub')
+                logger.info(f"Collected {len(df)} Finnhub economic events via v2 API")
+                return df
+
+        except Exception as e:
+            logger.warning(f"Finnhub v2 API failed: {e}")
+
+        # Fallback to v1 endpoint if v2 fails
+        try:
+            v1_url = "https://finnhub.io/api/v1/calendar/economic"
+            v1_params = {
+                'token': self.api_keys['finnhub'],
+                'from': (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'),
+                'to': (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
+            }
+
+            response = requests.get(v1_url, params=v1_params, timeout=10)
             response.raise_for_status()
             data = response.json()
 
@@ -141,6 +166,7 @@ class TradingDataCollector:
                 df['date'] = pd.to_datetime(df['date'])
                 df = df.set_index('date')
                 self._increment_call('finnhub')
+                logger.info(f"Collected {len(df)} Finnhub economic events via v1 API (fallback)")
                 return df
 
         except Exception as e:
@@ -173,11 +199,13 @@ class TradingDataCollector:
         return pd.DataFrame()
 
     def collect_ecb_data(self) -> pd.DataFrame:
-        """Collect ECB data from ECB Statistical Data Warehouse"""
+        """Collect ECB data from official ECB Statistical Data Warehouse - Updated to reliable endpoint"""
         try:
-            # Use a simpler ECB endpoint that should work
-            url = "https://data-api.ecb.europa.eu/service/data/MIR/MIR_1Y_1_0_0_0_0_0_0_0_0_0?format=jsondata&startPeriod=2020-01-01"
-            response = requests.get(url, timeout=10)
+            # Use the official ECB SDMX endpoint for EUR/USD reference rates
+            # This provides daily EUR/USD exchange rates which can be used for EUR strength analysis
+            url = "https://sdw-wsrest.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?format=jsondata&startPeriod=2020-01-01"
+
+            response = requests.get(url, timeout=15)
             response.raise_for_status()
             data = response.json()
 
@@ -186,24 +214,41 @@ class TradingDataCollector:
                 dates = []
                 values = []
 
+                # Extract date and value from SDMX format
                 for key, value_data in observations.items():
                     if value_data and len(value_data) > 0:
-                        # Parse date from key (ECB format)
+                        # Parse date from SDMX key format
                         date_str = key.split(':')[0]
-                        if len(date_str) == 6:  # YYYYMM format
-                            date = pd.to_datetime(date_str, format='%Y%m')
-                            value = float(value_data[0])
-                            dates.append(date)
-                            values.append(value)
+                        if len(date_str) == 8:  # YYYYMMDD format
+                            try:
+                                date = pd.to_datetime(date_str, format='%Y%m%d')
+                                value = float(value_data[0])
+                                dates.append(date)
+                                values.append(value)
+                            except (ValueError, IndexError):
+                                continue
 
                 if dates and values:
-                    df = pd.DataFrame({'ecb_rate': values}, index=dates)
+                    df = pd.DataFrame({'eur_usd_rate': values}, index=dates)
                     df = df.sort_index()
-                    logger.info(f"Collected {len(df)} ECB rate observations")
+                    logger.info(f"Collected {len(df)} ECB EUR/USD reference rates")
                     return df
 
         except Exception as e:
-            logger.error(f"Error collecting ECB data: {e}")
+            logger.warning(f"ECB SDMX API failed: {e}")
+
+        # Fallback: Use FRED for ECB deposit facility rate (same as our fundamental bias)
+        try:
+            logger.info("Falling back to FRED API for ECB data")
+            fred_data = self.collect_fred_data(['ECBDFR'])
+            if 'ECBDFR' in fred_data:
+                df = fred_data['ECBDFR']
+                df.columns = ['ecb_rate']  # Rename for consistency
+                logger.info(f"Collected {len(df)} ECB rates via FRED fallback")
+                return df
+
+        except Exception as e:
+            logger.error(f"ECB data collection failed completely: {e}")
 
         return pd.DataFrame()
 
@@ -616,13 +661,15 @@ class TradingStrategies:
         return signals
 
     def master_signal_system(self, df: pd.DataFrame) -> pd.Series:
-        """Intelligent weighting system combining all strategies"""
+        """Intelligent weighting system combining all strategies with consensus filtering"""
         # Get individual strategy signals
         asian_signals = self.asian_range_breakout(df)
         gap_signals = self.gap_fill_strategy(df)
         dxy_signals = self.dxy_exy_crossover_strategy(df)
         fundamental_signals = self.fundamental_bias_strategy(df)
         holloway_signals = self.holloway_features(df)
+
+        print(f"Strategy signals - Asian: {len(asian_signals[asian_signals != 0])}, Gap: {len(gap_signals[gap_signals != 0])}, DXY: {len(dxy_signals[dxy_signals != 0])}, Fundamental: {len(fundamental_signals[fundamental_signals != 0])}, Holloway: {len(holloway_signals[holloway_signals != 0])}")
 
         # Strategy weights based on expected accuracy
         weights = {
@@ -633,16 +680,36 @@ class TradingStrategies:
             'holloway_algorithm': 0.35   # 347 sophisticated features (highest weight)
         }
 
-        # Combine signals
+        # Collect strategy signals for consensus filtering
+        strategy_signals = {
+            'asian': asian_signals,
+            'gap': gap_signals,
+            'dxy': dxy_signals,
+            'fundamental': fundamental_signals,
+            'holloway': holloway_signals
+        }
+
+        # Apply consensus filtering - require at least 2 strategies to agree
+        consensus_signals = self._apply_consensus_filter(strategy_signals, min_agreement=2)
+        print(f"Consensus signals: {len(consensus_signals[consensus_signals != 0])} (from {len(strategy_signals)} strategies)")
+
+        # If consensus signals exist, use them directly (higher quality)
+        if not consensus_signals.empty and len(consensus_signals[consensus_signals != 0]) > 0:
+            print(f"Using consensus-filtered signals ({len(consensus_signals[consensus_signals != 0])} signals)")
+            return consensus_signals
+
+        # Fallback: Combine signals with weights when consensus not available
+        print("Consensus filtering returned no signals, falling back to weighted combination")
         master_score = pd.Series(0, index=df.index)
 
         # Add weighted signals where available
         if not asian_signals.empty:
-            master_score += asian_signals * weights['asian_breakout']
+            aligned_asian = asian_signals.reindex(df.index, method='ffill').fillna(0)
+            master_score += aligned_asian * weights['asian_breakout']
         if not gap_signals.empty:
-            master_score += gap_signals * weights['gap_fill']
+            aligned_gap = gap_signals.reindex(df.index, method='ffill').fillna(0)
+            master_score += aligned_gap * weights['gap_fill']
         if not dxy_signals.empty and not dxy_signals.eq(0).all():
-            # Align indices and add DXY signals
             aligned_dxy = dxy_signals.reindex(df.index, method='ffill').fillna(0)
             master_score += aligned_dxy * weights['dxy_exy_crossover']
         if not fundamental_signals.empty:
@@ -656,6 +723,49 @@ class TradingStrategies:
         final_signals[master_score <= -0.25] = -1 # Bearish threshold
 
         return final_signals
+
+    def _apply_consensus_filter(self, strategy_signals: Dict[str, pd.Series], min_agreement: int = 2) -> pd.Series:
+        """Apply consensus filtering - only signal when multiple strategies agree on the same day"""
+        if not strategy_signals:
+            return pd.Series()
+
+        # Filter out empty series
+        valid_signals = {name: signals[signals != 0] for name, signals in strategy_signals.items() if not signals.empty}
+
+        if len(valid_signals) < min_agreement:
+            return pd.Series()
+
+        # Find dates where at least min_agreement strategies have signals
+        all_dates = set()
+        for signals in valid_signals.values():
+            all_dates.update(signals.index)
+
+        consensus_signals = pd.Series(0, index=sorted(all_dates))
+
+        for date in all_dates:
+            signals_on_date = []
+            for name, signals in valid_signals.items():
+                if date in signals.index:
+                    signal_val = signals.loc[date]
+                    try:
+                        if pd.notna(signal_val) and signal_val != 0:
+                            scalar_val = float(signal_val) if hasattr(signal_val, '__float__') else signal_val
+                            signals_on_date.append(scalar_val)
+                    except (TypeError, ValueError):
+                        continue
+
+            # Check if we have minimum agreement in the same direction
+            if len(signals_on_date) >= min_agreement:
+                # Check if majority agree on direction
+                positive_signals = sum(1 for s in signals_on_date if s > 0)
+                negative_signals = sum(1 for s in signals_on_date if s < 0)
+
+                if positive_signals >= min_agreement:
+                    consensus_signals.loc[date] = 1   # Bullish consensus
+                elif negative_signals >= min_agreement:
+                    consensus_signals.loc[date] = -1  # Bearish consensus
+
+        return consensus_signals
 
 # Main execution
 if __name__ == "__main__":
@@ -705,13 +815,48 @@ if __name__ == "__main__":
         print(f"Generated {len(signals[signals != 0])} signals for EURUSD")
         print(f"Signal distribution: {signals.value_counts()}")
 
-        # Proper backtest accuracy check (matching Django implementation)
-        returns = eurusd_data['Close'].pct_change()
-        signal_returns = signals.shift(1) * returns  # Shift signals to avoid lookahead bias
+        # Count actual trades (non-zero signals)
+        trade_signals = signals[signals != 0]
+        total_trades = len(trade_signals)
 
-        total_trades = signals.abs().sum()
-        winning_trades = (signal_returns > 0).sum()
-        accuracy = (winning_trades / total_trades * 100) if total_trades > 0 else 0
+        # Resample to daily data for accuracy calculation
+        daily_data = eurusd_data.resample('D').agg({
+            'Open': 'first',
+            'High': 'max',
+            'Low': 'min',
+            'Close': 'last'
+        }).dropna()
+
+        # Proper backtest accuracy check (matching Django implementation)
+        # For each signal on day t, check if next day t+1 moved in signal direction
+        winning_trades = 0
+        total_checked = 0
+
+        for date, signal in trade_signals.items():
+            # date is already a Timestamp, compare directly with daily_data.index
+            if date in daily_data.index:
+                # Find the next trading day
+                try:
+                    next_date_idx = daily_data.index.get_loc(date) + 1
+                    if next_date_idx < len(daily_data):
+                        next_date = daily_data.index[next_date_idx]
+                        current_close = daily_data.loc[date, 'Close']
+                        next_close = daily_data.loc[next_date, 'Close']
+
+                        # Check if movement matches signal direction
+                        moved_up = next_close > current_close
+                        matched = (signal > 0 and moved_up) or (signal < 0 and not moved_up)
+                        if matched:
+                            winning_trades += 1
+                        total_checked += 1
+                except (KeyError, IndexError):
+                    continue
+
+        accuracy = (winning_trades / total_checked * 100) if total_checked > 0 else 0
+
+        accuracy = (winning_trades / total_checked * 100) if total_checked > 0 else 0
+
+        accuracy = (winning_trades / total_checked * 100) if total_checked > 0 else 0
 
         print(f"Total trades: {int(total_trades)}")
         print(f"Winning trades: {int(winning_trades)}")
