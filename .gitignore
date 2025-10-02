@@ -19,8 +19,7 @@ frontend/build/
 staticfiles/
 output/feature_logs/
 
-# Data artifacts (raw & processed); keep README if present
-data/raw/
+# Data artifacts (processed & cache); keep README if present
 data/processed/
 data/cache/
 !data/**/README.md

@@ -269,7 +269,7 @@ WORKDIR /app
 RUN mkdir -p forex_signal/static && cp -r frontend/build/* forex_signal/static/
 
 # Create necessary directories
-RUN mkdir -p models data/raw output logs
+RUN mkdir -p models data output logs
 
 # Collect static files
 RUN python manage.py collectstatic --noinput

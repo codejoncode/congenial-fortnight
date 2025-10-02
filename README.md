@@ -842,7 +842,7 @@ To keep signals current with the latest market data:To keep signals current with
 
    - Download latest CSV files from your data source   - Download latest CSV files from your data source
 
-   - Replace files in `data/raw/` directory   - Replace files in `data/raw/` directory
+  - Replace files in `data/` directory   - Replace files in `data/` directory
 
    - Run: `python manage.py run_daily_signal`   - Run: `python manage.py run_daily_signal`
 
@@ -988,7 +988,7 @@ system.update_csv_with_prediction('EURUSD', prediction)system.update_csv_with_pr
 
 
 
-This appends the predicted OHLC values for the next day to your existing CSV files in `data/raw/`.This appends the predicted OHLC values for the next day to your existing CSV files in `data/raw/`.
+This appends the predicted OHLC values for the next day to your existing CSV files in `data/`.This appends the predicted OHLC values for the next day to your existing CSV files in `data/`.
 
 
 

@@ -116,15 +116,15 @@ class CandlePredictionSystem:
 
         # Determine filename based on interval
         if interval == '1d':
-            csv_file = f'data/raw/{pair}_Daily.csv'
+            csv_file = f'data/{pair}_Daily.csv'
         elif interval == '4h':
-            csv_file = f'data/raw/{pair}_H4.csv'
+            csv_file = f'data/{pair}_H4.csv'
         elif interval == '1wk':
-            csv_file = f'data/raw/{pair}_Weekly.csv'
+            csv_file = f'data/{pair}_Weekly.csv'
         else:
-            csv_file = f'data/raw/{pair}_{interval}.csv'
+            csv_file = f'data/{pair}_{interval}.csv'
 
-        os.makedirs('data/raw', exist_ok=True)
+        os.makedirs('data', exist_ok=True)
 
         if update_existing and os.path.exists(csv_file):
             # Load existing data and get the last date
@@ -199,7 +199,7 @@ class CandlePredictionSystem:
         weekly_df = None
 
         try:
-            h4_file = f'data/raw/{pair}_H4.csv'
+            h4_file = f'data/{pair}_H4.csv'
             if os.path.exists(h4_file):
                 # Try to detect separator automatically
                 with open(h4_file, 'r') as f:
@@ -235,10 +235,9 @@ class CandlePredictionSystem:
         except Exception as e:
             print(f"Could not load H4 data: {e}")
             h4_df = None  # Ensure it's None on failure
-            h4_df = None  # Ensure it's None on failure
 
         try:
-            weekly_file = f'data/raw/{pair}_Weekly.csv'
+            weekly_file = f'data/{pair}_Weekly.csv'
             if os.path.exists(weekly_file):
                 weekly_df = pd.read_csv(weekly_file, sep=',')
                 # Handle different CSV formats
@@ -764,7 +763,7 @@ class CandlePredictionSystem:
 
     def update_csv_with_prediction(self, pair, prediction):
         """Update the CSV file with the predicted candle data"""
-        csv_file = f'data/raw/{pair}_Daily.csv'
+        csv_file = f'data/{pair}_Daily.csv'
         
         # Load existing data
         if os.path.exists(csv_file):

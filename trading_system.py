@@ -784,9 +784,15 @@ if __name__ == "__main__":
     # Quick test with local data only
     data = {}
 
-    # Load local EURUSD data
+    # Load local EURUSD data (prefer data/ interval files)
     try:
-        df = pd.read_csv('data/raw/EURUSD_Daily.csv')
+        # Prefer H1 -> H4 -> Daily -> Weekly -> Monthly
+        for candidate in ['data/EURUSD_H1.csv','data/EURUSD_H4.csv','data/EURUSD_Daily.csv','data/EURUSD_Weekly.csv','data/EURUSD_Monthly.csv']:
+            if os.path.exists(candidate):
+                df = pd.read_csv(candidate)
+                break
+        else:
+            raise FileNotFoundError('No EURUSD data file found in data/')
         df['date'] = pd.to_datetime(df['date'])
         df = df.set_index('date')
         df.columns = df.columns.str.title()

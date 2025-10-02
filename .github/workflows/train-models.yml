@@ -34,7 +34,7 @@ jobs:
     - name: Cache forex data
       uses: actions/cache@v3
       with:
-        path: data/raw
+        path: data
         key: forex-data-${{ github.run_number }}
         restore-keys: |
           forex-data-
@@ -54,7 +54,7 @@ jobs:
 
     - name: Create necessary directories
       run: |
-        mkdir -p models data/raw output
+        mkdir -p models data output
 
     - name: Update forex data (incremental)
       run: |

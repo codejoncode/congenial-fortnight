@@ -291,7 +291,7 @@ class Command(BaseCommand):
 
         # Load weekly data for additional features
         try:
-            weekly_file = f'data/raw/{pair}_Weekly.csv'
+            weekly_file = f'data/{pair}_Weekly.csv'
             if os.path.exists(weekly_file):
                 weekly_df = pd.read_csv(weekly_file)
                 weekly_df['date'] = pd.to_datetime(weekly_df['date'])
@@ -387,7 +387,7 @@ class Command(BaseCommand):
         """Get current price for entry calculation"""
         try:
             # Load latest data
-            file_path = f'data/raw/{pair}_Daily.csv'
+            file_path = f'data/{pair}_Daily.csv'
             if os.path.exists(file_path):
                 df = pd.read_csv(file_path)
                 return float(df['close'].iloc[-1])

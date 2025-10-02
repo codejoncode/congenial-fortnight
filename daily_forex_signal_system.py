@@ -71,7 +71,7 @@ except Exception:
 
 # Configuration - analyze only these pairs for now per user request
 PAIRS = ['XAUUSD', 'EURUSD']
-DATA_PATH = 'data/raw/'  # Local data directory
+DATA_PATH = 'data/'  # Local data directory (use data/ with interval files)
 MODEL_PATH = 'models/'   # Local models directory
 OUTPUT_PATH = 'output/'  # Local output directory
 

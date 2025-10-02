@@ -188,7 +188,7 @@ This system provides daily forex trading signals using ensemble machine learning
 │   │   └── run_daily_signal.py     # Daily signal generation
 ├── frontend/                       # React frontend
 ├── models/                         # Trained ML models
-└── data/raw/                       # Historical forex data
+└── data/                           # Historical forex data (interval-specific files)
     ├── EURUSD_Daily.csv
     ├── EURUSD_H4.csv
     └── EURUSD_Weekly.csv

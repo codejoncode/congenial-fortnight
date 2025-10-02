@@ -416,7 +416,7 @@ To keep signals current with the latest market data:
 
 2. **Manual Data Updates**:
    - Download latest CSV files from your data source
-   - Replace files in `data/raw/` directory
+  - Replace files in `data/` directory
    - Run: `python manage.py run_daily_signal`
 
 3. **Scheduling Daily Updates**:
@@ -489,7 +489,7 @@ prediction = system.predict_next_candle('EURUSD', latest_data)
 system.update_csv_with_prediction('EURUSD', prediction)
 ```
 
-This appends the predicted OHLC values for the next day to your existing CSV files in `data/raw/`.
+This appends the predicted OHLC values for the next day to your existing CSV files in `data/`.
 
 ### Integration
 Once models are uploaded, the Django system can be extended to include candle predictions alongside direction signals.
