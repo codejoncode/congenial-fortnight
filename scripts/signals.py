@@ -26,6 +26,7 @@ Usage:
 """
 
 import os
+import json
 import logging
 import numpy as np
 import pandas as pd
@@ -47,6 +48,14 @@ try:
     import ta
 except ImportError:
     ta = None
+
+# Pattern & harmonic detection
+try:
+    from .pattern_harmonic_detector import PatternHarmonicDetector
+    from .fundamental_features import FundamentalFeatureEngineer
+except ImportError:  # pragma: no cover - support running as script
+    from pattern_harmonic_detector import PatternHarmonicDetector
+    from fundamental_features import FundamentalFeatureEngineer
 
 # Configure logging
 logging.basicConfig(
@@ -97,6 +106,12 @@ class QuantumMultiTimeframeSignalGenerator:
         self.min_confidence = 0.6
         self.max_correlation_threshold = 0.8
         self.adaptive_weighting = True
+
+    # Advanced feature utilities
+    self.pattern_detector = PatternHarmonicDetector()
+    self.fundamental_engineer = FundamentalFeatureEngineer(self.data_dir)
+    self.feature_log_dir = Path("output") / "feature_logs"
+    self.feature_log_dir.mkdir(parents=True, exist_ok=True)
 
     def _load_data(self):
         """Load price data for all timeframes."""
@@ -176,8 +191,13 @@ class QuantumMultiTimeframeSignalGenerator:
                 except Exception as e:
                     logger.warning(f"Error loading {series_id}: {e}")
 
-        logger.info(f"Loaded fundamental data with {len(fundamental_df)} observations")
-        return fundamental_df
+        if fundamental_df.empty:
+            logger.info("Fundamental dataset empty or unavailable")
+            return fundamental_df
+
+        enhanced = self.fundamental_engineer.enhance(fundamental_df)
+        logger.info(f"Loaded fundamental data with {len(enhanced)} observations and {len(enhanced.columns)} features")
+        return enhanced
 
     def _load_models(self):
         """Load trained models for each timeframe."""
@@ -275,8 +295,11 @@ class QuantumMultiTimeframeSignalGenerator:
             fundamental_cols = [col for col in df.columns if col in self.fundamental_data.columns]
             df[fundamental_cols] = df[fundamental_cols].fillna(method='ffill')
 
-        # Drop rows with NaN values
-        df = df.dropna()
+    # Pattern & harmonic detection
+    df = self.pattern_detector.augment(df)
+
+    # Drop rows with NaN values
+    df = df.dropna()
 
         logger.info(f"Engineered {len(df.columns)} features for {timeframe} timeframe")
         return df
@@ -579,6 +602,9 @@ class QuantumMultiTimeframeSignalGenerator:
 
             X = latest_features[feature_cols].values
 
+            # Feature logging for diagnostics
+            self._log_feature_snapshot(timeframe, feature_cols, feature_df)
+
             # Generate prediction
             if timeframe in self.timeframe_models:
                 # Use timeframe-specific model
@@ -641,6 +667,62 @@ class QuantumMultiTimeframeSignalGenerator:
         except Exception as e:
             logger.error(f"Error generating {timeframe} signal: {e}")
             return None
+
+    def _log_feature_snapshot(self, timeframe: str, feature_cols: List[str], feature_df: pd.DataFrame) -> None:
+        """Persist a snapshot of the latest engineered features for diagnostics."""
+        if feature_df.empty:
+            return
+
+        try:
+            latest = feature_df.iloc[-1]
+            recent_window = feature_df.tail(30)
+            timestamp = datetime.utcnow()
+
+            pattern_cols = [col for col in feature_cols if col.startswith('pattern_')]
+            harmonic_cols = [col for col in feature_cols if col.startswith('harmonic_')]
+
+            top_features = [
+                {
+                    'name': name,
+                    'value': float(latest[name])
+                }
+                for name in latest[feature_cols].abs().sort_values(ascending=False).head(15).index
+            ]
+
+            pattern_summary = {
+                name: {
+                    'latest': float(latest[name]),
+                    'mean_30': float(recent_window[name].mean()),
+                    'max_30': float(recent_window[name].max())
+                }
+                for name in pattern_cols
+            }
+
+            harmonic_summary = {
+                name: {
+                    'latest': float(latest[name]),
+                    'mean_30': float(recent_window[name].mean()),
+                    'max_30': float(recent_window[name].max())
+                }
+                for name in harmonic_cols
+            }
+
+            log_payload = {
+                'pair': self.pair,
+                'timeframe': timeframe,
+                'timestamp': timestamp.isoformat(),
+                'pattern_summary': pattern_summary,
+                'harmonic_summary': harmonic_summary,
+                'top_features': top_features,
+                'feature_count': len(feature_cols)
+            }
+
+            log_file = self.feature_log_dir / f"{self.pair}_{timeframe}_{timestamp.strftime('%Y%m%d_%H%M%S')}.json"
+            with log_file.open('w') as fp:
+                json.dump(log_payload, fp, indent=2)
+
+        except Exception as exc:  # pragma: no cover - logging should not break signals
+            logger.warning(f"Failed to log feature snapshot for {timeframe}: {exc}")
 
     def generate_unified_signals(self) -> Dict:
         """

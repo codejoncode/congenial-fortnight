@@ -16,6 +16,8 @@ dist/
 build/
 node_modules/
 frontend/build/
+staticfiles/
+output/feature_logs/
 
 # Data artifacts (raw & processed); keep README if present
 data/raw/

@@ -29,6 +29,7 @@ Usage:
 """
 
 import os
+import json
 import logging
 import numpy as np
 import pandas as pd
@@ -38,6 +39,11 @@ from typing import Dict, List, Optional, Tuple, Union
 import joblib
 import warnings
 warnings.filterwarnings('ignore')
+
+try:
+    from .fundamental_features import FundamentalFeatureEngineer
+except ImportError:  # pragma: no cover - support standalone execution
+    from fundamental_features import FundamentalFeatureEngineer
 
 # ML and statistical libraries
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, RandomForestRegressor
@@ -114,31 +120,16 @@ class HybridPriceForecastingEnsemble:
         self.meta_model = None
         self.feature_importance = {}
 
-        # Configuration - adjust based on available data and timeframe
+        # Configuration - default to daily forecasting targeting next-day direction
         if self.pair in ['EURUSD', 'XAUUSD']:
-            # Check what data is available and set parameters accordingly
-            monthly_file = self.data_dir / f"{self.pair}_Monthly.csv"
-            h1_file = self.data_dir / f"{self.pair}_H1.csv"
-
-            if monthly_file.exists():
-                # Monthly data available - use monthly parameters
-                self.forecast_horizon = 6  # 6 months ahead
-                self.lookback_window = 60  # 5 years of monthly data
-                self.timeframe = 'Monthly'
-            elif h1_file.exists():
-                # H1 data available - use H1 parameters
-                self.forecast_horizon = 120  # 5 days * 24 hours = 120 hours ahead
-                self.lookback_window = 1000  # ~6 weeks of H1 data
-                self.timeframe = 'H1'
-            else:
-                # Fall back to daily parameters
-                self.forecast_horizon = 5  # days ahead
-                self.lookback_window = 200  # ~1 year of daily data
-                self.timeframe = 'Daily'
+            # These flagship pairs leverage intraday data but still predict next day moves
+            self.forecast_horizon = 1  # Next trading day
+            self.lookback_window = 250  # ~1 trading year of daily observations
+            self.timeframe = 'Daily'
         else:
-            # Other pairs use daily data
-            self.forecast_horizon = 5  # days ahead
-            self.lookback_window = 200  # ~1 year of daily data
+            # Other pairs fall back to daily setup as well
+            self.forecast_horizon = 1
+            self.lookback_window = 200
             self.timeframe = 'Daily'
 
         self.validation_splits = 5
@@ -146,9 +137,13 @@ class HybridPriceForecastingEnsemble:
         # Model configurations
         self.model_configs = self._get_model_configs()
 
-        # Load data
+        # Load data across timeframes
+        self.intraday_data = self._load_intraday_data()
+        self.monthly_data = self._load_monthly_data()
         self.price_data = self._load_price_data()
+        self.fundamental_engineer = FundamentalFeatureEngineer(self.data_dir)
         self.fundamental_data = self._load_fundamental_data()
+        self.cross_pair = self._get_cross_pair()
 
         # Feature engineering
         self.feature_columns = []
@@ -346,78 +341,146 @@ class HybridPriceForecastingEnsemble:
         }
 
     def _load_price_data(self) -> pd.DataFrame:
-        """Load historical price data for the currency pair."""
-        # For EURUSD and XAUUSD, prefer Monthly > H1 > Daily data
-        if self.pair in ['EURUSD', 'XAUUSD']:
-            # Try Monthly data first
-            csv_file = self.data_dir / f"{self.pair}_Monthly.csv"
-            if not csv_file.exists():
-                # Fall back to H1 data
-                csv_file = self.data_dir / f"{self.pair}_H1.csv"
-                if not csv_file.exists():
-                    # Fall back to Daily data
-                    csv_file = self.data_dir / "raw" / f"{self.pair}_Daily.csv"
-        else:
-            csv_file = self.data_dir / "raw" / f"{self.pair}_Daily.csv"
-
-        if not csv_file.exists():
-            logger.warning(f"Price data file not found: {csv_file}")
-            return pd.DataFrame()
-
+        """Load historical price data using provided daily files and intraday context."""
         try:
-            # Handle different CSV formats
-            if self.pair in ['EURUSD', 'XAUUSD'] and (csv_file.name.endswith('_Monthly.csv') or csv_file.name.endswith('_H1.csv')):
-                # Monthly and H1 data are tab-separated
-                df = pd.read_csv(csv_file, sep='\t')
+            daily_from_file = self._load_daily_price_file()
+
+            intraday_daily = pd.DataFrame()
+            intraday_features = pd.DataFrame()
+            if not self.intraday_data.empty:
+                intraday_daily, intraday_features = self._build_intraday_context(self.intraday_data)
+
+            if daily_from_file.empty and intraday_daily.empty:
+                daily = self._load_fallback_ohlc()
+            elif daily_from_file.empty:
+                daily = intraday_daily.copy()
+            elif intraday_daily.empty:
+                daily = daily_from_file.copy()
             else:
-                df = pd.read_csv(csv_file)
+                daily = self._combine_daily_sources(daily_from_file, intraday_daily)
 
-            # Handle different date/time column formats
-            if '<DATE>' in df.columns and '<TIME>' in df.columns:
-                # H1 format with separate DATE and TIME columns
-                df['Date'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'])
-            elif '<DATE>' in df.columns:
-                # Monthly format with just DATE column
-                df['Date'] = pd.to_datetime(df['<DATE>'])
-            else:
-                # Handle both 'date' and 'Date' column names
-                date_col = 'date' if 'date' in df.columns else 'Date'
-                df['Date'] = pd.to_datetime(df[date_col])
+            if daily.empty:
+                logger.warning(f"No price data available for {self.pair}")
+                return daily
 
-            df = df.sort_values('Date').set_index('Date')
+            if not intraday_features.empty:
+                daily = daily.join(intraday_features, how='left')
 
-            # Ensure we have OHLC columns (handle both cases)
-            required_cols = ['Open', 'High', 'Low', 'Close']
-            actual_cols = ['open', 'high', 'low', 'close']
-            ohlc_cols = ['<OPEN>', '<HIGH>', '<LOW>', '<CLOSE>']  # H1 format
+            if not self.monthly_data.empty:
+                monthly_features = self.monthly_data.rename(columns=lambda c: f"monthly_{c}")
+                monthly_features = monthly_features.resample('1D').ffill()
+                daily = daily.join(monthly_features, how='left')
 
-            if not all(col in df.columns for col in required_cols):
-                if all(col in df.columns for col in actual_cols):
-                    # Rename lowercase columns to uppercase
-                    df = df.rename(columns={
-                        'open': 'Open',
-                        'high': 'High',
-                        'low': 'Low',
-                        'close': 'Close'
-                    })
-                elif all(col in df.columns for col in ohlc_cols):
-                    # Rename H1 format columns
-                    df = df.rename(columns={
-                        '<OPEN>': 'Open',
-                        '<HIGH>': 'High',
-                        '<LOW>': 'Low',
-                        '<CLOSE>': 'Close'
-                    })
-                else:
-                    logger.error(f"Missing required OHLC columns in {csv_file}")
-                    return pd.DataFrame()
+            daily = daily.sort_index()
+            daily = daily[~daily.index.duplicated(keep='last')]
 
-            logger.info(f"Loaded {len(df)} price observations for {self.pair}")
-            return df
+            logger.info(
+                "%s consolidated dataset summary -> observations: %d (daily), start: %s, end: %s",
+                self.pair,
+                len(daily),
+                daily.index.min().date(),
+                daily.index.max().date()
+            )
+
+            return daily
 
         except Exception as e:
             logger.error(f"Error loading price data: {e}")
             return pd.DataFrame()
+
+    def _load_intraday_data(self, pair: Optional[str] = None) -> pd.DataFrame:
+        """Load intraday (H1) price data if available."""
+        pair = pair or self.pair
+        csv_file = self.data_dir / f"{pair}_H1.csv"
+        if not csv_file.exists():
+            return pd.DataFrame()
+
+        try:
+            df = pd.read_csv(csv_file, sep='\t')
+            if '<DATE>' not in df.columns or '<TIME>' not in df.columns:
+                logger.warning(f"Unexpected intraday format for {pair}: {csv_file}")
+                return pd.DataFrame()
+
+            df['Date'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'])
+            df = df.sort_values('Date').set_index('Date')
+
+            rename_map = {
+                '<OPEN>': 'Open',
+                '<HIGH>': 'High',
+                '<LOW>': 'Low',
+                '<CLOSE>': 'Close',
+                '<TICKVOL>': 'TickVolume',
+                '<VOL>': 'RealVolume',
+                '<SPREAD>': 'Spread'
+            }
+            df = df.rename(columns=rename_map)
+            df['Volume'] = df['TickVolume']
+
+            logger.info(
+                "%s intraday coverage -> bars: %d, span: %s to %s",
+                pair,
+                len(df),
+                df.index.min().date(),
+                df.index.max().date()
+            )
+
+            return df[['Open', 'High', 'Low', 'Close', 'Volume', 'TickVolume', 'RealVolume', 'Spread']]
+        except Exception as e:
+            logger.error(f"Error loading intraday data for {pair}: {e}")
+            return pd.DataFrame()
+
+    def _load_monthly_data(self, pair: Optional[str] = None) -> pd.DataFrame:
+        """Load monthly price data used for slower timeframe context."""
+        pair = pair or self.pair
+        csv_file = self.data_dir / f"{pair}_Monthly.csv"
+        if not csv_file.exists():
+            return pd.DataFrame()
+
+        try:
+            df = pd.read_csv(csv_file, sep='\t')
+            if '<DATE>' not in df.columns:
+                logger.warning(f"Unexpected monthly format for {pair}: {csv_file}")
+                return pd.DataFrame()
+
+            df['Date'] = pd.to_datetime(df['<DATE>'])
+            df = df.sort_values('Date').set_index('Date')
+
+            rename_map = {
+                '<OPEN>': 'Open',
+                '<HIGH>': 'High',
+                '<LOW>': 'Low',
+                '<CLOSE>': 'Close',
+                '<TICKVOL>': 'TickVolume',
+                '<VOL>': 'RealVolume',
+                '<SPREAD>': 'Spread'
+            }
+            df = df.rename(columns=rename_map)
+
+            logger.info(
+                "%s monthly coverage -> rows: %d, span: %s to %s",
+                pair,
+                len(df),
+                df.index.min().date(),
+                df.index.max().date()
+            )
+
+            return df[['Open', 'High', 'Low', 'Close', 'TickVolume', 'RealVolume', 'Spread']]
+        except Exception as e:
+            logger.error(f"Error loading monthly data for {pair}: {e}")
+            return pd.DataFrame()
+
+    def _load_fallback_ohlc(self) -> pd.DataFrame:
+        """Fallback loader when no intraday data is available."""
+        if not self.monthly_data.empty:
+            monthly = self.monthly_data.copy()
+            daily = monthly[['Open', 'High', 'Low', 'Close']].resample('1D').ffill()
+            tick_volume = monthly.get('TickVolume', pd.Series(index=monthly.index, dtype=float)).resample('1D').ffill()
+            daily['Volume'] = tick_volume
+            daily['tick_volume_sum'] = tick_volume
+            return daily.dropna(subset=['Open', 'High', 'Low', 'Close'])
+
+        logger.warning(f"No intraday or monthly OHLC data found for {self.pair}")
+        return pd.DataFrame()
 
     def _load_fundamental_data(self) -> pd.DataFrame:
         """Load fundamental economic data."""
@@ -466,8 +529,13 @@ class HybridPriceForecastingEnsemble:
                 except Exception as e:
                     logger.warning(f"Error loading {series_id}: {e}")
 
-        logger.info(f"Loaded fundamental data with {len(fundamental_df)} observations")
-        return fundamental_df
+        if fundamental_df.empty:
+            logger.info("Fundamental dataset empty or unavailable")
+            return fundamental_df
+
+        enhanced = self.fundamental_engineer.enhance(fundamental_df)
+        logger.info(f"Loaded fundamental data with {len(enhanced)} observations and {len(enhanced.columns)} features")
+        return enhanced
 
     def _engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -544,27 +612,223 @@ class HybridPriceForecastingEnsemble:
                 # Use robust percentage change calculation to avoid division by zero
                 pct_change_1m = df[col].pct_change(20)
                 pct_change_3m = df[col].pct_change(60)
-                
+
                 # Cap extreme values to prevent infinity
                 pct_change_1m = pct_change_1m.clip(-10, 10)  # Cap at -1000% to +1000%
                 pct_change_3m = pct_change_3m.clip(-10, 10)
-                
+
                 df[f'{col}_change_1m'] = pct_change_1m
                 df[f'{col}_change_3m'] = pct_change_3m
+
+        # Introduce cross-pair correlation features before cleaning
+        df = self._add_cross_pair_features(df)
 
         # Drop rows with NaN values, but be more lenient with technical indicators
         # Only drop rows where essential columns (OHLC) have NaN
         essential_cols = ['Open', 'High', 'Low', 'Close', 'returns']
         df_clean = df.dropna(subset=essential_cols)
-        
+
         # Replace infinite values with NaN, then fill
         df_clean = df_clean.replace([np.inf, -np.inf], np.nan)
-        
+
         # Fill NaN values in technical indicators with forward/backward fill or zeros
         df_clean = df_clean.fillna(method='ffill').fillna(method='bfill').fillna(0)
-        
+
         logger.info(f"Engineered {len(df_clean.columns)} features from {len(df_clean)} observations")
         return df_clean
+
+    def _load_daily_price_file(self, pair: Optional[str] = None) -> pd.DataFrame:
+        """Load the provided daily CSV for the specified pair if available."""
+        pair = pair or self.pair
+        candidate_files = [
+            self.data_dir / f"{pair}_Daily.csv",
+            self.data_dir / f"{pair}_daily.csv",
+            self.data_dir / f"{pair}_D1.csv",
+            self.data_dir / f"{pair}_d1.csv",
+            self.data_dir / f"{pair}.csv",
+            self.data_dir / "raw" / f"{pair}_Daily.csv"
+        ]
+
+        for csv_file in candidate_files:
+            if not csv_file.exists():
+                continue
+
+            try:
+                df = pd.read_csv(csv_file)
+
+                if '<DATE>' in df.columns and '<TIME>' in df.columns:
+                    df['Date'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'])
+                elif '<DATE>' in df.columns:
+                    df['Date'] = pd.to_datetime(df['<DATE>'])
+                elif 'Date' in df.columns:
+                    df['Date'] = pd.to_datetime(df['Date'])
+                elif 'date' in df.columns:
+                    df['Date'] = pd.to_datetime(df['date'])
+                else:
+                    logger.warning(f"Unable to identify date column in {csv_file}")
+                    continue
+
+                df = df.sort_values('Date').set_index('Date')
+
+                rename_map = {
+                    '<OPEN>': 'Open',
+                    '<HIGH>': 'High',
+                    '<LOW>': 'Low',
+                    '<CLOSE>': 'Close',
+                    '<VOL>': 'Volume',
+                    '<TICKVOL>': 'TickVolume',
+                    'open': 'Open',
+                    'high': 'High',
+                    'low': 'Low',
+                    'close': 'Close',
+                    'volume': 'Volume',
+                    'tick_volume': 'TickVolume',
+                    'spread': 'Spread'
+                }
+                available_map = {k: v for k, v in rename_map.items() if k in df.columns}
+                if available_map:
+                    df = df.rename(columns=available_map)
+
+                if not all(col in df.columns for col in ['Open', 'High', 'Low', 'Close']):
+                    logger.warning(f"Daily file {csv_file} missing OHLC columns after normalization")
+                    continue
+
+                numeric_cols = [col for col in df.columns if col not in ['symbol', 'currency']]
+                df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
+
+                df = df.dropna(subset=['Open', 'High', 'Low', 'Close'])
+                df = df[~df.index.duplicated(keep='last')]
+
+                logger.info(
+                    "%s daily coverage -> rows: %d, span: %s to %s from %s",
+                    pair,
+                    len(df),
+                    df.index.min().date(),
+                    df.index.max().date(),
+                    csv_file.name
+                )
+
+                return df
+            except Exception as e:
+                logger.warning(f"Error loading daily data from {csv_file}: {e}")
+
+        return pd.DataFrame()
+
+    def _build_intraday_context(self, hourly: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """Aggregate hourly candles into daily OHLC and derive intraday statistics."""
+        if hourly.empty or not isinstance(hourly.index, pd.DatetimeIndex):
+            return pd.DataFrame(), pd.DataFrame()
+
+        hourly = hourly.sort_index()
+
+        daily_ohlc = hourly[['Open', 'High', 'Low', 'Close']].resample('1D').agg({
+            'Open': 'first',
+            'High': 'max',
+            'Low': 'min',
+            'Close': 'last'
+        }).dropna(how='all')
+
+        intraday_features = pd.DataFrame(index=daily_ohlc.index)
+
+        if 'Volume' in hourly.columns:
+            intraday_features['intraday_volume_sum'] = hourly['Volume'].resample('1D').sum()
+            intraday_features['intraday_volume_std'] = hourly['Volume'].resample('1D').std()
+
+        if 'TickVolume' in hourly.columns:
+            intraday_features['intraday_tick_volume_sum'] = hourly['TickVolume'].resample('1D').sum()
+
+        if 'RealVolume' in hourly.columns:
+            intraday_features['intraday_real_volume_sum'] = hourly['RealVolume'].resample('1D').sum()
+
+        if 'Spread' in hourly.columns:
+            intraday_features['intraday_spread_mean'] = hourly['Spread'].resample('1D').mean()
+
+        intraday_returns = hourly['Close'].pct_change()
+        intraday_range = (hourly['High'] - hourly['Low'])
+
+        intraday_features['intraday_close_std'] = hourly['Close'].resample('1D').std()
+        intraday_features['intraday_return_volatility'] = intraday_returns.resample('1D').std()
+        intraday_features['intraday_return_sum'] = intraday_returns.resample('1D').sum()
+        intraday_features['intraday_range_mean'] = intraday_range.resample('1D').mean()
+        intraday_features['intraday_range_max'] = intraday_range.resample('1D').max()
+        intraday_features['intraday_range_std'] = intraday_range.resample('1D').std()
+        intraday_features['intraday_bar_count'] = hourly['Close'].resample('1D').count()
+
+        intraday_features = intraday_features.replace([np.inf, -np.inf], np.nan)
+
+        return daily_ohlc.dropna(subset=['Open', 'High', 'Low', 'Close'], how='any'), intraday_features
+
+    def _combine_daily_sources(self, primary: pd.DataFrame, supplemental: pd.DataFrame) -> pd.DataFrame:
+        """Merge provided daily candles with intraday-derived aggregates."""
+        if primary.empty:
+            return supplemental.copy()
+        if supplemental.empty:
+            return primary.copy()
+
+        primary = primary.sort_index()
+        supplemental = supplemental.sort_index()
+
+        combined = primary.copy()
+        for col in ['Open', 'High', 'Low', 'Close']:
+            if col not in combined.columns:
+                combined[col] = supplemental[col]
+            else:
+                combined[col] = combined[col].combine_first(supplemental[col])
+
+        combined = combined.dropna(subset=['Open', 'High', 'Low', 'Close'])
+        combined = combined[~combined.index.duplicated(keep='last')]
+
+        return combined
+
+    def _get_cross_pair(self) -> Optional[str]:
+        """Identify the complementary pair used for cross-asset signals."""
+        cross_map = {
+            'EURUSD': 'XAUUSD',
+            'XAUUSD': 'EURUSD'
+        }
+        return cross_map.get(self.pair)
+
+    def _add_cross_pair_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Integrate cross-pair correlation features to enhance signal quality."""
+        if df.empty:
+            return df
+
+        cross_pair = self.cross_pair
+        if not cross_pair:
+            return df
+
+        cross_daily = self._load_daily_price_file(cross_pair)
+        if cross_daily.empty:
+            cross_intraday = self._load_intraday_data(cross_pair)
+            if not cross_intraday.empty:
+                cross_daily, _ = self._build_intraday_context(cross_intraday)
+
+        if cross_daily.empty:
+            logger.warning(f"Cross-pair data unavailable for {cross_pair}")
+            return df
+
+        cross_daily = cross_daily[['Close']].rename(columns={'Close': f'{cross_pair}_close'})
+        cross_daily[f'{cross_pair}_returns'] = cross_daily[f'{cross_pair}_close'].pct_change()
+
+        aligned_cross = cross_daily.reindex(df.index).fillna(method='ffill')
+
+        enriched = df.join(aligned_cross, how='left')
+
+        base_returns = enriched.get('returns')
+        cross_returns = enriched.get(f'{cross_pair}_returns')
+
+        if base_returns is not None and cross_returns is not None:
+            enriched[f'corr_5_{cross_pair.lower()}'] = base_returns.rolling(5).corr(cross_returns)
+            enriched[f'corr_20_{cross_pair.lower()}'] = base_returns.rolling(20).corr(cross_returns)
+            enriched[f'return_spread_{cross_pair.lower()}'] = base_returns - cross_returns
+
+        cross_prices = enriched.get(f'{cross_pair}_close')
+        if cross_prices is not None:
+            safe_cross = cross_prices.replace(0, np.nan)
+            enriched[f'price_ratio_{cross_pair.lower()}'] = enriched['Close'] / safe_cross
+            enriched[f'price_spread_{cross_pair.lower()}'] = enriched['Close'] - cross_prices
+
+        return enriched
 
     def _calculate_atr(self, df: pd.DataFrame, period: int) -> pd.Series:
         """Calculate Average True Range."""
@@ -1401,8 +1665,11 @@ class HybridPriceForecastingEnsemble:
 
         # Prepare training data
         target_col = 'target_1d'  # 1-day ahead returns
-        feature_cols = [col for col in feature_df.columns
-                       if not col.startswith('target_') and col not in ['Close', 'date', 'Date']]
+        numeric_cols = feature_df.select_dtypes(include=[np.number]).columns.tolist()
+        feature_cols = [
+            col for col in numeric_cols
+            if not col.startswith('target_') and col not in ['Close']
+        ]
 
         self.feature_columns = feature_cols
 
@@ -1814,6 +2081,70 @@ class HybridPriceForecastingEnsemble:
             return 0.0
 
         return float(np.mean(excess_returns) / np.std(excess_returns) * np.sqrt(252))
+
+
+class ForecastingSystem:
+    """Lightweight orchestration layer wrapping the ensemble forecaster."""
+
+    def __init__(self, data_dir: str = "data", models_dir: str = "models"):
+        self.data_dir = Path(data_dir)
+        self.models_dir = Path(models_dir)
+        self.models_dir.mkdir(exist_ok=True)
+
+    def _build_ensemble(self, pair: str) -> HybridPriceForecastingEnsemble:
+        return HybridPriceForecastingEnsemble(
+            pair=pair,
+            data_dir=str(self.data_dir),
+            models_dir=str(self.models_dir)
+        )
+
+    def train_pair(self, pair: str) -> Dict[str, float]:
+        """Train or retrain the ensemble for a single pair."""
+        ensemble = self._build_ensemble(pair)
+        metrics = ensemble.train_full_ensemble()
+        return metrics
+
+    def backtest_ensemble(
+        self,
+        pair: str,
+        days: int = 30,
+        save_results: bool = False,
+        output_path: Optional[Path] = None
+    ) -> Dict:
+        """Run a backtest over the most recent window of data."""
+        ensemble = self._build_ensemble(pair)
+        if not ensemble.load_models():
+            raise FileNotFoundError(f"Trained models not found for {pair}. Run train_full_ensemble first.")
+
+        price_index = ensemble.price_data.index
+        if len(price_index) == 0:
+            raise ValueError(f"No price data available for {pair}")
+
+        end_ts = price_index.max()
+        if not isinstance(end_ts, pd.Timestamp):
+            end_ts = pd.to_datetime(end_ts)
+        start_ts = end_ts - pd.Timedelta(days=days)
+
+        results = ensemble.backtest_ensemble(
+            start_date=start_ts.strftime('%Y-%m-%d'),
+            end_date=end_ts.strftime('%Y-%m-%d')
+        )
+
+        if save_results:
+            output_dir = output_path or (Path("output") / "backtests")
+            output_dir.mkdir(parents=True, exist_ok=True)
+            file_path = output_dir / f"{pair}_backtest_{end_ts.strftime('%Y%m%d')}.json"
+            with file_path.open('w') as fp:
+                json.dump(results, fp, indent=2)
+
+        return results
+
+    def generate_signal(self, pair: str) -> Dict:
+        """Generate a near-term trading signal for the specified pair."""
+        ensemble = self._build_ensemble(pair)
+        if not ensemble.load_models():
+            raise FileNotFoundError(f"Trained models not found for {pair}. Run train_full_ensemble first.")
+        return ensemble.get_trading_signal()
 
 
 def main():
