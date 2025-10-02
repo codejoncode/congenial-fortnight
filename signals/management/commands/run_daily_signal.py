@@ -63,8 +63,17 @@ class Command(BaseCommand):
         data_path = 'data/raw'
 
         if options['fetch_data']:
-            self.fetch_latest_data(pairs, data_path)
+            new_data_available = self.fetch_latest_data(pairs, data_path)
+        else:
+            new_data_available = False
 
+        # Only generate signals if new data is available or explicitly requested
+        if not new_data_available and not options.get('force_signals', False):
+            self.stdout.write('No new data available. Skipping signal generation.')
+            self.stdout.write('Use --fetch-data to check for new data, or --force-signals to generate anyway.')
+            return
+
+        signals_generated = False
         for pair in pairs:
             self.stdout.write(f'Processing {pair}...')
             try:
@@ -133,15 +142,23 @@ class Command(BaseCommand):
                         date=date
                     )
                     self.stdout.write(f'Saved signal for {pair}')
+                    signals_generated = True
 
             except Exception as e:
                 self.stdout.write(f'Error processing {pair}: {e}')
 
-        # Export signals to JSON for notifications
-        self.export_signals_to_json()
+        # Export signals to JSON and send notifications only if signals were generated
+        if signals_generated:
+            self.export_signals_to_json()
+            self.send_notifications()
+        elif new_data_available:
+            # Send notification that new data was processed but no signals generated
+            self.send_data_update_notification()
 
     def fetch_latest_data(self, pairs, data_path):
-        """Fetch latest daily data using yfinance."""
+        """Fetch latest daily data using yfinance. Returns True if new data was found."""
+        new_data_found = False
+        
         for pair in pairs:
             self.stdout.write(f'Fetching latest data for {pair}...')
             try:
@@ -158,6 +175,7 @@ class Command(BaseCommand):
                     start_date = last_date + timedelta(days=1)
                 else:
                     start_date = datetime.now() - timedelta(days=365*2)  # 2 years of data
+                    new_data_found = True  # New file created
                 
                 # Fetch new data
                 data = yf.download(ticker, start=start_date, end=datetime.now() + timedelta(days=1), interval='1d')
@@ -193,14 +211,22 @@ class Command(BaseCommand):
                     combined_df = pd.concat([existing_df, data], ignore_index=True)
                     combined_df = combined_df.drop_duplicates(subset='date', keep='last')
                     combined_df = combined_df.sort_values('date')
+                    
+                    # Check if we actually added new rows
+                    if len(combined_df) > len(existing_df):
+                        new_data_found = True
+                        self.stdout.write(f'Updated {pair} data: {len(data)} new rows')
+                    else:
+                        self.stdout.write(f'No new data for {pair}')
                 else:
-                    combined_df = data
-                
-                combined_df.to_csv(file_path, index=False)
-                self.stdout.write(f'Updated {pair} data: {len(data)} new rows')
+                    data.to_csv(file_path, index=False)
+                    self.stdout.write(f'Created {pair} data file with {len(data)} rows')
+                    new_data_found = True
                 
             except Exception as e:
                 self.stdout.write(f'Error fetching data for {pair}: {e}')
+        
+        return new_data_found
 
     def engineer_features(self, df, pair):
         """Feature engineering with multi-timeframe support."""
@@ -348,3 +374,79 @@ class Command(BaseCommand):
             return 0.0
         except:
             return 0.0
+
+    def send_notifications(self):
+        """Send signal notifications to configured recipients"""
+        try:
+            from notification_system import NotificationSystem
+            
+            notifier = NotificationSystem()
+            
+            # Get today's signals
+            today = datetime.now().date()
+            signals = Signal.objects.filter(date=today)
+            
+            if signals:
+                signal_list = []
+                for signal in signals:
+                    entry_price = self.get_current_price(signal.pair)
+                    signal_list.append({
+                        'pair': signal.pair,
+                        'signal': signal.signal,
+                        'probability': float(signal.probability),
+                        'stop_loss': float(signal.stop_loss),
+                        'entry_price': entry_price,
+                        'date': str(signal.date)
+                    })
+                
+                recipients = []
+                email = os.getenv('NOTIFICATION_EMAIL')
+                sms = os.getenv('NOTIFICATION_SMS')
+                if email:
+                    recipients.append(email)
+                if sms:
+                    recipients.append(sms)
+                
+                if recipients:
+                    notifier.send_signal_notification(signal_list, recipients)
+                    self.stdout.write(f'Sent notifications to {len(recipients)} recipients')
+                else:
+                    self.stdout.write('No notification recipients configured')
+            else:
+                self.stdout.write('No signals to notify about')
+                
+        except Exception as e:
+            self.stdout.write(f'Error sending notifications: {e}')
+
+    def send_data_update_notification(self):
+        """Send notification that new data was processed but no signals generated"""
+        try:
+            from notification_system import NotificationSystem
+            
+            notifier = NotificationSystem()
+            
+            message = f"📊 Forex Data Update - {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
+            message += "New market data has been processed and models updated.\n"
+            message += "No new trading signals generated at this time.\n\n"
+            message += "Models are ready for the next trading session."
+            
+            recipients = []
+            email = os.getenv('NOTIFICATION_EMAIL')
+            sms = os.getenv('NOTIFICATION_SMS')
+            if email:
+                recipients.append(email)
+            if sms:
+                recipients.append(sms)
+            
+            if recipients:
+                notifier.send_notification(
+                    subject="📊 Forex Data Update - No New Signals",
+                    message=message,
+                    recipients=recipients
+                )
+                self.stdout.write('Sent data update notification')
+            else:
+                self.stdout.write('No notification recipients configured')
+                
+        except Exception as e:
+            self.stdout.write(f'Error sending data update notification: {e}')
