@@ -492,18 +492,38 @@ class DailyForexSignal:
 
         return df
 
-    def build_ensemble(self, X_train, y_train):
-        """Build calibrated ensemble: RF + XGB + Logistic."""
+    def build_ensemble(self, X_train, y_train, X_val=None, y_val=None):
+        """Build calibrated ensemble: RF + XGB + Logistic with regularization and early stopping."""
         models = {}
 
-        # Random Forest
-        rf = RandomForestClassifier(n_estimators=200, max_depth=10, random_state=42)
+        # Random Forest with regularization
+        rf = RandomForestClassifier(
+            n_estimators=200, 
+            max_depth=10, 
+            min_samples_split=10,  # NEW: Requires more samples to split (prevents overfitting)
+            min_samples_leaf=5,    # NEW: Minimum samples per leaf (prevents overfitting)
+            random_state=42
+        )
         rf.fit(X_train, y_train)
         models['rf'] = CalibratedClassifierCV(rf, method='isotonic', cv=3)
 
-        # XGBoost
-        xgb_clf = xgb.XGBClassifier(n_estimators=200, max_depth=6, learning_rate=0.1, random_state=42)
-        xgb_clf.fit(X_train, y_train)
+        # XGBoost with early stopping
+        xgb_clf = xgb.XGBClassifier(
+            n_estimators=200, 
+            max_depth=6, 
+            learning_rate=0.1, 
+            random_state=42,
+            early_stopping_rounds=20 if X_val is not None else None,  # NEW: Stop if no improvement for 20 rounds
+            eval_metric='logloss' if X_val is not None else None      # NEW: Metric to monitor
+        )
+        
+        if X_val is not None and y_val is not None:
+            # Fit with validation set for early stopping
+            xgb_clf.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
+        else:
+            # Fallback to regular fit if no validation data
+            xgb_clf.fit(X_train, y_train)
+            
         models['xgb'] = CalibratedClassifierCV(xgb_clf, method='isotonic', cv=3)
 
         # Fit calibrators
@@ -548,7 +568,12 @@ class DailyForexSignal:
         X_train, y_train = X_scaled[:train_size], y[:train_size]
 
         try:
-            self.build_ensemble(X_train, y_train)
+            # Prepare validation data for early stopping
+            X_val, y_val = None, None
+            if train_size < len(X_scaled):
+                X_val, y_val = X_scaled[train_size:], y[train_size:]
+            
+            self.build_ensemble(X_train, y_train, X_val, y_val)
 
             # Validate
             if train_size < len(X_scaled):
