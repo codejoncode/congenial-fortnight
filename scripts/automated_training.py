@@ -9,13 +9,23 @@ import sys
 import json
 import time
 import logging
+import numpy as np
 from datetime import datetime
 from typing import Dict, List, Optional
 
 # Add project root to path
 sys.path.insert(0, '/app')
 
-from scripts.optimizer import optimize_pair
+try:
+    from scripts.advanced_regularization_optimizer import optimize_pair
+except ImportError:
+    from scripts.optimizer import optimize_pair
+
+try:
+    from scripts.regularization_config_manager import get_regularization_config
+except ImportError:
+    get_regularization_config = None
+
 from scripts.forecasting import ForecastingSystem
 from notification_system import NotificationSystem
 
@@ -36,6 +46,15 @@ class AutomatedTrainer:
         self.max_iterations = max_iterations
         self.forecasting = ForecastingSystem()
         self.notifier = NotificationSystem()
+
+        # Enhanced stopping criteria
+        self.convergence_patience = 10  # Iterations without improvement
+        self.min_improvement = 0.001    # Minimum improvement threshold
+        self.early_stop_threshold = 0.95  # Stop if we exceed target significantly
+        
+        # Performance tracking
+        self.performance_history = {}
+        self.stagnation_counters = {}
 
         # Ensure directories exist
         os.makedirs('/app/models', exist_ok=True)
@@ -62,19 +81,35 @@ class AutomatedTrainer:
             return {'accuracy': 0, 'error': str(e)}
 
     def optimize_until_target(self, pair: str) -> Dict:
-        """Optimize model until target accuracy is reached"""
+        """Optimize model until target accuracy is reached with advanced early stopping"""
         logger.info(f"Starting automated optimization for {pair} targeting {self.target_accuracy}")
 
         best_accuracy = 0
         iteration = 0
         results_history = []
+        stagnation_counter = 0
+        convergence_window = []
+        
+        # Initialize tracking for this pair
+        self.performance_history[pair] = []
+        self.stagnation_counters[pair] = 0
 
         while iteration < self.max_iterations:
             iteration += 1
             logger.info(f"Iteration {iteration}/{self.max_iterations} for {pair}")
 
             try:
-                # Run optimization
+                # Get adaptive regularization configuration
+                if get_regularization_config is not None:
+                    reg_config = get_regularization_config(
+                        pair, 
+                        target_accuracy=self.target_accuracy,
+                        current_performance=current_accuracy if 'current_accuracy' in locals() else None,
+                        iteration=iteration
+                    )
+                    logger.info(f"Using {reg_config.get('meta', {}).get('strategy', 'default')} regularization strategy for {pair}")
+                
+                # Run optimization with enhanced parameters
                 improvement = optimize_pair(pair, threshold=self.target_accuracy - 0.1)
                 logger.info(f"Optimization completed for {pair}, improvement: {improvement}")
 
@@ -82,19 +117,57 @@ class AutomatedTrainer:
                 performance = self.evaluate_current_performance(pair)
                 current_accuracy = performance.get('accuracy', 0)
 
+                # Track performance history
+                self.performance_history[pair].append(current_accuracy)
+                
+                # Calculate improvement from best
+                improvement_from_best = current_accuracy - best_accuracy
+                
                 results_history.append({
                     'iteration': iteration,
                     'accuracy': current_accuracy,
                     'improvement': improvement,
+                    'improvement_from_best': improvement_from_best,
                     'timestamp': datetime.now().isoformat()
                 })
 
-                logger.info(f"{pair} accuracy after iteration {iteration}: {current_accuracy:.4f}")
+                logger.info(f"{pair} accuracy after iteration {iteration}: {current_accuracy:.4f} (improvement: {improvement_from_best:+.4f})")
 
-                # Send heartbeat notification every 5 iterations or when significant progress is made
-                if iteration % 5 == 0 or (current_accuracy > best_accuracy + 0.02):
-                    self.send_progress_notification(pair, iteration, current_accuracy, best_accuracy)
+                # Advanced Early Stopping Logic
+                
+                # 1. Check for exceptional performance (stop early if significantly exceeding target)
+                if current_accuracy >= self.early_stop_threshold:
+                    logger.info(f"🚀 Exceptional performance reached for {pair}: {current_accuracy:.4f} >= {self.early_stop_threshold:.4f}")
+                    break
+                
+                # 2. Check for convergence (no significant improvement)
+                if improvement_from_best < self.min_improvement:
+                    stagnation_counter += 1
+                    logger.info(f"Stagnation counter for {pair}: {stagnation_counter}/{self.convergence_patience}")
+                else:
+                    stagnation_counter = 0
                     best_accuracy = max(best_accuracy, current_accuracy)
+                
+                # 3. Early stopping due to convergence
+                if stagnation_counter >= self.convergence_patience:
+                    logger.info(f"⏹️ Early stopping triggered for {pair} due to convergence (no improvement for {self.convergence_patience} iterations)")
+                    break
+                
+                # 4. Check convergence window (variance in recent performance)
+                convergence_window.append(current_accuracy)
+                if len(convergence_window) > 5:  # Keep last 5 results
+                    convergence_window.pop(0)
+                    
+                if len(convergence_window) >= 5:
+                    recent_variance = np.var(convergence_window)
+                    if recent_variance < 0.0001:  # Very low variance indicates convergence
+                        logger.info(f"🎯 Performance convergence detected for {pair} (variance: {recent_variance:.6f})")
+                        # Don't break immediately, but increase stagnation counter
+                        stagnation_counter += 2
+
+                # Send progress notifications
+                if iteration % 3 == 0 or (improvement_from_best > 0.01):  # More frequent updates
+                    self.send_progress_notification(pair, iteration, current_accuracy, best_accuracy)
 
                 # Check if target reached
                 if current_accuracy >= self.target_accuracy:
@@ -113,11 +186,27 @@ class AutomatedTrainer:
                     )
                     break
 
-                # Save progress
+                # Advanced Performance Analysis
+                if len(results_history) >= 3:
+                    recent_performance = [r['accuracy'] for r in results_history[-3:]]
+                    performance_trend = self._analyze_performance_trend(recent_performance)
+                    
+                    logger.info(f"Performance trend for {pair}: {performance_trend}")
+                    
+                    # Adaptive strategy adjustment
+                    if performance_trend == 'declining' and iteration > 10:
+                        logger.warning(f"Declining performance detected for {pair}. Consider strategy adjustment.")
+                    elif performance_trend == 'plateauing' and stagnation_counter > 5:
+                        logger.info(f"Performance plateau detected for {pair}. Increasing regularization focus.")
+
+                # Save progress with enhanced metrics
                 self.save_progress(pair, results_history)
 
-                # Small delay between iterations
-                time.sleep(5)
+                # Dynamic delay based on performance
+                if improvement_from_best > 0.01:
+                    time.sleep(2)  # Shorter delay when making good progress
+                else:
+                    time.sleep(5)  # Standard delay
 
             except Exception as e:
                 logger.error(f"Error in iteration {iteration} for {pair}: {e}")
@@ -167,6 +256,23 @@ class AutomatedTrainer:
                 }, f, indent=2)
         except Exception as e:
             logger.error(f"Error saving progress for {pair}: {e}")
+
+    def _analyze_performance_trend(self, recent_performance: List[float]) -> str:
+        """Analyze recent performance trend."""
+        if len(recent_performance) < 3:
+            return 'insufficient_data'
+        
+        # Calculate trend
+        improvements = [recent_performance[i] - recent_performance[i-1] for i in range(1, len(recent_performance))]
+        
+        avg_improvement = np.mean(improvements)
+        
+        if avg_improvement > 0.005:
+            return 'improving'
+        elif avg_improvement < -0.005:
+            return 'declining'
+        else:
+            return 'plateauing'
 
     def run_automated_training(self, pairs: List[str] = None):
         """Run automated training for specified pairs"""

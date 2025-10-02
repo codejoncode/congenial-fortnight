@@ -160,80 +160,155 @@ class HybridPriceForecastingEnsemble:
                 'params': {}
             },
 
-            # Machine Learning Models
+            # Machine Learning Models with Enhanced Regularization
             'lightgbm': {
                 'enabled': True,
                 'type': 'ml',
                 'params': {
-                    'n_estimators': 1000,
-                    'learning_rate': 0.05,
+                    'n_estimators': 2000,
+                    'learning_rate': 0.03,  # Lower for better generalization
                     'max_depth': 6,
                     'num_leaves': 31,
                     'subsample': 0.8,
                     'colsample_bytree': 0.8,
+                    'min_child_samples': 20,  # Regularization
+                    'min_child_weight': 0.001,
+                    'reg_alpha': 0.1,  # L1 regularization
+                    'reg_lambda': 0.1,  # L2 regularization
                     'random_state': 42,
-                    'verbosity': -1
+                    'verbosity': -1,
+                    'force_col_wise': True,
+                    'boosting_type': 'gbdt'
+                },
+                'early_stopping': {
+                    'enabled': True,
+                    'rounds': 100,
+                    'metric': 'l2'
                 }
             },
             'xgboost': {
                 'enabled': True,
                 'type': 'ml',
                 'params': {
-                    'n_estimators': 1000,
-                    'learning_rate': 0.05,
+                    'n_estimators': 2000,
+                    'learning_rate': 0.03,  # Lower for stability
                     'max_depth': 6,
                     'subsample': 0.8,
                     'colsample_bytree': 0.8,
+                    'min_child_weight': 3,  # Regularization
+                    'gamma': 0.2,  # Minimum loss reduction
+                    'alpha': 0.1,  # L1 regularization
+                    'lambda': 1.0,  # L2 regularization
+                    'scale_pos_weight': 1,
                     'random_state': 42,
-                    'verbosity': 0
+                    'verbosity': 0,
+                    'tree_method': 'auto'
+                },
+                'early_stopping': {
+                    'enabled': True,
+                    'rounds': 100,
+                    'metric': 'rmse'
                 }
             },
             'random_forest': {
                 'enabled': True,
                 'type': 'ml',
                 'params': {
-                    'n_estimators': 500,
-                    'max_depth': 10,
-                    'min_samples_split': 5,
-                    'min_samples_leaf': 2,
+                    'n_estimators': 800,  # Increased for better ensemble
+                    'max_depth': 12,
+                    'min_samples_split': 10,  # Increased regularization
+                    'min_samples_leaf': 4,   # Increased regularization
+                    'max_features': 'sqrt',  # Feature regularization
+                    'min_impurity_decrease': 0.0001,  # Regularization
+                    'max_samples': 0.8,      # Bootstrap regularization
                     'random_state': 42,
-                    'n_jobs': -1
+                    'n_jobs': -1,
+                    'oob_score': True        # Out-of-bag scoring
+                },
+                'validation': {
+                    'use_oob': True,
+                    'target_score': 0.85
                 }
             },
             'extra_trees': {
                 'enabled': True,
                 'type': 'ml',
                 'params': {
-                    'n_estimators': 500,
-                    'max_depth': 10,
-                    'min_samples_split': 5,
-                    'min_samples_leaf': 2,
+                    'n_estimators': 800,
+                    'max_depth': 12,
+                    'min_samples_split': 10,  # Regularization
+                    'min_samples_leaf': 4,   # Regularization
+                    'max_features': 'sqrt',  # Feature regularization
+                    'min_impurity_decrease': 0.0001,
+                    'max_samples': 0.8,      # Bootstrap regularization
                     'random_state': 42,
-                    'n_jobs': -1
+                    'n_jobs': -1,
+                    'bootstrap': True        # Enable bootstrapping
+                },
+                'validation': {
+                    'target_score': 0.85
                 }
             },
 
-            # Deep Learning Models
+            # Deep Learning Models with Advanced Regularization
             'lstm': {
                 'enabled': tf is not None,
                 'type': 'dl',
                 'params': {
-                    'units': 64,
-                    'dropout': 0.2,
-                    'epochs': 100,
-                    'batch_size': 32,
-                    'learning_rate': 0.001
+                    'units': 128,           # Increased capacity
+                    'dropout': 0.3,         # Increased dropout
+                    'recurrent_dropout': 0.2, # RNN-specific dropout
+                    'epochs': 200,          # More epochs with early stopping
+                    'batch_size': 64,       # Larger batch for stability
+                    'learning_rate': 0.001,
+                    'l1_reg': 0.01,        # L1 regularization
+                    'l2_reg': 0.01         # L2 regularization
+                },
+                'early_stopping': {
+                    'enabled': True,
+                    'monitor': 'val_loss',
+                    'patience': 25,        # Increased patience
+                    'min_delta': 0.0001,
+                    'restore_best_weights': True
+                },
+                'callbacks': {
+                    'reduce_lr': {
+                        'enabled': True,
+                        'monitor': 'val_loss',
+                        'factor': 0.5,
+                        'patience': 15,
+                        'min_lr': 1e-7
+                    }
                 }
             },
             'bilstm': {
                 'enabled': tf is not None,
                 'type': 'dl',
                 'params': {
-                    'units': 64,
-                    'dropout': 0.2,
-                    'epochs': 100,
-                    'batch_size': 32,
-                    'learning_rate': 0.001
+                    'units': 128,
+                    'dropout': 0.3,
+                    'recurrent_dropout': 0.2,
+                    'epochs': 200,
+                    'batch_size': 64,
+                    'learning_rate': 0.001,
+                    'l1_reg': 0.01,
+                    'l2_reg': 0.01
+                },
+                'early_stopping': {
+                    'enabled': True,
+                    'monitor': 'val_loss',
+                    'patience': 25,
+                    'min_delta': 0.0001,
+                    'restore_best_weights': True
+                },
+                'callbacks': {
+                    'reduce_lr': {
+                        'enabled': True,
+                        'monitor': 'val_loss',
+                        'factor': 0.5,
+                        'patience': 15,
+                        'min_lr': 1e-7
+                    }
                 }
             }
         }
@@ -519,45 +594,100 @@ class HybridPriceForecastingEnsemble:
         return models
 
     def _train_ml_models(self, X_train: np.ndarray, y_train: np.ndarray) -> Dict:
-        """Train machine learning models."""
+        """Train machine learning models with advanced regularization and early stopping."""
         models = {}
+        
+        # Split training data for validation
+        from sklearn.model_selection import train_test_split
+        X_train_split, X_val_split, y_train_split, y_val_split = train_test_split(
+            X_train, y_train, test_size=0.2, random_state=42, shuffle=False
+        )
 
-        # LightGBM
+        # LightGBM with Early Stopping
         if self.model_configs['lightgbm']['enabled']:
             try:
-                logger.info("Training LightGBM model")
-                model = LGBMRegressor(**self.model_configs['lightgbm']['params'])
-                model.fit(X_train, y_train)
+                logger.info("Training LightGBM model with early stopping")
+                config = self.model_configs['lightgbm']
+                model = LGBMRegressor(**config['params'])
+                
+                if config.get('early_stopping', {}).get('enabled', False):
+                    eval_set = [(X_val_split, y_val_split)]
+                    model.fit(
+                        X_train_split, y_train_split,
+                        eval_set=eval_set,
+                        eval_metric=config['early_stopping']['metric'],
+                        callbacks=[
+                            LGBMRegressor().early_stopping(
+                                stopping_rounds=config['early_stopping']['rounds'],
+                                verbose=False
+                            )
+                        ]
+                    )
+                else:
+                    model.fit(X_train, y_train)
+                    
                 models['lightgbm'] = model
+                logger.info(f"LightGBM trained. Best iteration: {getattr(model, 'best_iteration_', 'N/A')}")
             except Exception as e:
                 logger.error(f"Error training LightGBM: {e}")
 
-        # XGBoost
+        # XGBoost with Early Stopping
         if self.model_configs['xgboost']['enabled']:
             try:
-                logger.info("Training XGBoost model")
-                model = XGBRegressor(**self.model_configs['xgboost']['params'])
-                model.fit(X_train, y_train)
+                logger.info("Training XGBoost model with early stopping")
+                config = self.model_configs['xgboost']
+                model = XGBRegressor(**config['params'])
+                
+                if config.get('early_stopping', {}).get('enabled', False):
+                    model.fit(
+                        X_train_split, y_train_split,
+                        eval_set=[(X_val_split, y_val_split)],
+                        early_stopping_rounds=config['early_stopping']['rounds'],
+                        verbose=False
+                    )
+                else:
+                    model.fit(X_train, y_train)
+                    
                 models['xgboost'] = model
+                logger.info(f"XGBoost trained. Best iteration: {getattr(model, 'best_iteration', 'N/A')}")
             except Exception as e:
                 logger.error(f"Error training XGBoost: {e}")
 
-        # Random Forest
+        # Random Forest with Enhanced Regularization
         if self.model_configs['random_forest']['enabled']:
             try:
-                logger.info("Training Random Forest model")
-                model = RandomForestRegressor(**self.model_configs['random_forest']['params'])
+                logger.info("Training Random Forest model with regularization")
+                config = self.model_configs['random_forest']
+                model = RandomForestRegressor(**config['params'])
                 model.fit(X_train, y_train)
+                
+                # Check OOB score if available
+                if hasattr(model, 'oob_score_') and config.get('validation', {}).get('use_oob', False):
+                    oob_score = model.oob_score_
+                    logger.info(f"Random Forest OOB Score: {oob_score:.4f}")
+                    
+                    # Early termination if target reached
+                    target_score = config.get('validation', {}).get('target_score', 0.85)
+                    if oob_score >= target_score:
+                        logger.info(f"Random Forest reached target score: {oob_score:.4f}")
+                        
                 models['random_forest'] = model
             except Exception as e:
                 logger.error(f"Error training Random Forest: {e}")
 
-        # Extra Trees
+        # Extra Trees with Enhanced Regularization
         if self.model_configs['extra_trees']['enabled']:
             try:
-                logger.info("Training Extra Trees model")
-                model = ExtraTreesRegressor(**self.model_configs['extra_trees']['params'])
+                logger.info("Training Extra Trees model with regularization")
+                config = self.model_configs['extra_trees']
+                model = ExtraTreesRegressor(**config['params'])
                 model.fit(X_train, y_train)
+                
+                # Evaluate performance for early termination
+                if len(X_val_split) > 0:
+                    val_score = model.score(X_val_split, y_val_split)
+                    logger.info(f"Extra Trees Validation Score: {val_score:.4f}")
+                    
                 models['extra_trees'] = model
             except Exception as e:
                 logger.error(f"Error training Extra Trees: {e}")
@@ -588,60 +718,162 @@ class HybridPriceForecastingEnsemble:
             logger.warning("Not enough data for deep learning models")
             return models
 
-        # LSTM
+        # LSTM with Advanced Regularization
         if self.model_configs['lstm']['enabled']:
             try:
-                logger.info("Training LSTM model")
+                logger.info("Training LSTM model with advanced regularization")
+                config = self.model_configs['lstm']
+                params = config['params']
+                
+                # Import regularizers
+                from tensorflow.keras import regularizers
+                from tensorflow.keras.callbacks import ReduceLROnPlateau
+                
                 model = Sequential([
-                    LSTM(self.model_configs['lstm']['params']['units'],
-                         input_shape=(X_seq.shape[1], X_seq.shape[2])),
-                    Dropout(self.model_configs['lstm']['params']['dropout']),
+                    LSTM(params['units'],
+                         input_shape=(X_seq.shape[1], X_seq.shape[2]),
+                         dropout=params['dropout'],
+                         recurrent_dropout=params['recurrent_dropout'],
+                         kernel_regularizer=regularizers.l1_l2(
+                             l1=params['l1_reg'], l2=params['l2_reg']
+                         ),
+                         return_sequences=False),
+                    Dropout(0.4),  # Additional dropout layer
+                    Dense(64, activation='relu',
+                          kernel_regularizer=regularizers.l1_l2(
+                              l1=params['l1_reg']/2, l2=params['l2_reg']/2
+                          )),
+                    Dropout(0.3),
                     Dense(32, activation='relu'),
                     Dense(1)
                 ])
 
-                model.compile(optimizer=Adam(learning_rate=self.model_configs['lstm']['params']['learning_rate']),
-                            loss='mse')
+                model.compile(
+                    optimizer=Adam(learning_rate=params['learning_rate']),
+                    loss='mse',
+                    metrics=['mae']
+                )
 
-                early_stop = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+                # Setup callbacks
+                callbacks = []
+                
+                # Early Stopping
+                if config.get('early_stopping', {}).get('enabled', False):
+                    es_config = config['early_stopping']
+                    early_stop = EarlyStopping(
+                        monitor=es_config['monitor'],
+                        patience=es_config['patience'],
+                        min_delta=es_config['min_delta'],
+                        restore_best_weights=es_config['restore_best_weights'],
+                        verbose=1
+                    )
+                    callbacks.append(early_stop)
+                
+                # Learning Rate Reduction
+                if config.get('callbacks', {}).get('reduce_lr', {}).get('enabled', False):
+                    lr_config = config['callbacks']['reduce_lr']
+                    reduce_lr = ReduceLROnPlateau(
+                        monitor=lr_config['monitor'],
+                        factor=lr_config['factor'],
+                        patience=lr_config['patience'],
+                        min_lr=lr_config['min_lr'],
+                        verbose=1
+                    )
+                    callbacks.append(reduce_lr)
 
-                model.fit(X_seq, y_seq,
-                         epochs=self.model_configs['lstm']['params']['epochs'],
-                         batch_size=self.model_configs['lstm']['params']['batch_size'],
-                         validation_split=0.2,
-                         callbacks=[early_stop],
-                         verbose=0)
+                # Train model
+                history = model.fit(
+                    X_seq, y_seq,
+                    epochs=params['epochs'],
+                    batch_size=params['batch_size'],
+                    validation_split=0.25,  # Increased validation split
+                    callbacks=callbacks,
+                    verbose=1
+                )
 
                 models['lstm'] = model
+                logger.info(f"LSTM training completed. Final val_loss: {min(history.history['val_loss']):.6f}")
 
             except Exception as e:
                 logger.error(f"Error training LSTM: {e}")
 
-        # BiLSTM
+        # BiLSTM with Advanced Regularization
         if self.model_configs['bilstm']['enabled']:
             try:
-                logger.info("Training BiLSTM model")
+                logger.info("Training BiLSTM model with advanced regularization")
+                config = self.model_configs['bilstm']
+                params = config['params']
+                
+                # Import regularizers if not already imported
+                if tf is not None:
+                    from tensorflow.keras import regularizers
+                    from tensorflow.keras.callbacks import ReduceLROnPlateau
+                
                 model = Sequential([
-                    Bidirectional(LSTM(self.model_configs['bilstm']['params']['units']),
-                                 input_shape=(X_seq.shape[1], X_seq.shape[2])),
-                    Dropout(self.model_configs['bilstm']['params']['dropout']),
+                    Bidirectional(
+                        LSTM(params['units'],
+                             dropout=params['dropout'],
+                             recurrent_dropout=params['recurrent_dropout'],
+                             kernel_regularizer=regularizers.l1_l2(
+                                 l1=params['l1_reg'], l2=params['l2_reg']
+                             )),
+                        input_shape=(X_seq.shape[1], X_seq.shape[2])
+                    ),
+                    Dropout(0.4),  # Additional dropout
+                    Dense(64, activation='relu',
+                          kernel_regularizer=regularizers.l1_l2(
+                              l1=params['l1_reg']/2, l2=params['l2_reg']/2
+                          )),
+                    Dropout(0.3),
                     Dense(32, activation='relu'),
                     Dense(1)
                 ])
 
-                model.compile(optimizer=Adam(learning_rate=self.model_configs['bilstm']['params']['learning_rate']),
-                            loss='mse')
+                model.compile(
+                    optimizer=Adam(learning_rate=params['learning_rate']),
+                    loss='mse',
+                    metrics=['mae']
+                )
 
-                early_stop = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+                # Setup callbacks
+                callbacks = []
+                
+                # Early Stopping
+                if config.get('early_stopping', {}).get('enabled', False):
+                    es_config = config['early_stopping']
+                    early_stop = EarlyStopping(
+                        monitor=es_config['monitor'],
+                        patience=es_config['patience'],
+                        min_delta=es_config['min_delta'],
+                        restore_best_weights=es_config['restore_best_weights'],
+                        verbose=1
+                    )
+                    callbacks.append(early_stop)
+                
+                # Learning Rate Reduction
+                if config.get('callbacks', {}).get('reduce_lr', {}).get('enabled', False):
+                    lr_config = config['callbacks']['reduce_lr']
+                    reduce_lr = ReduceLROnPlateau(
+                        monitor=lr_config['monitor'],
+                        factor=lr_config['factor'],
+                        patience=lr_config['patience'],
+                        min_lr=lr_config['min_lr'],
+                        verbose=1
+                    )
+                    callbacks.append(reduce_lr)
 
-                model.fit(X_seq, y_seq,
-                         epochs=self.model_configs['bilstm']['params']['epochs'],
-                         batch_size=self.model_configs['bilstm']['params']['batch_size'],
-                         validation_split=0.2,
-                         callbacks=[early_stop],
-                         verbose=0)
+                # Train model
+                history = model.fit(
+                    X_seq, y_seq,
+                    epochs=params['epochs'],
+                    batch_size=params['batch_size'],
+                    validation_split=0.25,  # Increased validation split
+                    callbacks=callbacks,
+                    verbose=1
+                )
 
                 models['bilstm'] = model
+                logger.info(f"BiLSTM training completed. Final val_loss: {min(history.history['val_loss']):.6f}")
 
             except Exception as e:
                 logger.error(f"Error training BiLSTM: {e}")
