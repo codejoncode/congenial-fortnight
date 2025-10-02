@@ -31,6 +31,10 @@ plotly==5.22.0
 # Statistics and Optimization
 scipy==1.14.0
 
+# API and Environment
+requests==2.32.3
+python-dotenv==1.0.0
+
 # Optional: SHAP for model interpretability
 shap==0.45.1
 

@@ -295,11 +295,11 @@ class QuantumMultiTimeframeSignalGenerator:
             fundamental_cols = [col for col in df.columns if col in self.fundamental_data.columns]
             df[fundamental_cols] = df[fundamental_cols].fillna(method='ffill')
 
-    # Pattern & harmonic detection
-    df = self.pattern_detector.augment(df)
+        # Pattern & harmonic detection
+        df = self.pattern_detector.augment(df)
 
-    # Drop rows with NaN values
-    df = df.dropna()
+        # Drop rows with NaN values
+        df = df.dropna()
 
         logger.info(f"Engineered {len(df.columns)} features for {timeframe} timeframe")
         return df

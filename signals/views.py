@@ -8,6 +8,13 @@ from .serializers import SignalSerializer
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+import os
+import sys
+import logging
+from trading_system import TradingDataCollector, TradingStrategies
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 class SignalViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Signal.objects.all().order_by('-date')
@@ -161,3 +168,178 @@ def get_historical_data(request):
 
     except Exception as e:
         return Response({'error': str(e)}, status=500)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def health_check(request):
+    """Simple health check endpoint"""
+    return Response({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'service': 'trading_system'
+    })
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_signals(request, pair):
+    """Get trading signals for a specific currency pair"""
+    try:
+        # Initialize trading system
+        data_collector = TradingDataCollector()
+        strategies = TradingStrategies(data_collector)
+
+        # Load data for the pair
+        data = data_collector.collect_all_data()
+
+        if pair not in data or data[pair].empty:
+            return Response({
+                'error': f'No data available for {pair}',
+                'available_pairs': list(data.keys())
+            }, status=404)
+
+        df = data[pair]
+
+        # Generate signals using master signal system
+        signals = strategies.master_signal_system(df)
+
+        # Get latest signal
+        latest_signal = signals.iloc[-1] if not signals.empty else None
+
+        # Get recent signals (last 10)
+        recent_signals = []
+        for i in range(max(0, len(signals)-10), len(signals)):
+            recent_signals.append({
+                'date': signals.index[i].strftime('%Y-%m-%d'),
+                'signal': 'bullish' if signals.iloc[i] > 0 else 'bearish',
+                'strength': abs(signals.iloc[i])
+            })
+
+        return Response({
+            'pair': pair,
+            'latest_signal': {
+                'date': signals.index[-1].strftime('%Y-%m-%d') if latest_signal is not None else None,
+                'signal': 'bullish' if latest_signal and latest_signal > 0 else 'bearish',
+                'strength': abs(latest_signal) if latest_signal else 0
+            },
+            'recent_signals': recent_signals,
+            'data_points': len(df)
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting signals for {pair}: {str(e)}")
+        return Response({
+            'error': f'Failed to get signals for {pair}: {str(e)}'
+        }, status=500)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def trading_backtest(request, pair):
+    """Run backtest for trading strategies on a specific pair"""
+    try:
+        # Initialize trading system
+        data_collector = TradingDataCollector()
+        strategies = TradingStrategies(data_collector)
+
+        # Load data
+        data = data_collector.collect_all_data()
+
+        if pair not in data or data[pair].empty:
+            return Response({
+                'error': f'No data available for {pair}'
+            }, status=404)
+
+        df = data[pair]
+
+        # Run master signal system
+        signals = strategies.master_signal_system(df)
+
+        # Simple backtest calculation
+        returns = df['Close'].pct_change()
+        signal_returns = signals.shift(1) * returns  # Shift signals to avoid lookahead bias
+
+        total_trades = signals.abs().sum()
+        winning_trades = ((signals.shift(1) * returns) > 0).sum()
+        accuracy = (winning_trades / total_trades * 100) if total_trades > 0 else 0
+
+        total_return = signal_returns.sum()
+        sharpe_ratio = signal_returns.mean() / signal_returns.std() * np.sqrt(252) if signal_returns.std() > 0 else 0
+
+        return Response({
+            'pair': pair,
+            'total_trades': int(total_trades),
+            'winning_trades': int(winning_trades),
+            'accuracy': round(accuracy, 2),
+            'total_return': round(total_return, 4),
+            'sharpe_ratio': round(sharpe_ratio, 2),
+            'data_points': len(df)
+        })
+
+    except Exception as e:
+        logger.error(f"Error running backtest for {pair}: {str(e)}")
+        return Response({
+            'error': f'Failed to run backtest for {pair}: {str(e)}'
+        }, status=500)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def data_status(request):
+    """Get status of data collection"""
+    try:
+        data_collector = TradingDataCollector()
+
+        # Check data files
+        data_files = {
+            'EURUSD_H1': os.path.exists('data/EURUSD_H1.csv'),
+            'EURUSD_Monthly': os.path.exists('data/EURUSD_Monthly.csv'),
+            'XAUUSD_H1': os.path.exists('data/XAUUSD_H1.csv'),
+            'XAUUSD_Monthly': os.path.exists('data/XAUUSD_Monthly.csv')
+        }
+
+        # Check API call counts
+        api_status = {
+            'fred_calls': data_collector.api_calls['fred'],
+            'finnhub_calls': data_collector.api_calls['finnhub'],
+            'fmp_calls': data_collector.api_calls['fmp'],
+            'yahoo_calls': data_collector.api_calls['yahoo'],
+            'ecb_calls': data_collector.api_calls['ecb']
+        }
+
+        return Response({
+            'data_files': data_files,
+            'api_calls': api_status,
+            'last_updated': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting data status: {str(e)}")
+        return Response({
+            'error': f'Failed to get data status: {str(e)}'
+        }, status=500)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def update_data(request):
+    """Update trading data from APIs"""
+    try:
+        data_collector = TradingDataCollector()
+
+        # Collect all data
+        data = data_collector.collect_all_data()
+
+        # Save data (simplified - in real implementation, save to files)
+        updated_pairs = list(data.keys())
+        total_records = sum(len(df) for df in data.values())
+
+        return Response({
+            'status': 'success',
+            'message': f'Updated data for {len(updated_pairs)} pairs',
+            'pairs': updated_pairs,
+            'total_records': total_records,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Error updating data: {str(e)}")
+        return Response({
+            'error': f'Failed to update data: {str(e)}'
+        }, status=500)

@@ -302,4 +302,3 @@ class PatternHarmonicDetector:
                     results['harmonic_butterfly_score'] = score
 
         return results
-```}

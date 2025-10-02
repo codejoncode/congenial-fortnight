@@ -513,16 +513,13 @@ class DailyForexSignal:
             max_depth=6, 
             learning_rate=0.1, 
             random_state=42,
-            early_stopping_rounds=20 if X_val is not None else None,  # NEW: Stop if no improvement for 20 rounds
-            eval_metric='logloss' if X_val is not None else None      # NEW: Metric to monitor
+            # Note: Do not set early_stopping_rounds here because CalibratedClassifierCV
+            # performs internal cross-validation without providing eval_set. Setting
+            # early_stopping_rounds would raise an error during calibration fits.
         )
-        
-        if X_val is not None and y_val is not None:
-            # Fit with validation set for early stopping
-            xgb_clf.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
-        else:
-            # Fallback to regular fit if no validation data
-            xgb_clf.fit(X_train, y_train)
+        # Fit the XGB classifier on the training data. Calibration is applied by
+        # CalibratedClassifierCV below (which will refit base estimators internally).
+        xgb_clf.fit(X_train, y_train)
             
         models['xgb'] = CalibratedClassifierCV(xgb_clf, method='isotonic', cv=3)
 

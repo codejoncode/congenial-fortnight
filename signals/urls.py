@@ -10,4 +10,9 @@ urlpatterns = [
     path('backtest/', views.backtest_results, name='backtest_results'),
     path('backtest/csv/', views.download_backtest_csv, name='download_backtest_csv'),
     path('historical/', views.get_historical_data, name='get_historical_data'),
+    path('health/', views.health_check, name='health_check'),
+    path('signals/<str:pair>/', views.get_signals, name='get_signals'),
+    path('backtest/<str:pair>/', views.trading_backtest, name='trading_backtest'),
+    path('data/status/', views.data_status, name='data_status'),
+    path('data/update/', views.update_data, name='update_data'),
 ]
