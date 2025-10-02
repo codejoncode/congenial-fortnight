@@ -16,25 +16,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Create app directory
+# Create app directory and a non-root user for safer runtime
 WORKDIR /app
+RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser || true
 
 # Copy requirements first for better caching
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+# Upgrade pip and install as non-root where possible; suppress root warning explicitly
+RUN python -m pip install --upgrade pip --no-cache-dir \
+    && python -m pip install --no-cache-dir --root-user-action=ignore -r requirements.txt
 
 # Copy project files
 COPY . .
 
-# Build React frontend
+# Build React frontend as root (node/npm will run inside container during build)
 WORKDIR /app/frontend
 RUN npm ci --only=production --silent && npm run build
 
-# Go back to root directory
+# Ensure ownership and switch to non-root user for runtime
 WORKDIR /app
+RUN chown -R appuser:appuser /app
+USER appuser
 
-# Collect static files
+# Collect static files (run as non-root user)
 RUN python manage.py collectstatic --noinput
 
 # Expose port
