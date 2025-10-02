@@ -179,6 +179,11 @@ class CandlePredictionSystem:
         # Save to CSV
         df.to_csv(csv_file, index=False)
         print(f"Updated {csv_file} with {len(df)} total records")
+        try:
+            from scripts.data_metadata import update_metadata
+            update_metadata(csv_file)
+        except Exception:
+            pass
 
         return df
 

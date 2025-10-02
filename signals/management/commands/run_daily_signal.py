@@ -60,7 +60,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         pairs = ['EURUSD', 'XAUUSD']
-        data_path = 'data/raw'
+        data_path = 'data'  # prefer top-level data/ with interval-specific files
 
         if options['fetch_data']:
             new_data_available = self.fetch_latest_data(pairs, data_path)
@@ -77,8 +77,18 @@ class Command(BaseCommand):
         for pair in pairs:
             self.stdout.write(f'Processing {pair}...')
             try:
-                # Load data
-                file_path = os.path.join(data_path, f'{pair}_Daily.csv')
+                # Load data - prefer H1 -> H4 -> Daily -> Weekly -> Monthly
+                def _find_price_file(pair: str):
+                    for interval in ['H1', 'H4', 'Daily', 'Weekly', 'Monthly']:
+                        candidate = os.path.join(data_path, f'{pair}_' + interval + '.csv') if interval != 'Daily' else os.path.join(data_path, f'{pair}_Daily.csv')
+                        if os.path.exists(candidate):
+                            return candidate
+                    return None
+
+                file_path = _find_price_file(pair)
+                if not file_path:
+                    raise FileNotFoundError(f'No data file found for {pair} in {data_path}')
+
                 df = pd.read_csv(file_path)
                 df['date'] = pd.to_datetime(df['date'])
                 df = df.set_index('date').sort_index()
@@ -216,12 +226,22 @@ class Command(BaseCommand):
                     if len(combined_df) > len(existing_df):
                         new_data_found = True
                         self.stdout.write(f'Updated {pair} data: {len(data)} new rows')
+                        try:
+                            from scripts.data_metadata import update_metadata
+                            update_metadata(file_path)
+                        except Exception:
+                            pass
                     else:
                         self.stdout.write(f'No new data for {pair}')
                 else:
                     data.to_csv(file_path, index=False)
                     self.stdout.write(f'Created {pair} data file with {len(data)} rows')
                     new_data_found = True
+                    try:
+                        from scripts.data_metadata import update_metadata
+                        update_metadata(file_path)
+                    except Exception:
+                        pass
                 
             except Exception as e:
                 self.stdout.write(f'Error fetching data for {pair}: {e}')

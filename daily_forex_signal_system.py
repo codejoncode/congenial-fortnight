@@ -180,7 +180,12 @@ class DailyForexSignal:
         file_path = os.path.join(DATA_PATH, f'{pair}_Daily.csv')
         df.reset_index().to_csv(file_path, index=False)
         print(f"Cleaned and saved standardized data for {pair}: {len(df)} rows.")
-        
+        try:
+            from scripts.data_metadata import update_metadata
+            update_metadata(file_path)
+        except Exception:
+            pass
+
         return df
 
     def load_data(self, pair):

@@ -138,11 +138,17 @@ def get_historical_data(request):
     days = int(request.GET.get('days', 30))
 
     try:
-        # Load historical data
+        # Load historical data - prefer interval files in data/
         import os
-        data_path = f'data/raw/{pair}_Daily.csv'
-        
-        if not os.path.exists(data_path):
+        def _find_price_file(pair: str):
+            for interval in ['H1', 'H4', 'Daily', 'Weekly', 'Monthly']:
+                candidate = f'data/{pair}_' + interval + '.csv' if interval != 'Daily' else f'data/{pair}_Daily.csv'
+                if os.path.exists(candidate):
+                    return candidate
+            return None
+
+        data_path = _find_price_file(pair)
+        if not data_path or not os.path.exists(data_path):
             return Response({'error': 'Data file not found'}, status=404)
 
         df = pd.read_csv(data_path)

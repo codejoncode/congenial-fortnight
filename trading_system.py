@@ -316,12 +316,20 @@ class TradingDataCollector:
         # Store Alpha Vantage data for strategies to access
         self.alpha_vantage_data = alpha_vantage_data
 
-        # Load local EURUSD and XAUUSD daily data
+        def _find_price_file(pair: str):
+            """Return the best available price file for pair in data/ by preferred granularity."""
+            for interval in ['H1', 'H4', 'Daily', 'Weekly', 'Monthly']:
+                candidate = f'data/{pair}_' + interval + '.csv' if interval != 'Daily' else f'data/{pair}_Daily.csv'
+                if os.path.exists(candidate):
+                    return candidate
+            return None
+
+        # Load local EURUSD and XAUUSD price data (prefer H1 -> H4 -> Daily -> Weekly -> Monthly)
         local_data = {}
         for pair in ['EURUSD', 'XAUUSD']:
             try:
-                file_path = f'data/raw/{pair}_Daily.csv'
-                if os.path.exists(file_path):
+                file_path = _find_price_file(pair)
+                if file_path and os.path.exists(file_path):
                     df = pd.read_csv(file_path)
                     df['date'] = pd.to_datetime(df['date'])
                     df = df.set_index('date')

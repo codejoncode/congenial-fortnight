@@ -140,4 +140,41 @@
     "last_data_date": "2025-09-29T00:00:00",
     "rows": 5473
   }
+  ,
+  "EURUSD_H1": {
+    "last_update": "2025-10-02T18:16:40.982713",
+    "status": "success",
+    "last_data_date": "2025-10-02T08:00:00",
+    "rows": 99993
+  },
+  "EURUSD_H4": {
+    "last_update": "2025-10-02T18:16:40.982713",
+    "status": "success",
+    "last_data_date": "2025-10-02T12:00:00",
+    "rows": 40105
+  },
+  "EURUSD_Monthly": {
+    "last_update": "2025-10-02T18:16:40.982713",
+    "status": "success",
+    "last_data_date": "2025-10-01T00:00:00",
+    "rows": 310
+  },
+  "XAUUSD_H1": {
+    "last_update": "2025-10-02T18:16:40.982713",
+    "status": "success",
+    "last_data_date": "2025-10-02T08:00:00",
+    "rows": 99993
+  },
+  "XAUUSD_H4": {
+    "last_update": "2025-10-02T18:16:40.982713",
+    "status": "success",
+    "last_data_date": "2025-10-02T12:00:00",
+    "rows": 32633
+  },
+  "XAUUSD_Monthly": {
+    "last_update": "2025-10-02T18:16:40.982713",
+    "status": "success",
+    "last_data_date": "2025-10-01T00:00:00",
+    "rows": 258
+  }
 }
