@@ -531,7 +531,7 @@ function App() {
                 >
                   Run Backtest
                 </button>
-                {backtestResults && !backtestResults.error && (
+                {backtestResults && (
                   <button 
                     onClick={downloadCSV} 
                     style={{ 
@@ -554,8 +554,8 @@ function App() {
               <div>
                 {backtestResults.message && (
                   <div style={{
-                    backgroundColor: backtestResults.status === 'completed' ? '#d4edda' : backtestResults.status === 'error' ? '#f8d7da' : '#fff3cd',
-                    color: backtestResults.status === 'completed' ? '#155724' : backtestResults.status === 'error' ? '#721c24' : '#856404',
+                    backgroundColor: backtestResults.status === 'completed' ? '#d4edda' : (backtestResults.status === 'error' ? '#f8d7da' : '#fff3cd'),
+                    color: backtestResults.status === 'completed' ? '#155724' : (backtestResults.status === 'error' ? '#721c24' : '#856404'),
                     padding: '10px', 
                     margin: '10px 0', 
                     borderRadius: '5px', 
@@ -600,7 +600,7 @@ function App() {
                           border: '1px solid #ddd',
                           padding: '8px',
                           borderRadius: '4px',
-                          backgroundColor: data.accuracy > 0.6 ? '#d4edda' : data.accuracy > 0.5 ? '#fff3cd' : '#f8d7da'
+                          backgroundColor: data.accuracy > 0.6 ? '#d4edda' : (data.accuracy > 0.5 ? '#fff3cd' : '#f8d7da')
                         }}>
                           <strong>{range}:</strong><br/>
                           {data.total > 0 ? (data.accuracy * 100).toFixed(1) : 0}% accuracy<br/>
@@ -649,16 +649,16 @@ function App() {
                   </div>
                 )}
                 
-                {backtestResults.error && (
-                  <div style={{backgroundColor: '#f8d7da', color: '#721c24', padding: '10px', margin: '10px 0', borderRadius: '5px', border: '1px solid #f5c6cb'}}>
-                    <strong>❌ Error: {backtestResults.error}</strong>
-                  </div>
-                )}
               </div>
             )}
+
+            {backtestResults && backtestResults.error && (
+              <div style={{backgroundColor: '#f8d7da', color: '#721c24', padding: '10px', margin: '10px 0', borderRadius: '5px', border: '1px solid #f5c6cb'}}>
+                <strong>❌ Error: {backtestResults.error}</strong>
+              </div>
+            )}
+
           </div>
-        )}
-        </div>
 
         {showChart && (
         <div style={{
