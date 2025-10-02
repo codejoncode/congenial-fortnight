@@ -8,6 +8,22 @@ This document details the implementation of the Holloway Algorithm, a sophistica
 
 The Holloway Algorithm is a comprehensive trend analysis system that evaluates market direction through multiple moving average relationships and price action signals. It counts bullish and bearish signals across various timeframes and moving average combinations to determine market sentiment.
 
+## Code Location & Execution
+
+- **Module path:** `scripts/holloway_algorithm.py`
+- **Primary class:** `CompleteHollowayAlgorithm`
+- **Integration:** Instantiated once inside `HybridPriceForecastingEnsemble` (see `_calculate_holloway_features`) so every training run now sources counts from the full PineScript-equivalent implementation.
+- **Standalone run:**
+
+    ```powershell
+    # from the repository root
+    python scripts/holloway_algorithm.py
+    ```
+
+    The script will iterate through EURUSD and XAUUSD datasets (daily/weekly/4h), calculate the complete feature set, and export enriched CSVs (for example `data/EURUSD_daily_holloway_complete.csv`).
+
+- **Fallback:** If the standalone module raises an exception during feature engineering, the ensemble automatically reverts to the legacy in-file computation to keep training resilient. Monitor logs for the warning `Complete Holloway Algorithm failed; falling back to legacy implementation.`
+
 ## Python Implementation
 
 ### Core Components
@@ -70,6 +86,21 @@ df['holloway_bull_cross_down'] = (df['holloway_bull_count'] < df['holloway_bull_
 df['holloway_bull_signal'] = df['holloway_bull_cross_up'] & ~df['rsi_overbought']
 df['holloway_bear_signal'] = df['holloway_bear_cross_up'] & ~df['rsi_oversold']
 ```
+
+#### 5. Diagnostic Outputs
+
+When the dedicated module runs, it also publishes raw signal flags and day counters used for regime analysis:
+
+```python
+df['holloway_bull_signal_raw'] = df['bull_rise_signal']
+df['holloway_bear_signal_raw'] = df['bear_rise_signal']
+df['holloway_days_bull_over_avg'] = df['days_bull_count_over_average']
+df['holloway_days_bull_under_avg'] = df['days_bull_count_under_average']
+df['holloway_days_bear_over_avg'] = df['days_bear_count_over_average']
+df['holloway_days_bear_under_avg'] = df['days_bear_count_under_average']
+```
+
+These columns are persisted alongside the traditional Holloway features so downstream analytics can differentiate between RSI-filtered trade signals and raw count events, as well as examine how long each side of the market has remained dominant.
 
 ## Integration with ML Pipeline
 

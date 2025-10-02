@@ -24,13 +24,19 @@ cd congenial-fortnightcd congenial-fortnight
 
 
 
-For comprehensive setup instructions, deployment options, and usage guides, see:For comprehensive setup instructions, deployment options, and usage guides, see:
+For comprehensive setup instructions, deployment options, and usage guides, see:
 
+- **[CLOUD_DEPLOYMENT_GUIDE.md](CLOUD_DEPLOYMENT_GUIDE.md)** – Complete setup, deployment, and automation guide
+- **[ENHANCEMENT_CHECKLIST.md](ENHANCEMENT_CHECKLIST.md)** – Development roadmap and features
+- **[Holloway_Algorithm_Implementation.md](Holloway_Algorithm_Implementation.md)** – Full breakdown of the PineScript translation now shipped in `scripts/holloway_algorithm.py`
 
-
-- **[CLOUD_DEPLOYMENT_GUIDE.md](CLOUD_DEPLOYMENT_GUIDE.md)** - Complete setup, deployment, and automation guide- **[CLOUD_DEPLOYMENT_GUIDE.md](CLOUD_DEPLOYMENT_GUIDE.md)** - Complete setup, deployment, and automation guide
-
-- **[ENHANCEMENT_CHECKLIST.md](ENHANCEMENT_CHECKLIST.md)** - Development roadmap and features- **[ENHANCEMENT_CHECKLIST.md](ENHANCEMENT_CHECKLIST.md)** - Development roadmap and features
+> Run the standalone Holloway export from the repository root:
+>
+> ```powershell
+> python scripts/holloway_algorithm.py
+> ```
+>
+> Enriched CSVs (e.g., `data/EURUSD_daily_holloway_complete.csv`) will be generated for EURUSD and XAUUSD timeframes and can be inspected independently of the ensemble training loop.
 
 
 
