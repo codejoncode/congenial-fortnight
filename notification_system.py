@@ -12,10 +12,10 @@ class NotificationSystem:
     def __init__(self):
         self.email_config = {
             'smtp_server': 'smtp.gmail.com',
-            'smtp_port': 587,
-            'username': os.getenv('EMAIL_USERNAME'),
-            'password': os.getenv('EMAIL_PASSWORD'),
-            'from_email': os.getenv('EMAIL_FROM', os.getenv('EMAIL_USERNAME'))
+            'smtp_port': 465,  # SSL port
+            'username': os.getenv('GMAIL_USERNAME'),
+            'password': os.getenv('GMAIL_APP_PASSWORD'),
+            'from_email': os.getenv('GMAIL_USERNAME')
         }
 
         # Free SMS services (limited usage)
@@ -43,8 +43,7 @@ class NotificationSystem:
             if html_content:
                 msg.attach(MIMEText(html_content, 'html'))
 
-            server = smtplib.SMTP(self.email_config['smtp_server'], self.email_config['smtp_port'])
-            server.starttls()
+            server = smtplib.SMTP_SSL(self.email_config['smtp_server'], self.email_config['smtp_port'])
             server.login(self.email_config['username'], self.email_config['password'])
             server.sendmail(self.email_config['from_email'], to_email, msg.as_string())
             server.quit()
@@ -463,6 +462,23 @@ Next Update: Tomorrow at 2 AM UTC
         except Exception as e:
             print(f"Real SMS sending failed: {e}")
             return False
+
+    def send_notification(self, subject, message, email_recipient=None, sms_recipient=None):
+        """Send notification to email and/or SMS"""
+        success_count = 0
+
+        # Send email
+        if email_recipient:
+            if self.send_email(email_recipient, subject, message):
+                success_count += 1
+                print(f"✅ Email notification sent to {email_recipient}")
+
+        # Send SMS (skip since SMS not working)
+        if sms_recipient:
+            print(f"📱 SMS notification skipped for {sms_recipient} (SMS not configured)")
+            # Could add SMS logic here later
+
+        return success_count > 0
 
 # Usage example
 if __name__ == "__main__":

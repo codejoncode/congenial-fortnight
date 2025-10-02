@@ -14,8 +14,8 @@ class FreeNotificationSystem:
 
     def __init__(self):
         # Gmail credentials (set these environment variables)
-        self.gmail_user = os.getenv('GMAIL_USERNAME', 'your-email@gmail.com')
-        self.gmail_app_password = os.getenv('GMAIL_APP_PASSWORD', 'your-app-password')
+        self.gmail_user = os.getenv('GMAIL_USERNAME', '1man2amazing@gmail.com')
+        self.gmail_app_password = os.getenv('GMAIL_APP_PASSWORD', 'ajlkyonpbkljeqzc')
 
         # Carrier email-to-SMS gateways
         self.carrier_gateways = {
@@ -123,7 +123,7 @@ def test_free_notifications():
 
     # Test recipients
     test_email = os.getenv('NOTIFICATION_EMAIL', 'mydecretor@protonmail.com')
-    test_sms = os.getenv('NOTIFICATION_SMS', '7734921722')
+    test_sms = os.getenv('NOTIFICATION_SMS', '7084652230')
 
     print(f"📧 Email recipient: {test_email}")
     print(f"📱 SMS recipient: {test_sms}")

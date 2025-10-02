@@ -108,7 +108,8 @@ class AutomatedTrainer:
                                f"🔄 Iterations: {iteration}\n"
                                f"💰 Profit Factor: {performance.get('profit_factor', 'N/A')}\n"
                                f"📈 Total Trades: {performance.get('total_trades', 'N/A')}\n\n"
-                               f"✅ Automated training will continue for other pairs."
+                               f"✅ Automated training will continue for other pairs.",
+                        email_recipient=os.getenv('NOTIFICATION_EMAIL', 'mydecretor@protonmail.com')
                     )
                     break
 
@@ -149,7 +150,8 @@ class AutomatedTrainer:
         
         self.notifier.send_notification(
             subject=f"🤖 {pair} Training Progress - {current_accuracy:.1%}",
-            message=progress_message
+            message=progress_message,
+            email_recipient=os.getenv('NOTIFICATION_EMAIL', 'mydecretor@protonmail.com')
         )
 
     def save_progress(self, pair: str, results_history: List[Dict]):
