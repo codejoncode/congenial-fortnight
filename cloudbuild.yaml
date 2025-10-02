@@ -88,6 +88,6 @@ substitutions:
   _GMAIL_USERNAME: 1man2amazing@gmail.com
   _GMAIL_APP_PASSWORD: ajlkyonpbkljeqzc
   _NOTIFICATION_EMAIL: mydecretor@protonmail.com
-  _NOTIFICATION_SMS: 7084652230
+  _NOTIFICATION_SMS: "7084652230"
 
 timeout: '1800s'
