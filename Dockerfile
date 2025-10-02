@@ -2,15 +2,18 @@ FROM python:3.10-slim
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
 ENV DJANGO_SETTINGS_MODULE=forex_signal.settings
 ENV PORT=8080
+ENV NODE_ENV=production
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    nodejs \
-    npm \
+# Install system dependencies including Node.js
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     curl \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g npm@latest \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
@@ -25,16 +28,11 @@ COPY . .
 
 # Build React frontend
 WORKDIR /app/frontend
-RUN npm install && npm run build
+RUN npm install
+RUN npm run build
 
-# Move back to root and copy built frontend to static files
+# Go back to root and collect static files
 WORKDIR /app
-RUN mkdir -p forex_signal/static && cp -r frontend/build/* forex_signal/static/
-
-# Create necessary directories
-RUN mkdir -p models data/raw output logs
-
-# Collect static files
 RUN python manage.py collectstatic --noinput
 
 # Expose port
