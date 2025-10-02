@@ -115,4 +115,29 @@
     "last_update": "2025-10-01T09:52:45.915833",
     "status": "success"
   }
+  ,
+  "EURUSD_Weekly": {
+    "last_update": "2025-10-02T18:11:06.221147",
+    "status": "success",
+    "last_data_date": "2025-09-28T00:00:00",
+    "rows": 1344
+  },
+  "XAUUSD_Weekly": {
+    "last_update": "2025-10-02T18:11:06.221147",
+    "status": "success",
+    "last_data_date": "2025-09-28T00:00:00",
+    "rows": 1114
+  },
+  "EURUSD_Daily": {
+    "last_update": "2025-10-02T18:11:06.221147",
+    "status": "success",
+    "last_data_date": "2025-09-29T00:00:00",
+    "rows": 6694
+  },
+  "XAUUSD_Daily": {
+    "last_update": "2025-10-02T18:11:06.221147",
+    "status": "success",
+    "last_data_date": "2025-09-29T00:00:00",
+    "rows": 5473
+  }
 }
