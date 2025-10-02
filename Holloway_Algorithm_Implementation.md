@@ -211,6 +211,64 @@ The Holloway Algorithm implementation provides enterprise-grade technical analys
 
 The modular architecture allows for easy extension and customization, while the comprehensive feature set provides deep market insights for algorithmic trading strategies.
 
+## Lean Six Sigma Roadmap to 85% Directional Accuracy
+
+### Define (Voice of the Business & CTQs)
+- **Targets:** 85% directional accuracy per pair, ≥70% cross-pair ensemble, candle-shape MAE ≤ 0.002.
+- **Critical-to-Quality (CTQ) Metrics:** Accuracy, profit factor, drawdown, candle-body MAE, deployment success rate.
+- **Stakeholders:** Quant research, ML engineering, DevOps/GCP deployment, trading operations.
+
+### Measure (Baseline & Data Integrity)
+- Instrument automated accuracy logging per pair/timeframe (train/validation/test).
+- Capture data lineage for new H1/Monthly feeds plus fundamentals; automate schema validation.
+- Extend diagnostics JSON to include Holloway count exposure, pattern hits, fundamental surprises.
+- Establish defect rate dashboards (missed builds, failed backtests, GCP deploy errors).
+
+### Analyze (Root Cause & Opportunity Identification)
+- Run feature importance (SHAP/permutation) on current ensemble to quantify Holloway count impact.
+- Perform gap study on ensemble misclassifications vs. Holloway count imbalance, missing multi-TF context, and candle-shape divergence.
+- Cluster failures by regime (risk-on/off, macro events) to align upcoming fundamental features.
+- Conduct impedance analysis on build pipeline to document blockers to Google Cloud deployment.
+
+### Improve (Solution Design & Pilot)
+- **Feature Engineering:**
+    - Expose Holloway counts/averages/support-resistance bands as numeric features.
+    - Generate synchronized multi-timeframe RSI/MA/MACD for H1/H4/Daily/Weekly/Monthly.
+    - Implement pattern library (triangles, flags, pennants) via peak/trough clustering.
+    - Add harmonic (AB=CD, Gartley, Butterfly) and Elliott wave approximations.
+    - Integrate macro drivers (rate differentials, PMI surprises, CFTC positioning, scheduled releases).
+- **Model Architecture:**
+    - Rebuild candle predictor as CNN/LSTM hybrid focused on OHLC sequences and Fibonacci-derived levels.
+    - Train pair-specific models per timeframe using class-weighting or focal loss.
+    - Replace equal-weight voting with meta-learner (stacked ensemble) using confidence scores + regime features.
+- **Backtesting & Validation:**
+    - Build slippage-aware simulator with walk-forward/rolling backtests; log P&L, hit rate, drawdown.
+    - Feed backtest outcomes into meta-learner training and risk scoring.
+- **Automation:**
+    - Codify the above in reproducible pipelines (scripts/automation) with CI hooks.
+    - Resolve GCP build failures by container hardening, dependency pinning, and Cloud Build testing.
+
+### Control (Sustain & Monitor)
+- Deploy monitoring service tracking directional accuracy, candle error, P&L, and Holloway signal health.
+- Set control limits (XAUUSD ≥75%, EURUSD ≥70%); trigger auto-retraining when breached.
+- Schedule quarterly DMAIC retrospectives and monthly model governance reviews.
+- Maintain deployment checklist for Google Cloud (artifact registry, Cloud Run jobs, scheduled retraining) with automated smoke tests.
+
+### Tactical Execution Backlog (0–60 Days)
+1. **Feature Enrichment (High Priority):** Implement Holloway feature exposure, multi-TF indicators, and support/resistance bands; output to extended feature CSV.
+2. **Pattern & Harmonic Detectors (High):** Deliver clustering-based pattern flags and harmonic recognizer modules.
+3. **Fundamental Data Integration (Medium):** Ingest economic calendar, rates, CFTC positioning, encode surprises.
+4. **Model Rebuild (High):** Standalone candle CNN/LSTM, pair/timeframe classifiers with class balancing.
+5. **Meta-Learner Ensemble (Medium):** Train stacked model leveraging confidence, backtest metrics, and regime tags.
+6. **Backtesting Engine (High):** Build simulator with slippage/cost assumptions, automate walk-forward runs.
+7. **Hyperparameter Optimization (Medium):** Launch Bayesian/random search pipelines with early stopping; log configs.
+8. **Validation & Monitoring (Low):** Implement live accuracy dashboards, alerting, and retrain triggers.
+
+### Documentation & Deployment Alignment
+- Update this document alongside `congenial_fortnight_features.txt` as new features land.
+- Mirror roadmap tasks in project management tooling with DMAIC phase status.
+- Align automated training/backtesting scripts with Google Cloud deployment by defining IaC manifests and build validation steps to prevent recurring Cloud Build errors.
+
 ## References
 
 - Original PineScript implementation by oneman2amazing

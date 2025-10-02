@@ -527,6 +527,9 @@ class HybridPriceForecastingEnsemble:
         for horizon in [1, 3, 5]:
             df[f'target_{horizon}d'] = (df['Close'].shift(-horizon) > df['Open'].shift(-horizon)).astype(int)
 
+        # Multi-timeframe technical indicators
+        df = self._add_multi_timeframe_indicators(df)
+
         # Add fundamental features if available
         if not self.fundamental_data.empty:
             # Merge fundamental data
@@ -594,6 +597,97 @@ class HybridPriceForecastingEnsemble:
         macd_hist = macd - macd_signal
         return macd, macd_signal, macd_hist
 
+    def _add_multi_timeframe_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Enrich feature set with multi-timeframe technical indicators."""
+        if df.empty or not isinstance(df.index, pd.DatetimeIndex):
+            return df
+
+        base_minutes = self._infer_base_frequency_minutes(df.index)
+        if base_minutes is None:
+            return df
+
+        timeframe_minutes = {
+            'H1': 60,
+            'H4': 240,
+            'D1': 1440,
+            'W1': 10080,
+            'M1': 43200,
+        }
+        timeframe_freq = {
+            'H1': '1H',
+            'H4': '4H',
+            'D1': '1D',
+            'W1': '1W',
+            'M1': '1M',
+        }
+
+        # Ensure the index is sorted for resampling
+        df = df.sort_index()
+
+        tolerance_factor = 0.8  # Allow small variance for calendar-based periods
+
+        for tf_name, minutes in timeframe_minutes.items():
+            if minutes < base_minutes * tolerance_factor:
+                continue  # Skip faster timeframes than the source data
+
+            freq = timeframe_freq[tf_name]
+
+            ohlc = df[['Open', 'High', 'Low', 'Close']]
+            try:
+                resampled = ohlc.resample(freq).agg({
+                    'Open': 'first',
+                    'High': 'max',
+                    'Low': 'min',
+                    'Close': 'last'
+                }).dropna(how='all')
+            except (ValueError, TypeError):
+                continue
+
+            if resampled.empty:
+                continue
+
+            features = pd.DataFrame(index=resampled.index)
+            features[f'{tf_name.lower()}_ema_20'] = resampled['Close'].ewm(span=20, min_periods=5).mean()
+            features[f'{tf_name.lower()}_ema_50'] = resampled['Close'].ewm(span=50, min_periods=10).mean()
+            features[f'{tf_name.lower()}_ema_200'] = resampled['Close'].ewm(span=200, min_periods=20).mean()
+            features[f'{tf_name.lower()}_sma_20'] = resampled['Close'].rolling(20, min_periods=5).mean()
+            features[f'{tf_name.lower()}_sma_50'] = resampled['Close'].rolling(50, min_periods=10).mean()
+            features[f'{tf_name.lower()}_slope_5'] = resampled['Close'].pct_change(5)
+            features[f'{tf_name.lower()}_slope_10'] = resampled['Close'].pct_change(10)
+            features[f'{tf_name.lower()}_rsi_14'] = self._calculate_rsi(resampled['Close'], 14)
+
+            # Align multi-timeframe features back to base timeframe using forward-fill
+            aligned = features.reindex(df.index).fillna(method='ffill')
+            df = df.join(aligned, how='left')
+
+        return df
+
+    def _infer_base_frequency_minutes(self, index: pd.DatetimeIndex) -> Optional[float]:
+        """Infer approximate base frequency in minutes for the given datetime index."""
+        if len(index) < 2:
+            return None
+
+        try:
+            freq = pd.infer_freq(index[:10])
+        except ValueError:
+            freq = None
+
+        if freq:
+            try:
+                offset = pd.tseries.frequencies.to_offset(freq)
+                if offset.delta is not None:
+                    return offset.delta.total_seconds() / 60
+                return offset.nanos / 1e9 / 60
+            except (AttributeError, ValueError):
+                pass
+
+        deltas = index.to_series().diff().dropna()
+        if deltas.empty:
+            return None
+
+        median_delta = deltas.median()
+        return median_delta.total_seconds() / 60
+
     def _calculate_adx(self, df: pd.DataFrame, period: int) -> pd.Series:
         """Calculate Average Directional Index."""
         high = df['High']
@@ -622,121 +716,125 @@ class HybridPriceForecastingEnsemble:
         adx = dx.rolling(period).mean()
 
         return adx
-        """
-        Calculate Holloway Algorithm features for trend analysis.
-        
-        Based on the PineScript indicator that counts bullish and bearish signals
-        across multiple moving averages and their relationships.
-        
-        Args:
-            df: DataFrame with OHLC data
-            
-        Returns:
-            DataFrame with Holloway features added
-        """
+
+    def _calculate_holloway_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Calculate Holloway Algorithm features for trend analysis."""
+        if df.empty:
+            return df
+
         df = df.copy()
-        
-        # Define periods used in Holloway algorithm
+
         periods = [5, 7, 10, 14, 20, 28, 50, 56, 100, 112, 200, 225]
-        
-        # Calculate EMAs and SMAs for all periods
-        emas = {}
-        smas = {}
-        
+        emas: Dict[int, pd.Series] = {}
+        smas: Dict[int, pd.Series] = {}
+
         for period in periods:
-            emas[period] = df['Close'].ewm(span=period).mean()
-            smas[period] = df['Close'].rolling(period).mean()
-            
+            emas[period] = df['Close'].ewm(span=period, min_periods=max(3, period // 2)).mean()
+            smas[period] = df['Close'].rolling(period, min_periods=max(3, period // 2)).mean()
+
             df[f'ema_{period}'] = emas[period]
             df[f'sma_{period}'] = smas[period]
-        
-        # Initialize bull and bear signal arrays (using lists to simulate PineScript arrays)
-        bull_signals = []
-        bear_signals = []
-        
-        # Current status signals (close vs MAs)
+
+        bull_signals: List[pd.Series] = []
+        bear_signals: List[pd.Series] = []
+
         for period in periods:
             bull_signals.append(df['Close'] > emas[period])
             bull_signals.append(df['Close'] > smas[period])
             bear_signals.append(df['Close'] < emas[period])
             bear_signals.append(df['Close'] < smas[period])
-        
-        # Moving averages in agreement (exponential)
-        ema_periods = [5, 7, 10, 14, 20, 28, 50, 56, 100, 112, 200, 225]
-        for i in range(len(ema_periods) - 1):
-            for j in range(i + 1, len(ema_periods)):
-                p1, p2 = ema_periods[i], ema_periods[j]
+
+        for i in range(len(periods) - 1):
+            for j in range(i + 1, len(periods)):
+                p1, p2 = periods[i], periods[j]
                 bull_signals.append(emas[p1] > emas[p2])
                 bear_signals.append(emas[p1] < emas[p2])
-        
-        # Moving averages in agreement (simple)
-        sma_periods = [5, 7, 10, 14, 20, 28, 50, 56, 100, 112, 200, 225]
-        for i in range(len(sma_periods) - 1):
-            for j in range(i + 1, len(sma_periods)):
-                p1, p2 = sma_periods[i], sma_periods[j]
                 bull_signals.append(smas[p1] > smas[p2])
                 bear_signals.append(smas[p1] < smas[p2])
-        
-        # EMA vs SMA relationships
-        for ep in ema_periods:
-            for sp in sma_periods:
+
+        for ep in periods:
+            for sp in periods:
                 bull_signals.append(emas[ep] > smas[sp])
                 bear_signals.append(emas[ep] < smas[sp])
-        
-        # Fresh crossovers and changes
+
         for period in periods:
-            # Fresh above/below EMA
             bull_signals.append((df['Close'] > emas[period]) & (df['Close'].shift(1) <= emas[period].shift(1)))
             bear_signals.append((df['Close'] < emas[period]) & (df['Close'].shift(1) >= emas[period].shift(1)))
-            
-            # Fresh above/below SMA
             bull_signals.append((df['Close'] > smas[period]) & (df['Close'].shift(1) <= smas[period].shift(1)))
             bear_signals.append((df['Close'] < smas[period]) & (df['Close'].shift(1) >= smas[period].shift(1)))
-        
-        # EMA vs SMA crossovers
-        for ep in ema_periods[:5]:  # Limit to avoid too many features
-            for sp in sma_periods[:5]:
+
+        for ep in periods[:5]:
+            for sp in periods[:5]:
                 bull_signals.append((emas[ep] > smas[sp]) & (emas[ep].shift(1) <= smas[sp].shift(1)))
                 bear_signals.append((emas[ep] < smas[sp]) & (emas[ep].shift(1) >= smas[sp].shift(1)))
-        
-        # Count true signals
-        df['holloway_bull_count'] = sum(bull_signals)
-        df['holloway_bear_count'] = sum(bear_signals)
-        
-        # Moving averages of counts (similar to PineScript)
-        df['holloway_bull_avg'] = df['holloway_bull_count'].ewm(span=27).mean()
-        df['holloway_bear_avg'] = df['holloway_bear_count'].ewm(span=27).mean()
-        
-        # Additional Holloway-inspired features
-        # Count differences and ratios
+
+        df['holloway_bull_count'] = sum(bull_signals).astype(float)
+        df['holloway_bear_count'] = sum(bear_signals).astype(float)
+
+        df['holloway_bull_avg'] = df['holloway_bull_count'].ewm(span=27, min_periods=5).mean()
+        df['holloway_bear_avg'] = df['holloway_bear_count'].ewm(span=27, min_periods=5).mean()
+
         df['holloway_count_diff'] = df['holloway_bull_count'] - df['holloway_bear_count']
-        df['holloway_count_ratio'] = df['holloway_bull_count'] / (df['holloway_bear_count'] + 1)  # Avoid division by zero
-        
-        # Rolling max/min of counts
-        df['holloway_bull_max_20'] = df['holloway_bull_count'].rolling(20).max()
-        df['holloway_bull_min_20'] = df['holloway_bull_count'].rolling(20).min()
-        df['holloway_bear_max_20'] = df['holloway_bear_count'].rolling(20).max()
-        df['holloway_bear_min_20'] = df['holloway_bear_count'].rolling(20).min()
-        
-        # Direction changes (when faster count crosses slower)
-        df['holloway_bull_cross_up'] = (df['holloway_bull_count'] > df['holloway_bull_avg']) & (df['holloway_bull_count'].shift(1) <= df['holloway_bull_avg'].shift(1))
-        df['holloway_bull_cross_down'] = (df['holloway_bull_count'] < df['holloway_bull_avg']) & (df['holloway_bull_count'].shift(1) >= df['holloway_bull_avg'].shift(1))
-        df['holloway_bear_cross_up'] = (df['holloway_bear_count'] > df['holloway_bear_avg']) & (df['holloway_bear_count'].shift(1) <= df['holloway_bear_avg'].shift(1))
-        df['holloway_bear_cross_down'] = (df['holloway_bear_count'] < df['holloway_bear_avg']) & (df['holloway_bear_count'].shift(1) >= df['holloway_bear_avg'].shift(1))
-        
-        # RSI integration (from PineScript)
-        df['rsi_14'] = self._calculate_rsi(df['Close'], 14)
-        
-        # RSI signals
+        df['holloway_count_ratio'] = df['holloway_bull_count'] / (df['holloway_bear_count'] + 1)
+
+        df['holloway_bull_max_20'] = df['holloway_bull_count'].rolling(20, min_periods=5).max()
+        df['holloway_bull_min_20'] = df['holloway_bull_count'].rolling(20, min_periods=5).min()
+        df['holloway_bear_max_20'] = df['holloway_bear_count'].rolling(20, min_periods=5).max()
+        df['holloway_bear_min_20'] = df['holloway_bear_count'].rolling(20, min_periods=5).min()
+
+        support_window = 40
+        df['holloway_bull_support'] = df['holloway_bull_count'].rolling(support_window, min_periods=10).quantile(0.2)
+        df['holloway_bull_resistance'] = df['holloway_bull_count'].rolling(support_window, min_periods=10).quantile(0.8)
+        df['holloway_bear_support'] = df['holloway_bear_count'].rolling(support_window, min_periods=10).quantile(0.2)
+        df['holloway_bear_resistance'] = df['holloway_bear_count'].rolling(support_window, min_periods=10).quantile(0.8)
+
+        df['holloway_bull_dist_support'] = df['holloway_bull_count'] - df['holloway_bull_support']
+        df['holloway_bull_dist_resistance'] = df['holloway_bull_resistance'] - df['holloway_bull_count']
+        df['holloway_bear_dist_support'] = df['holloway_bear_count'] - df['holloway_bear_support']
+        df['holloway_bear_dist_resistance'] = df['holloway_bear_resistance'] - df['holloway_bear_count']
+
+        df['holloway_bull_pct_of_range'] = df['holloway_bull_dist_support'] / (
+            (df['holloway_bull_resistance'] - df['holloway_bull_support']).replace(0, np.nan)
+        )
+        df['holloway_bear_pct_of_range'] = df['holloway_bear_dist_support'] / (
+            (df['holloway_bear_resistance'] - df['holloway_bear_support']).replace(0, np.nan)
+        )
+
+        for lookback in [3, 5, 10]:
+            df[f'holloway_bull_momentum_{lookback}'] = df['holloway_bull_count'].diff(lookback)
+            df[f'holloway_bear_momentum_{lookback}'] = df['holloway_bear_count'].diff(lookback)
+
+        df['holloway_bull_zscore_40'] = (
+            df['holloway_bull_count'] - df['holloway_bull_count'].rolling(support_window, min_periods=10).mean()
+        ) / (df['holloway_bull_count'].rolling(support_window, min_periods=10).std() + 1e-6)
+        df['holloway_bear_zscore_40'] = (
+            df['holloway_bear_count'] - df['holloway_bear_count'].rolling(support_window, min_periods=10).mean()
+        ) / (df['holloway_bear_count'].rolling(support_window, min_periods=10).std() + 1e-6)
+
+        df['holloway_bull_cross_up'] = (df['holloway_bull_count'] > df['holloway_bull_avg']) & (
+            df['holloway_bull_count'].shift(1) <= df['holloway_bull_avg'].shift(1)
+        )
+        df['holloway_bull_cross_down'] = (df['holloway_bull_count'] < df['holloway_bull_avg']) & (
+            df['holloway_bull_count'].shift(1) >= df['holloway_bull_avg'].shift(1)
+        )
+        df['holloway_bear_cross_up'] = (df['holloway_bear_count'] > df['holloway_bear_avg']) & (
+            df['holloway_bear_count'].shift(1) <= df['holloway_bear_avg'].shift(1)
+        )
+        df['holloway_bear_cross_down'] = (df['holloway_bear_count'] < df['holloway_bear_avg']) & (
+            df['holloway_bear_count'].shift(1) >= df['holloway_bear_avg'].shift(1)
+        )
+
+        if 'rsi_14' not in df.columns:
+            df['rsi_14'] = self._calculate_rsi(df['Close'], 14)
+
         df['rsi_overbought'] = df['rsi_14'] > 70
         df['rsi_oversold'] = df['rsi_14'] < 30
         df['rsi_bounce_resistance'] = (df['rsi_14'] >= 51) & (df['rsi_14'].shift(1) < 51)
         df['rsi_bounce_support'] = (df['rsi_14'] <= 49) & (df['rsi_14'].shift(1) > 49)
-        
-        # Combined signals
+
         df['holloway_bull_signal'] = df['holloway_bull_cross_up'] & ~df['rsi_overbought']
         df['holloway_bear_signal'] = df['holloway_bear_cross_up'] & ~df['rsi_oversold']
-        
+
         return df
 
     def _engineer_candle_features(self, df: pd.DataFrame) -> pd.DataFrame:
