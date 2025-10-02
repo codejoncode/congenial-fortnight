@@ -85,7 +85,7 @@ steps:
         '--task-timeout',
         '3600',
         '--command',
-        'python,scripts/automated_training.py,--target,0.85,--max-iterations,50',
+        'python,manage.py,run_daily_signal,--fetch-data',
       ]
     waitFor: ['-']
 
