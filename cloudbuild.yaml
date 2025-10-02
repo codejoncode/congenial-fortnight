@@ -8,7 +8,7 @@ steps:
       [
         'build',
         '-t',
-        'gcr.io/$PROJECT_ID/congenial-fortnight:$SHORT_SHA',
+        'gcr.io/$PROJECT_ID/congenial-fortnight:v1',
         '.',
       ]
 
@@ -17,7 +17,7 @@ steps:
     args:
       [
         'push',
-        'gcr.io/$PROJECT_ID/congenial-fortnight:$SHORT_SHA',
+        'gcr.io/$PROJECT_ID/congenial-fortnight:v1',
       ]
 
   # Deploy to Cloud Run
@@ -29,7 +29,7 @@ steps:
         'deploy',
         'congenial-fortnight',
         '--image',
-        'gcr.io/$PROJECT_ID/congenial-fortnight:$SHORT_SHA',
+        'gcr.io/$PROJECT_ID/congenial-fortnight:v1',
         '--region',
         '${_REGION}',
         '--platform',
@@ -61,7 +61,7 @@ steps:
         'create',
         'automated-training',
         '--image',
-        'gcr.io/$PROJECT_ID/congenial-fortnight:$SHORT_SHA',
+        'gcr.io/$PROJECT_ID/congenial-fortnight:v1',
         '--region',
         '${_REGION}',
         '--set-env-vars',
@@ -80,7 +80,7 @@ steps:
     waitFor: ['-']
 
 images:
-  - 'gcr.io/$PROJECT_ID/congenial-fortnight:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/congenial-fortnight:v1'
 
 substitutions:
   _REGION: us-central1
