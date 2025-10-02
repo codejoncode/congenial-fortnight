@@ -1,14 +1,3 @@
-# Multi-stage build for optimization
-FROM node:20-alpine AS frontend-builder
-
-# Build frontend first
-WORKDIR /app/frontend
-COPY frontend/package*.json ./
-RUN npm ci --only=production --silent
-COPY frontend/ ./
-RUN npm run build
-
-# Main Python image
 FROM python:3.10-slim
 
 # Set environment variables
@@ -18,10 +7,12 @@ ENV DJANGO_SETTINGS_MODULE=forex_signal.settings
 ENV PORT=8080
 ENV NODE_ENV=production
 
-# Install system dependencies (minimal set)
+# Install system dependencies including Node.js
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -33,11 +24,15 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
-# Copy project files (excluding frontend)
-COPY --exclude=frontend . .
+# Copy project files
+COPY . .
 
-# Copy built frontend from previous stage
-COPY --from=frontend-builder /app/frontend/build ./frontend/build
+# Build React frontend
+WORKDIR /app/frontend
+RUN npm ci --only=production --silent && npm run build
+
+# Go back to root directory
+WORKDIR /app
 
 # Collect static files
 RUN python manage.py collectstatic --noinput
