@@ -1,24 +1,26 @@
 options:
   logging: LEGACY
+  machineType: 'E2_HIGHCPU_8'  # Use high-CPU machine for faster builds
+  diskSizeGb: 100
+  substitutionOption: 'ALLOW_LOOSE'
 
 steps:
-  # Build the Docker image
+  # Build the Docker image with caching
   - name: 'gcr.io/cloud-builders/docker'
     args:
       [
         'build',
-        '-t',
-        'gcr.io/$PROJECT_ID/congenial-fortnight:v1',
+        '--cache-from', 'gcr.io/$PROJECT_ID/congenial-fortnight:latest',
+        '-t', 'gcr.io/$PROJECT_ID/congenial-fortnight:v1',
+        '-t', 'gcr.io/$PROJECT_ID/congenial-fortnight:latest',
         '.',
       ]
 
-  # Push the image to Container Registry
+  # Push both tags to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      [
-        'push',
-        'gcr.io/$PROJECT_ID/congenial-fortnight:v1',
-      ]
+    args: ['push', 'gcr.io/$PROJECT_ID/congenial-fortnight:v1']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/congenial-fortnight:latest']
 
   # Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -91,6 +93,7 @@ steps:
 
 images:
   - 'gcr.io/$PROJECT_ID/congenial-fortnight:v1'
+  - 'gcr.io/$PROJECT_ID/congenial-fortnight:latest'
 
 substitutions:
   _REGION: us-central1
@@ -100,4 +103,4 @@ substitutions:
   _NOTIFICATION_EMAIL: mydecretor@protonmail.com
   _NOTIFICATION_SMS: "7084652230"
 
-timeout: '1800s'
+timeout: '3600s'  # 60 minutes - increased for ML model builds
