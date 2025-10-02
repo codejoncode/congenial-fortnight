@@ -1,4 +1,4 @@
-from forecasting import HybridPriceForecastingEnsemble
+from scripts.forecasting import HybridPriceForecastingEnsemble
 import logging
 import time
 

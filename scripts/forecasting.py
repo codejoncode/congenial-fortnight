@@ -114,9 +114,33 @@ class HybridPriceForecastingEnsemble:
         self.meta_model = None
         self.feature_importance = {}
 
-        # Configuration
-        self.forecast_horizon = 5  # days ahead
-        self.lookback_window = 200  # ~1 year of daily data, reduced for XAUUSD
+        # Configuration - adjust based on available data and timeframe
+        if self.pair in ['EURUSD', 'XAUUSD']:
+            # Check what data is available and set parameters accordingly
+            monthly_file = self.data_dir / f"{self.pair}_Monthly.csv"
+            h1_file = self.data_dir / f"{self.pair}_H1.csv"
+
+            if monthly_file.exists():
+                # Monthly data available - use monthly parameters
+                self.forecast_horizon = 6  # 6 months ahead
+                self.lookback_window = 60  # 5 years of monthly data
+                self.timeframe = 'Monthly'
+            elif h1_file.exists():
+                # H1 data available - use H1 parameters
+                self.forecast_horizon = 120  # 5 days * 24 hours = 120 hours ahead
+                self.lookback_window = 1000  # ~6 weeks of H1 data
+                self.timeframe = 'H1'
+            else:
+                # Fall back to daily parameters
+                self.forecast_horizon = 5  # days ahead
+                self.lookback_window = 200  # ~1 year of daily data
+                self.timeframe = 'Daily'
+        else:
+            # Other pairs use daily data
+            self.forecast_horizon = 5  # days ahead
+            self.lookback_window = 200  # ~1 year of daily data
+            self.timeframe = 'Daily'
+
         self.validation_splits = 5
 
         # Model configurations
@@ -323,21 +347,50 @@ class HybridPriceForecastingEnsemble:
 
     def _load_price_data(self) -> pd.DataFrame:
         """Load historical price data for the currency pair."""
-        csv_file = self.data_dir / "raw" / f"{self.pair}_Daily.csv"
+        # For EURUSD and XAUUSD, prefer Monthly > H1 > Daily data
+        if self.pair in ['EURUSD', 'XAUUSD']:
+            # Try Monthly data first
+            csv_file = self.data_dir / f"{self.pair}_Monthly.csv"
+            if not csv_file.exists():
+                # Fall back to H1 data
+                csv_file = self.data_dir / f"{self.pair}_H1.csv"
+                if not csv_file.exists():
+                    # Fall back to Daily data
+                    csv_file = self.data_dir / "raw" / f"{self.pair}_Daily.csv"
+        else:
+            csv_file = self.data_dir / "raw" / f"{self.pair}_Daily.csv"
+
         if not csv_file.exists():
             logger.warning(f"Price data file not found: {csv_file}")
             return pd.DataFrame()
 
         try:
-            df = pd.read_csv(csv_file)
-            # Handle both 'date' and 'Date' column names
-            date_col = 'date' if 'date' in df.columns else 'Date'
-            df['Date'] = pd.to_datetime(df[date_col])
+            # Handle different CSV formats
+            if self.pair in ['EURUSD', 'XAUUSD'] and (csv_file.name.endswith('_Monthly.csv') or csv_file.name.endswith('_H1.csv')):
+                # Monthly and H1 data are tab-separated
+                df = pd.read_csv(csv_file, sep='\t')
+            else:
+                df = pd.read_csv(csv_file)
+
+            # Handle different date/time column formats
+            if '<DATE>' in df.columns and '<TIME>' in df.columns:
+                # H1 format with separate DATE and TIME columns
+                df['Date'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'])
+            elif '<DATE>' in df.columns:
+                # Monthly format with just DATE column
+                df['Date'] = pd.to_datetime(df['<DATE>'])
+            else:
+                # Handle both 'date' and 'Date' column names
+                date_col = 'date' if 'date' in df.columns else 'Date'
+                df['Date'] = pd.to_datetime(df[date_col])
+
             df = df.sort_values('Date').set_index('Date')
 
             # Ensure we have OHLC columns (handle both cases)
             required_cols = ['Open', 'High', 'Low', 'Close']
             actual_cols = ['open', 'high', 'low', 'close']
+            ohlc_cols = ['<OPEN>', '<HIGH>', '<LOW>', '<CLOSE>']  # H1 format
+
             if not all(col in df.columns for col in required_cols):
                 if all(col in df.columns for col in actual_cols):
                     # Rename lowercase columns to uppercase
@@ -346,6 +399,14 @@ class HybridPriceForecastingEnsemble:
                         'high': 'High',
                         'low': 'Low',
                         'close': 'Close'
+                    })
+                elif all(col in df.columns for col in ohlc_cols):
+                    # Rename H1 format columns
+                    df = df.rename(columns={
+                        '<OPEN>': 'Open',
+                        '<HIGH>': 'High',
+                        '<LOW>': 'Low',
+                        '<CLOSE>': 'Close'
                     })
                 else:
                     logger.error(f"Missing required OHLC columns in {csv_file}")
@@ -533,7 +594,34 @@ class HybridPriceForecastingEnsemble:
         macd_hist = macd - macd_signal
         return macd, macd_signal, macd_hist
 
-    def _calculate_holloway_features(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _calculate_adx(self, df: pd.DataFrame, period: int) -> pd.Series:
+        """Calculate Average Directional Index."""
+        high = df['High']
+        low = df['Low']
+        close = df['Close']
+
+        # Calculate True Range
+        tr = pd.concat([
+            high - low,
+            (high - close.shift(1)).abs(),
+            (low - close.shift(1)).abs()
+        ], axis=1).max(axis=1)
+
+        # Calculate Directional Movement
+        dm_plus = np.where((high - high.shift(1)) > (low.shift(1) - low),
+                          np.maximum(high - high.shift(1), 0), 0)
+        dm_minus = np.where((low.shift(1) - low) > (high - high.shift(1)),
+                           np.maximum(low.shift(1) - low, 0), 0)
+
+        # Calculate Directional Indicators
+        di_plus = 100 * (pd.Series(dm_plus).rolling(period).mean() / tr.rolling(period).mean())
+        di_minus = 100 * (pd.Series(dm_minus).rolling(period).mean() / tr.rolling(period).mean())
+
+        # Calculate ADX
+        dx = 100 * abs(di_plus - di_minus) / (di_plus + di_minus)
+        adx = dx.rolling(period).mean()
+
+        return adx
         """
         Calculate Holloway Algorithm features for trend analysis.
         
