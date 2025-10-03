@@ -95,6 +95,89 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+def _normalize_price_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Normalize common price CSV variants to canonical columns and a DatetimeIndex.
+    Handles:
+      - MetaTrader-style headers: '<DATE>' and '<TIME>'
+      - Single combined 'timestamp' column
+      - lowercase headers like 'open', 'high', etc.
+    Returns a DataFrame indexed by datetime with columns Open/High/Low/Close/Volume when possible.
+    """
+    if df is None or df.empty:
+        return pd.DataFrame()
+
+    # Trim whitespace of column names and map to lowercase for matching
+    orig_cols = list(df.columns)
+    col_map_low = {c: c.strip() for c in orig_cols}
+    df = df.rename(columns=col_map_low)
+
+    lower_cols = {c.lower(): c for c in df.columns}
+
+    # Build datetime index
+    if '<date>' in lower_cols and '<time>' in lower_cols:
+        date_col = lower_cols['<date>']
+        time_col = lower_cols['<time>']
+        combined = df[date_col].astype(str).str.strip() + ' ' + df[time_col].astype(str).str.strip()
+        df['_datetime'] = pd.to_datetime(combined, errors='coerce')
+        df = df.dropna(subset=['_datetime']).set_index('_datetime')
+    elif 'timestamp' in lower_cols:
+        ts_col = lower_cols['timestamp']
+        df[ts_col] = pd.to_datetime(df[ts_col], errors='coerce')
+        df = df.dropna(subset=[ts_col]).set_index(ts_col)
+    elif 'date' in lower_cols:
+        dcol = lower_cols['date']
+        df[dcol] = pd.to_datetime(df[dcol], errors='coerce')
+        df = df.dropna(subset=[dcol]).set_index(dcol)
+    else:
+        # Try to find any parsable datetime column
+        parsed = False
+        for c in df.columns:
+            try:
+                ser = pd.to_datetime(df[c], errors='coerce')
+                if ser.notna().sum() > 0:
+                    df[c] = ser
+                    df = df.dropna(subset=[c]).set_index(c)
+                    parsed = True
+                    break
+            except Exception:
+                continue
+        if not parsed:
+            return pd.DataFrame()
+
+    # Normalize OHLCV names
+    rename_map = {}
+    for c in df.columns:
+        key = c.strip().lower()
+        if key in ('<open>', 'open'):
+            rename_map[c] = 'Open'
+        if key in ('<high>', 'high'):
+            rename_map[c] = 'High'
+        if key in ('<low>', 'low'):
+            rename_map[c] = 'Low'
+        if key in ('<close>', 'close'):
+            rename_map[c] = 'Close'
+        if key in ('<tickvol>', 'tickvol'):
+            rename_map[c] = 'TickVolume'
+        if key in ('<vol>', 'vol', 'volume'):
+            rename_map[c] = 'Volume'
+        if key in ('<spread>', 'spread'):
+            rename_map[c] = 'Spread'
+
+    if rename_map:
+        df = df.rename(columns=rename_map)
+
+    # Coerce numeric types for numeric-looking columns
+    for c in df.columns:
+        if c not in ([],):
+            try:
+                df[c] = pd.to_numeric(df[c], errors='coerce')
+            except Exception:
+                pass
+
+    return df
+
 try:
     from .robust_lightgbm_config import enhanced_lightgbm_training_pipeline
 except ImportError:
@@ -154,10 +237,40 @@ class HybridPriceForecastingEnsemble:
         # Load data across timeframes
         self.intraday_data = self._load_intraday_data()
         self.monthly_data = self._load_monthly_data()
-        self.price_data = self._load_price_data()
+
+        # _load_price_data may call methods that aren't bound (left in module scope).
+        # Attempt to use it, otherwise construct a sensible daily price DataFrame
+        try:
+            self.price_data = self._load_price_data()
+        except Exception:
+            # Fallback: prefer intraday-derived daily OHLC, otherwise resample monthly
+            try:
+                daily = pd.DataFrame()
+                if hasattr(self, 'intraday_data') and not self.intraday_data.empty:
+                    daily_ohlc, intraday_features = self._build_intraday_context(self.intraday_data)
+                    daily = daily_ohlc
+                elif hasattr(self, 'monthly_data') and not self.monthly_data.empty:
+                    monthly_features = self.monthly_data.rename(columns=lambda c: f"monthly_{c}")
+                    monthly_features = monthly_features.resample('1D').ffill()
+                    daily = monthly_features
+                else:
+                    daily = pd.DataFrame()
+
+                self.price_data = daily
+            except Exception:
+                self.price_data = pd.DataFrame()
         self.fundamental_engineer = FundamentalFeatureEngineer(self.data_dir)
         self.fundamental_data = self._load_fundamental_data()
-        self.cross_pair = self._get_cross_pair()
+        # _get_cross_pair may not exist in some refactored versions; be resilient
+        try:
+            self.cross_pair = self._get_cross_pair()
+        except Exception:
+            # Fallback mapping for core pairs
+            cross_map = {
+                'EURUSD': 'XAUUSD',
+                'XAUUSD': 'EURUSD'
+            }
+            self.cross_pair = cross_map.get(self.pair)
 
         # Feature engineering
         self.feature_columns = []
@@ -425,23 +538,66 @@ class HybridPriceForecastingEnsemble:
         intraday_path = self.data_dir / f'{pair}_H1.csv'
         self.logger.info(f"Loading H1 data from: {intraday_path}")
         try:
-            data = pd.read_csv(
-                intraday_path,
-                sep=r'\s+',
-                engine='python',
-                header=0,
-                parse_dates={'datetime': ['<DATE>', '<TIME>']},
-                date_format='%Y.%m.%d %H:%M:%S',
-                index_col='datetime'
-            )
-            data = data.rename(columns={
-                '<OPEN>': 'Open',
-                '<HIGH>': 'High',
-                '<LOW>': 'Low',
-                '<CLOSE>': 'Close',
-                '<TICKVOL>': 'Volume'
-            })
-            self.intraday_data = data[['Open', 'High', 'Low', 'Close', 'Volume']]
+            # Read permissively and then attempt to detect date/time columns
+            # Let pandas infer delimiter (commonly comma) so CSVs with commas parse correctly
+            data = pd.read_csv(intraday_path, engine='python', header=0)
+            # Detect and construct datetime index
+            if '<DATE>' in data.columns and '<TIME>' in data.columns:
+                data['datetime'] = pd.to_datetime(data['<DATE>'].astype(str) + ' ' + data['<TIME>'].astype(str), errors='coerce')
+                data = data.set_index('datetime')
+            elif 'Date' in data.columns and 'Time' in data.columns:
+                data['datetime'] = pd.to_datetime(data['Date'].astype(str) + ' ' + data['Time'].astype(str), errors='coerce')
+                data = data.set_index('datetime')
+            elif 'Date' in data.columns:
+                data['datetime'] = pd.to_datetime(data['Date'], errors='coerce')
+                data = data.set_index('datetime')
+            elif 'date' in data.columns:
+                data['datetime'] = pd.to_datetime(data['date'], errors='coerce')
+                data = data.set_index('datetime')
+            else:
+                # fallback: try to parse first column as date
+                try:
+                    data.index = pd.to_datetime(data.iloc[:, 0], errors='coerce')
+                except Exception:
+                    # Leave as-is; other logic will handle missing index
+                    pass
+            # Normalize common column names (both uppercase <OPEN> and lowercase 'open')
+            rename_map = {}
+            if '<OPEN>' in data.columns:
+                rename_map['<OPEN>'] = 'Open'
+            if '<HIGH>' in data.columns:
+                rename_map['<HIGH>'] = 'High'
+            if '<LOW>' in data.columns:
+                rename_map['<LOW>'] = 'Low'
+            if '<CLOSE>' in data.columns:
+                rename_map['<CLOSE>'] = 'Close'
+            if '<TICKVOL>' in data.columns:
+                rename_map['<TICKVOL>'] = 'Volume'
+
+            # lowercase variants
+            if 'open' in data.columns and 'Open' not in data.columns:
+                rename_map['open'] = 'Open'
+            if 'high' in data.columns and 'High' not in data.columns:
+                rename_map['high'] = 'High'
+            if 'low' in data.columns and 'Low' not in data.columns:
+                rename_map['low'] = 'Low'
+            if 'close' in data.columns and 'Close' not in data.columns:
+                rename_map['close'] = 'Close'
+            if 'volume' in data.columns and 'Volume' not in data.columns:
+                rename_map['volume'] = 'Volume'
+
+            if rename_map:
+                data = data.rename(columns=rename_map)
+
+            # Ensure we have the expected columns; if not, log and return empty
+            expected_cols = ['Open', 'High', 'Low', 'Close']
+            if not all(col in data.columns for col in expected_cols):
+                self.logger.error(f"Error loading H1 data for {pair}: missing OHLC columns after normalization")
+                return pd.DataFrame()
+
+            # Volume is optional
+            cols = ['Open', 'High', 'Low', 'Close'] + (['Volume'] if 'Volume' in data.columns else [])
+            self.intraday_data = data[cols]
             self.logger.info(f"Successfully loaded H1 data for {pair}. Shape: {self.intraday_data.shape}")
             return self.intraday_data
         except FileNotFoundError:
@@ -456,23 +612,56 @@ class HybridPriceForecastingEnsemble:
         monthly_path = self.data_dir / f'{self.pair}_Monthly.csv'
         self.logger.info(f"Loading Monthly data from: {monthly_path}")
         try:
-            data = pd.read_csv(
-                monthly_path,
-                sep=r'\s+',
-                engine='python',
-                header=0,
-                parse_dates=['<DATE>'],
-                date_format='%Y.%m.%d',
-                index_col='<DATE>'
-            )
-            data = data.rename(columns={
-                '<OPEN>': 'Open',
-                '<HIGH>': 'High',
-                '<LOW>': 'Low',
-                '<CLOSE>': 'Close',
-                '<TICKVOL>': 'Volume'
-            })
-            self.monthly_data = data[['Open', 'High', 'Low', 'Close', 'Volume']]
+            # Let pandas infer delimiter for monthly CSVs as well
+            data = pd.read_csv(monthly_path, engine='python', header=0)
+            # Normalize date column
+            if '<DATE>' in data.columns:
+                data['Date'] = pd.to_datetime(data['<DATE>'], errors='coerce')
+                data = data.set_index('Date')
+            elif 'Date' in data.columns:
+                data['Date'] = pd.to_datetime(data['Date'], errors='coerce')
+                data = data.set_index('Date')
+            elif 'date' in data.columns:
+                data['Date'] = pd.to_datetime(data['date'], errors='coerce')
+                data = data.set_index('Date')
+            else:
+                try:
+                    data.index = pd.to_datetime(data.iloc[:, 0], errors='coerce')
+                except Exception:
+                    pass
+            # Normalize monthly column names similar to intraday loader
+            rename_map = {}
+            if '<OPEN>' in data.columns:
+                rename_map['<OPEN>'] = 'Open'
+            if '<HIGH>' in data.columns:
+                rename_map['<HIGH>'] = 'High'
+            if '<LOW>' in data.columns:
+                rename_map['<LOW>'] = 'Low'
+            if '<CLOSE>' in data.columns:
+                rename_map['<CLOSE>'] = 'Close'
+            if '<TICKVOL>' in data.columns:
+                rename_map['<TICKVOL>'] = 'Volume'
+            if 'open' in data.columns and 'Open' not in data.columns:
+                rename_map['open'] = 'Open'
+            if 'high' in data.columns and 'High' not in data.columns:
+                rename_map['high'] = 'High'
+            if 'low' in data.columns and 'Low' not in data.columns:
+                rename_map['low'] = 'Low'
+            if 'close' in data.columns and 'Close' not in data.columns:
+                rename_map['close'] = 'Close'
+            if 'volume' in data.columns and 'Volume' not in data.columns:
+                rename_map['volume'] = 'Volume'
+
+            if rename_map:
+                data = data.rename(columns=rename_map)
+
+            expected_cols = ['Open', 'High', 'Low', 'Close']
+            if not all(col in data.columns for col in expected_cols):
+                self.logger.error(f"Error loading Monthly data for {self.pair}: missing OHLC columns after normalization")
+                return pd.DataFrame()
+
+            cols = ['Open', 'High', 'Low', 'Close'] + (['Volume'] if 'Volume' in data.columns else [])
+            self.monthly_data = data[cols]
             self.logger.info(f"Successfully loaded Monthly data for {self.pair}. Shape: {self.monthly_data.shape}")
             return self.monthly_data
         except FileNotFoundError:

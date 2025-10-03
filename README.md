@@ -205,6 +205,16 @@ RAW CSVs / FRED / CFTC
   model artifacts -> models/ & logs/
 ```
 
+  ## 🔐 Live API tests (manual)
+
+  For safety, live API tests are gated behind a manual GitHub Actions workflow. To enable them:
+
+  1. Add repository secrets in GitHub: `FRED_API_KEY`, `FINNHUB_API_KEY` (Settings → Secrets → Actions).
+  2. From the Actions tab, select `Live API Tests (manual)` and click "Run workflow".
+
+  The runner will execute `scripts/run_live_api_tests.py` which will only perform live calls when the environment variables are present.
+
+
 
 
 

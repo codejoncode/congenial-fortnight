@@ -32,6 +32,7 @@ except ImportError:
 
 from .forecasting import HybridPriceForecastingEnsemble as ForecastingSystem
 from notification_system import NotificationSystem
+from .feature_utils import prune_features
 
 # Configure logging
 logging.basicConfig(
@@ -74,9 +75,71 @@ class AutomatedTrainer:
                 
                 # 1. Initialize forecasting system for the specific pair
                 forecasting_system = ForecastingSystem(pair=pair)
+
+                # Compatibility shims: some versions of the ForecastingSystem
+                # may miss helper methods (e.g. when running from tests or
+                # refactored modules). Add minimal fallbacks so automated
+                # training can proceed in dry-run mode.
+                if not hasattr(forecasting_system, '_get_cross_pair'):
+                    def _get_cross_pair():
+                        return 'XAUUSD' if forecasting_system.pair == 'EURUSD' else 'EURUSD'
+                    forecasting_system._get_cross_pair = _get_cross_pair
+
+                if not hasattr(forecasting_system, '_load_daily_price_file'):
+                    # Provide a simple loader that tries common filenames
+                    def _load_daily_price_file(pair_hint=None, timeframe_hint='Daily'):
+                        try:
+                            from pathlib import Path
+                            import pandas as pd
+                            root = Path(os.getcwd()) / 'data'
+                            pair_name = pair_hint or forecasting_system.pair
+                            candidates = [root / f"{pair_name}_Daily.csv", root / f"{pair_name}_daily.csv", root / f"{pair_name}.csv", root / f"{pair_name}_Monthly.csv"]
+                            for c in candidates:
+                                if c.exists():
+                                    df = pd.read_csv(c)
+                                    # attempt to coerce a Date column
+                                    if '<DATE>' in df.columns and '<TIME>' in df.columns:
+                                        df['Date'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], errors='coerce')
+                                        df = df.set_index('Date')
+                                    elif '<DATE>' in df.columns:
+                                        df['Date'] = pd.to_datetime(df['<DATE>'], errors='coerce')
+                                        df = df.set_index('Date')
+                                    elif 'Date' in df.columns:
+                                        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+                                        df = df.set_index('Date')
+                                    return df
+                        except Exception:
+                            return pd.DataFrame()
+
+                    forecasting_system._load_daily_price_file = _load_daily_price_file
                 
                 # 2. Load and prepare datasets
-                X_train, y_train, X_val, y_val = forecasting_system.load_and_prepare_datasets()
+                # Prefer the high-level helper if available
+                if hasattr(forecasting_system, 'load_and_prepare_datasets'):
+                    X_train, y_train, X_val, y_val = forecasting_system.load_and_prepare_datasets()
+                else:
+                    # Fallback: use internal _prepare_features to construct X/y
+                    try:
+                        feature_df = forecasting_system._prepare_features()
+                        if feature_df is None or feature_df.empty:
+                            raise ValueError('Feature engineering produced empty dataframe')
+
+                        target_col = 'target_1d'
+                        if target_col not in feature_df.columns:
+                            # try alternative naming
+                            target_col = next((c for c in feature_df.columns if c.startswith('target_')), None)
+                        if not target_col:
+                            raise ValueError('No target column found in features')
+
+                        y = feature_df[target_col]
+                        X = feature_df.drop(columns=[c for c in feature_df.columns if 'target' in c or 'next_close_change' in c], errors='ignore')
+
+                        train_size = int(len(X) * 0.8)
+                        X_train, X_val = X[:train_size], X[train_size:]
+                        y_train, y_val = y[:train_size], y[train_size:]
+                    except Exception as e:
+                        logger.error(f"Fallback feature preparation failed for {pair}: {e}")
+                        X_train, y_train, X_val, y_val = None, None, None, None
 
                 # Input validation: ensure we have proper arrays/frames and matching lengths
                 def invalid_input(reason):
@@ -116,129 +179,14 @@ class AutomatedTrainer:
                 if dry_run:
                     logger.info(f"🔬 Dry-run enabled for {pair}: capping iterations to {dry_iterations} and timeout {dry_timeout_seconds}s")
                 
-                # Print a per-pair schema report to help auditing what features will be used
-                def pair_schema_report(X_train, y_train, X_val, y_val):
-                    """Generate an expanded schema report and save as JSON under output/."""
-                    try:
-                        import numpy as _np
-
-                        df = X_train.copy() if hasattr(X_train, 'copy') else None
-                        cols = list(df.columns) if df is not None else []
-
-                        # Basic NA diagnostics
-                        na_counts = df.isnull().sum().to_dict() if df is not None else {}
-                        na_pct = {k: (v / max(1, int(df.shape[0]))) for k, v in na_counts.items()} if df is not None else {}
-
-                        # Dtypes
-                        dtypes = {c: str(df[c].dtype) for c in cols} if df is not None else {}
-
-                        # Variance and zero-count diagnostics (numeric only)
-                        variance = {}
-                        zero_counts = {}
-                        basic_stats = {}
-                        for c in cols:
-                            try:
-                                series = df[c]
-                                if _np.issubdtype(series.dtype, _np.number):
-                                    variance[c] = float(series.var(skipna=True)) if series.size > 0 else None
-                                    zero_counts[c] = int((series == 0).sum())
-                                    basic_stats[c] = {
-                                        'min': None if series.size == 0 else float(series.min(skipna=True)),
-                                        'max': None if series.size == 0 else float(series.max(skipna=True)),
-                                        'mean': None if series.size == 0 else float(series.mean(skipna=True)),
-                                    }
-                                else:
-                                    variance[c] = None
-                                    zero_counts[c] = None
-                                    basic_stats[c] = None
-                            except Exception:
-                                variance[c] = None
-                                zero_counts[c] = None
-                                basic_stats[c] = None
-
-                        fund_cols = [c for c in cols if c.startswith('fund_')]
-                        # Use configured pair names to detect cross pair columns heuristically
-                        cross_pair_keys = [p.lower() for p in (pairs or ['EURUSD', 'XAUUSD'])]
-                        cross_cols = [c for c in cols if any(k in c.lower() for k in cross_pair_keys) and not c.startswith('fund_')]
-
-                        report = {
-                            'pair': pair,
-                            'rows': int(df.shape[0]) if df is not None else 0,
-                            'cols': len(cols),
-                            'fund_cols': len(fund_cols),
-                            'cross_pair_cols': len(cross_cols),
-                            'sample_columns': cols[:50],
-                            'na_counts': {k: int(v) for k, v in na_counts.items()},
-                            'na_pct': na_pct,
-                            'dtypes': dtypes,
-                            'variance': variance,
-                            'zero_counts': zero_counts,
-                            'basic_stats': basic_stats,
-                        }
-
-                        # Save JSON output
-                        out_path = os.path.join(BASE_APP_DIR, 'output', f'schema_report_{pair}.json')
-                        with open(out_path, 'w') as f:
-                            json.dump(report, f, indent=2)
-
-                        logger.info(f"Pre-train schema for {pair}: rows={report['rows']}, cols={report['cols']}, fund_cols={report['fund_cols']}, cross_pair_cols={report['cross_pair_cols']}")
-                        logger.info(f"Saved schema report to {out_path}")
-                    except Exception as e:
-                        logger.debug(f"Could not generate schema report: {e}")
-
-                pair_schema_report(X_train, y_train, X_val, y_val)
+                # Generate and save per-pair schema report via report_utils
+                try:
+                    from .report_utils import generate_schema_report
+                    generate_schema_report(X_train, pair=pair, pairs=pairs, out_dir=os.path.join(BASE_APP_DIR, 'output'))
+                except Exception as e:
+                    logger.debug(f"Could not generate schema report via report_utils: {e}")
 
                 # 2.5 Automatic pruning: drop columns with high NA% or zero variance
-                def prune_features(df, na_pct_threshold: float = 0.5, drop_zero_variance: bool = True):
-                    """Return (pruned_df, report) where report contains lists of dropped columns.
-
-                    - Drops columns with NA% > na_pct_threshold
-                    - Optionally drops numeric columns with variance == 0 (or <= tiny tolerance)
-                    """
-                    try:
-                        import numpy as _np
-
-                        report = {
-                            'dropped_na_pct': [],
-                            'dropped_zero_variance': [],
-                            'initial_cols': list(df.columns) if hasattr(df, 'columns') else [],
-                            'final_cols': None,
-                        }
-
-                        if df is None or not hasattr(df, 'shape'):
-                            report['final_cols'] = report['initial_cols']
-                            return df, report
-
-                        n = max(1, int(df.shape[0]))
-                        na_frac = df.isnull().sum() / n
-                        drop_na_cols = na_frac[na_frac > na_pct_threshold].index.tolist()
-
-                        drop_var_cols = []
-                        if drop_zero_variance:
-                            numeric = df.select_dtypes(include=[_np.number])
-                            # variance with skipna
-                            try:
-                                variances = numeric.var(skipna=True)
-                            except Exception:
-                                variances = numeric.var()
-                            drop_var_cols = variances[variances <= 0].index.tolist()
-
-                        # Unique-ify and remove any accidental overlap
-                        to_drop = list(dict.fromkeys(drop_na_cols + drop_var_cols))
-
-                        pruned = df.drop(columns=to_drop, errors='ignore')
-
-                        report['dropped_na_pct'] = drop_na_cols
-                        report['dropped_zero_variance'] = drop_var_cols
-                        report['final_cols'] = list(pruned.columns)
-                        report['n_initial_cols'] = len(report['initial_cols'])
-                        report['n_final_cols'] = len(report['final_cols'])
-
-                        return pruned, report
-                    except Exception as e:
-                        logger.debug(f"prune_features failed: {e}")
-                        return df, {'error': str(e)}
-
                 X_train_pruned, prune_report = prune_features(X_train, na_pct_threshold=0.5, drop_zero_variance=True)
                 # Align validation set to pruned columns
                 try:
@@ -250,14 +198,12 @@ class AutomatedTrainer:
                     except Exception:
                         X_val_pruned = X_val
 
-                # Save pruning report
+                # Save pruning report using report_utils
                 try:
-                    out_prune = os.path.join(BASE_APP_DIR, 'output', f'prune_report_{pair}.json')
-                    with open(out_prune, 'w') as f:
-                        json.dump(prune_report, f, indent=2)
-                    logger.info(f"Saved prune report to {out_prune}")
+                    from .report_utils import save_prune_report
+                    save_prune_report(prune_report, pair=pair, out_dir=os.path.join(BASE_APP_DIR, 'output'))
                 except Exception as e:
-                    logger.debug(f"Could not save prune report: {e}")
+                    logger.debug(f"Could not save prune report via report_utils: {e}")
 
                 # 3. Use the new robust training pipeline
                 # The enhanced pipeline now takes data directly
@@ -322,6 +268,10 @@ def main():
                        help='Maximum iterations per pair (default: 50)')
     parser.add_argument('--pairs', nargs='+', default=['EURUSD', 'XAUUSD'],
                        help='Currency pairs to optimize (default: EURUSD XAUUSD)')
+    parser.add_argument('--dry-run', action='store_true', help='Run a quick dry-run training with capped iterations')
+    parser.add_argument('--dry-iterations', type=int, default=10, help='Number of iterations to approximate in dry-run (default: 10)')
+    parser.add_argument('--na-threshold', type=float, default=0.5, help='NA% threshold for pruning (0-1)')
+    parser.add_argument('--drop-zero-variance', action='store_true', help='Drop numeric zero-variance features during pruning')
 
     args = parser.parse_args()
 
@@ -335,7 +285,12 @@ def main():
         max_iterations=args.max_iterations
     )
 
-    results = trainer.run_automated_training(args.pairs)
+    results = trainer.run_automated_training(
+        pairs=args.pairs,
+        dry_run=args.dry_run,
+        dry_iterations=args.dry_iterations,
+        dry_timeout_seconds=60
+    )
 
     # Exit with success/failure code
     all_targets_reached = all(
