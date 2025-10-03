@@ -224,3 +224,19 @@ def enhanced_lightgbm_training_pipeline(datasets: Dict[str, pd.DataFrame], targe
         logger.error("\n❌ ALL TRAINING ATTEMPTS FAILED.")
     return trained_models
 
+
+def enhanced_lightgbm_training_pipeline_arrays(X_train, y_train, X_val=None, y_val=None, pair_name='pair'):
+    """Compatibility wrapper for the older signature used elsewhere in the codebase.
+
+    Trains a single model using train_with_robust_error_handling on the provided arrays.
+    Returns the trained model or None.
+    """
+    try:
+        # Ensure X_train is a DataFrame
+        if not hasattr(X_train, 'shape'):
+            return None
+        X = pd.DataFrame(X_train)
+        return train_with_robust_error_handling(X, y_train, create_robust_lgb_config_for_small_data(), pair_name)
+    except Exception:
+        return None
+

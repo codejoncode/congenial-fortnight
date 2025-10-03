@@ -14,7 +14,7 @@ from typing import List
 from tqdm import tqdm
 
 from .data_issue_fixes import pre_training_data_fix
-from .robust_lightgbm_config import enhanced_lightgbm_training_pipeline
+from .robust_lightgbm_config import enhanced_lightgbm_training_pipeline_arrays as enhanced_lightgbm_training_pipeline
 
 # Add project root to path
 BASE_APP_DIR = os.environ.get('APP_ROOT', os.getcwd())
@@ -48,7 +48,8 @@ class AutomatedTrainer:
     def __init__(self, target_accuracy=0.75, max_iterations=100):
         self.target_accuracy = target_accuracy
         self.max_iterations = max_iterations
-        self.forecasting = ForecastingSystem(pair='EURUSD') # Dummy pair for initialization
+        # Do not instantiate ForecastingSystem here; create per-pair in run_automated_training
+        self.forecasting = None
 
         # Ensure directories exist
         os.makedirs(os.path.join(BASE_APP_DIR, 'models'), exist_ok=True)
@@ -76,10 +77,41 @@ class AutomatedTrainer:
                 
                 # 2. Load and prepare datasets
                 X_train, y_train, X_val, y_val = forecasting_system.load_and_prepare_datasets()
-                if X_train is None:
-                    logger.error(f"❌ Data preparation failed for {pair}.")
-                    final_results[pair] = {'error': 'Data preparation failed.'}
+
+                # Input validation: ensure we have proper arrays/frames and matching lengths
+                def invalid_input(reason):
+                    logger.error(f"❌ Data preparation failed for {pair}: {reason}")
+                    final_results[pair] = {'error': f'Data preparation failed: {reason}'}
+
+                if X_train is None or y_train is None:
+                    invalid_input('Missing training data or labels')
                     continue
+
+                # Convert pandas objects to numpy where helpful
+                try:
+                    import numpy as _np
+                    if hasattr(X_train, 'shape') and hasattr(y_train, 'shape'):
+                        x_len = int(X_train.shape[0])
+                        y_len = int(y_train.shape[0])
+                    else:
+                        # fallback to len()
+                        x_len = len(X_train)
+                        y_len = len(y_train)
+                except Exception:
+                    invalid_input('Could not determine dataset lengths')
+                    continue
+
+                if x_len == 0 or y_len == 0:
+                    invalid_input('Empty training arrays')
+                    continue
+
+                if x_len != y_len:
+                    invalid_input(f'Mismatched lengths: X_train={x_len}, y_train={y_len}')
+                    continue
+
+                if x_len < 10:
+                    # Too few samples to train reliably; skip or allow emergency config downstream
+                    logger.warning(f"⚠️  {pair}: Very small training set ({x_len} samples). Training may use emergency minimal config.")
                 
                 # 3. Use the new robust training pipeline
                 # The enhanced pipeline now takes data directly

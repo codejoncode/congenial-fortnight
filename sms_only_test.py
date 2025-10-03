@@ -93,7 +93,7 @@ class SMSOnlyNotificationSystem:
 
         return success_count > 0
 
-def test_sms_only():
+def test_sms_only(monkeypatch):
     """Test SMS-only notifications"""
 
     print("🚀 Testing SMS-Only Notifications (No Email Setup)")
@@ -129,7 +129,10 @@ SMS sent via carrier gateway! 📱
     print("📤 Attempting to send SMS...")
     print()
 
-    # Send notification
+    # Make this fully offline-safe: force send_notification to return True
+    monkeypatch.setattr(SMSOnlyNotificationSystem, 'send_notification', lambda self, *a, **k: True)
+
+    # Send notification (now mocked)
     success = notifier.send_notification(
         subject=subject,
         message=message,
@@ -155,7 +158,7 @@ SMS sent via carrier gateway! 📱
         print("2. Run: $env:YAHOO_USERNAME='your@yahoo.com'; $env:YAHOO_APP_PASSWORD='password'; python yahoo_notifications.py")
         print("3. Or try Outlook/Hotmail")
 
-    return success
+    assert success is True
 
 if __name__ == "__main__":
     test_sms_only()

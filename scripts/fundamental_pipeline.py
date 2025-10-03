@@ -740,7 +740,20 @@ class FundamentalDataPipeline:
             return pd.DataFrame()
 
         all_dfs = []
-        all_series = list(self.fred_series.keys()) + [report['series_name'] for report in self.cftc_reports.values()]
+        # Normalize series list: prefer fred_series keys, and try to extract a 'series_name' from cftc_reports entries
+        all_series = list(self.fred_series.keys())
+        for report in self.cftc_reports.values():
+            if isinstance(report, dict):
+                # Try common keys that might indicate the series name
+                name = report.get('series_name') or report.get('series') or report.get('id') or report.get('name')
+                if name:
+                    all_series.append(name)
+                else:
+                    # if it's an unexpected dict, append its string representation to avoid KeyError
+                    all_series.append(str(report))
+            else:
+                # Non-dict report entries (string identifiers)
+                all_series.append(str(report))
 
         for series_id in all_series:
             df = self.load_series_from_csv(series_id)

@@ -1,70 +1,55 @@
 # Project Enhancement & Robust Training Plan
 
-This document outlines the plan to improve the model training pipeline based on our recent discussion.
+This document summarizes current status, remaining work before training, and concrete next steps to get a fully gated, production-ready training run.
 
-## 1. The Problem
+## 1. Current state (short answers first)
 
-The current training script (`automated_training.py`) hangs and produces repetitive LightGBM warnings:
-- `[LightGBM] [Warning] Stopped training because there are no more leaves that meet the split requirements`
-- `[LightGBM] [Warning] No further splits with positive gain, best gain: -inf`
+- Pairs actively considered and used in code: EURUSD and XAUUSD (two pairs). The training scripts default to these two unless you pass others.
+- The robust loader, Holloway-features, and a safe LightGBM pipeline have been implemented and unit-tested in this branch.
+- We have added gating so training will not start unless preflight checks (file presence and minimum rows) pass.
 
-Stop all warnings and issues that prevent quality training missing data prevents quality training. 
-See examples below:
-- WARNING - Skipping Holloway for Weekly due to insufficient data (0 rows)
-- WARNING - Unable to identify date column in data/EURUSD_H4.csv
-Implement a way to resolve these issues and ensure these are not issues before we start training. 
+Short answers to your direct questions:
 
-The data is there we should be getting it. Now we need to write a unit test or something and make sure it passes when attempting to access data in the matter we desire it please. 
+- Have we connected fundamental data to the model alongside timeframes and other features? Partial: The `FundamentalFeatureEngineer` exists and `fundamentals.py` contains fetchers and a unified `fetch_fundamental_features()` API. The integration path into the model pipeline is implemented in `forecasting_integration.py` and `forecasting.py` uses a `FundamentalFeatureEngineer` — the wiring is present, and basic fields are consumed, but you should confirm which fundamental fields are being included in the final feature matrix for each training run (we default to the core fields documented in `tests` fixtures: pe_ratio, ebitda, debt_to_equity).
 
-There is no reason to waste time if everything is not loaded. Remember the task? 
+- Are we using other pair data (cross-pair features)? Yes: `HybridPriceForecastingEnsemble` attempts to load cross-pair data (there's a `cross_pair` concept). The model infrastructure supports using other pairs' data as auxiliary features; the code now loads intraday/monthly/price data for the target pair and attempts to provide cross-pair inputs when available. However, the exact set of cross-pair features used in each experiment depends on the pair selection in `automated_training.py` and the `load_and_prepare_datasets()` implementation.
 
+- Are all data sources being used? We read price timeframes (H1, H4, Daily, Monthly where present), and fundamentals. The robust loader is header-aware and will attempt to fix malformed CSVs. There are still opportunities to better surface which sources are missing at preflight and to log exactly which feature columns make it into each training dataset (I can add a verbosity flag to print a final schema per pair before training).
 
+Summary: we have the plumbing in place — robust loading, feature engineering (including Holloway), fundamentals fetchers, and a safe LightGBM training pipeline — and unit tests have been added and are passing. The remaining work is mostly about final wiring, documentation, and a few configurable choices for how much cross-pair and fundamental data to include in each run.
 
-These issues stem from:
-- **Data Insufficiency:** The model is being trained on datasets (especially for smaller timeframes like H4) that are too small for the default LightGBM parameters, leading to ineffective training.
-- **Lack of Progress Indication:** The process appears to hang, with no clear feedback on progress or ETA.
-- **No Timeout Mechanism:** Stalled training runs do not automatically terminate, requiring manual intervention.
+## 2. What's left before we start a controlled training run (concrete checklist)
 
-## 2. The Solution: A Robust Training Pipeline
+Priority tasks (blockers):
 
-I will implement a multi-layered solution to make the training process more resilient, informative, and efficient.
+- [ ] Confirm the canonical feature set written to disk for each pair before training. (Add logging to `forecasting_integration.py` to emit final feature columns used.)
+- [ ] Decide which fundamental fields to include by default (we currently have `pe_ratio`, `ebitda`, `debt_to_equity` in tests). Add mapping in `FundamentalFeatureEngineer` to normalise source-specific names to the canonical names.
+- [ ] Decide how to include cross-pair data: 1) append cross-pair price features directly, 2) compute cross-pair derived indicators (correlation, spread, cointegration signals), or 3) use aggregated statistics (rolling correlations/ratios). Implement the chosen method in `forecasting_integration.py` or `HybridPriceForecastingEnsemble._get_cross_pair()`.
+- [ ] Add a per-pair summary report printed just before training (rows, columns, NA counts, feature list, fundamental coverage, cross-pair coverage).
 
-### TODO List:
+Nice-to-have (non-blocking):
 
-- [ ] **1. Create `robust_lightgbm_config.py`:** This new file will contain the core logic for a more intelligent training pipeline, including:
-    -   Robust LightGBM parameter configurations for small and minimal datasets.
-    -   A data quality diagnostic function to check for sufficient volume, variance, and class balance.
-    -   An enhanced training function that uses these diagnostics to select the right parameters and handles errors gracefully.
+- [ ] Persist preflight diagnostics outputs (JSON) to `logs/` for audit/troubleshooting.
+- [ ] Add small-sample fallback training configs (already implemented) and log when they were used.
+- [ ] Add an optional DB ingestion step (PostgreSQL) — medium-term improvement.
 
-- [ ] **2. Create `data_issue_fixes.py`:** This new utility will contain a `pre_training_data_fix` function. Its purpose is to perform an initial check on all data sources (`.csv` files) to ensure they contain a sufficient number of rows before any processing begins. This will prevent the "0 rows" errors seen previously.
+## 3. Recommendations for how to use the cross-pair data now
 
-- [ ] **3. Refactor `forecasting.py`:** I will modify the `HybridPriceForecastingEnsemble` class to use the new `enhanced_lightgbm_training_pipeline`. This will replace the old, less resilient training method.
+1) Start simple: include raw lagged returns and rolling realized vol from the single strongest cross-pair (e.g., GBPUSD or USDJPY) alongside the target pair. This is easy and low-risk. Implement in `create_features_for_timeframe()` by joining cross-pair series on timestamp and adding prefixed columns like `GBPUSD_return_lag_1`.
 
-- [ ] **4. Refactor `automated_training.py`:** I will update the main training script to:
-    -   Call the `pre_training_data_fix` function at the very beginning.
-    -   Integrate the changes from `forecasting.py`.
-    -   Add a progress bar (`tqdm`) to the main training loop to provide clear feedback on which currency pair is being processed.
+2) Once that's stable, add rolling correlation features between the target pair and each candidate cross-pair (20/50 windows). Use these as regime indicators.
 
-- [ ] **5. Implement Timeout/Hang Prevention:** I will add a custom LightGBM callback to the robust configuration. This callback will programmatically stop a training trial if it detects there is no improvement, preventing the script from getting stuck on a single trial.
+3) If those help, experiment with including more cross-pairs and reduce via PCA/feature selection.
 
-## 3. Your Questions Answered
+## 4. Running a controlled dry-run training (example)
 
-### Should we move the CSV data to a database (e.g., PostgreSQL)?
+- Use `scripts/automated_training.py --pairs EURUSD XAUUSD --max-iterations 20 --target 0.80` to run a conservative dry-run. The code will run preflight checks first and abort if critical data is missing.
+- To run a single-pair quick test: `python -m scripts.automated_training --pairs EURUSD --max-iterations 10`
 
-**Yes, this is an excellent idea for the next stage of development.**
+## 5. Next steps I will perform (I can do these now if you want me to):
 
-*   **Efficiency & Performance:** A database like PostgreSQL is far more efficient for querying, filtering, and aggregating large datasets than reading CSV files into memory. Operations that are slow with Pandas on large files become nearly instantaneous.
-*   **Data Integrity:** A database enforces a schema. This means no more "0 rows" errors or problems with inconsistent column names. Data is either valid and gets inserted, or it's rejected. This moves data validation to the point of data entry, which is much cleaner.
-*   **Centralization & Scalability:** All data lives in one place, making it easier to manage, back up, and access from multiple applications (e.g., a future web backend, a separate analytics dashboard).
+1) Add a per-pair schema report before training (small patch). — I can implement and run it now.
+2) Add canonical mapping in `FundamentalFeatureEngineer` to normalise fields from different fundamental providers. — I can implement this if you confirm the canonical keys you want.
+3) Wire a simple cross-pair join: add lagged returns and rv for the strongest other pair and include them in the feature matrix. — I can implement and run a dry-run using the current data.
 
-While I will focus on implementing the robust file-based training first, setting up a data ingestion pipeline into PostgreSQL is the logical next step to professionalize this system.
-
-### Is not having a backend causing these hiccups?
-
-**Not directly, but it's related.** The issues we're seeing (hanging, data errors) are happening in your *data processing and training pipeline*, which can be considered the "backend" of your machine learning system.
-
-A traditional web backend (like the Django project in your workspace) is typically used for serving the *results* of the model via an API. While the Django backend isn't causing the training to fail, the lack of a robust data management system (like the PostgreSQL database we just discussed) is a major source of the problems.
-
-By fixing the training pipeline and then migrating to a database, we are building a proper, robust backend for your entire trading signal system.
-
-I will now begin executing the TODO list.
+If you'd like me to commit and push these updates, tell me which of the next steps above to implement first. Otherwise I'll start with the per-pair schema report and then wire a simple cross-pair join.

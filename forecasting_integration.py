@@ -1,5 +1,6 @@
 from robust_data_loader import robust_data_loading_pipeline, ForexDataLoader, emergency_data_recovery
 import pandas as pd
+import numpy as np
 import logging
 import sys
 
@@ -200,17 +201,68 @@ def add_holloway_features_safe(df: pd.DataFrame, timeframe: str) -> pd.DataFrame
     Add Holloway features with error handling
     Replace this with your actual Holloway calculation
     """
-    
     try:
-        if len(df) < 100:  # Minimum data requirement
+        # Work on a copy to avoid side effects
+        if df is None:
+            raise ValueError("Input dataframe is None")
+
+        if len(df) < 50:  # minimum sensible window for rolling features
             logger.warning(f"⚠️  {timeframe}: Insufficient data for Holloway features ({len(df)} rows)")
             return df
-        
-        # Your existing Holloway calculation logic here
-        # For now, just return the original DataFrame
-        logger.info(f"   {timeframe}: Holloway features calculated (placeholder)")
-        return df
-        
+
+        d = df.copy()
+
+        # Ensure numeric columns
+        for col in ['open', 'high', 'low', 'close', 'volume']:
+            if col in d.columns:
+                d[col] = pd.to_numeric(d[col], errors='coerce')
+
+        # Basic returns and log-returns
+        d['return'] = d['close'].pct_change()
+        d['log_return'] = np.log(d['close']).diff()
+
+        # Realized volatility (rolling std of log returns scaled by sqrt(window))
+        rv_window = 20
+        d['rv_20'] = d['log_return'].rolling(window=rv_window).std() * np.sqrt(rv_window)
+
+        # Longer-term realized vol for regime comparisons
+        rv_long = 50
+        d['rv_50'] = d['log_return'].rolling(window=rv_long).std() * np.sqrt(rv_long)
+
+        # ATR (average true range)
+        if set(['high', 'low', 'close']).issubset(d.columns):
+            high_low = (d['high'] - d['low']).abs()
+            high_close = (d['high'] - d['close'].shift(1)).abs()
+            low_close = (d['low'] - d['close'].shift(1)).abs()
+            tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+            d['tr'] = tr
+            d['atr_14'] = d['tr'].rolling(window=14).mean()
+
+        # Rolling higher moments
+        d['skew_20'] = d['return'].rolling(window=20).skew()
+        d['kurt_20'] = d['return'].rolling(window=20).kurt()
+
+        # Momentum & lagged returns
+        d['mom_10'] = d['close'].pct_change(periods=10)
+        for lag in range(1, 6):
+            d[f'return_lag_{lag}'] = d['return'].shift(lag)
+
+        # Volatility regime indicator
+        d['rv_ratio'] = d['rv_20'] / (d['rv_50'] + 1e-12)
+
+        # Conservative cleanup: drop rows that have NaNs from required engineered features
+        engineered_cols = ['rv_20', 'rv_50', 'skew_20', 'kurt_20', 'mom_10']
+        present_engineered = [c for c in engineered_cols if c in d.columns]
+        if present_engineered:
+            d = d.dropna(subset=present_engineered).reset_index(drop=True)
+
+        if len(d) == 0:
+            logger.warning(f"⚠️  {timeframe}: All rows dropped after Holloway feature engineering; returning original df")
+            return df
+
+        logger.info(f"   {timeframe}: Holloway features calculated ({len(d)} rows)")
+        return d
+
     except Exception as e:
         logger.warning(f"⚠️  {timeframe}: Holloway calculation failed - {str(e)}")
         return df
