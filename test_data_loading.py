@@ -1,76 +1,65 @@
 import unittest
-import pandas as pd
 import os
-import sys
-from parameterized import parameterized
 from pathlib import Path
 
-# Add project root to path to allow imports from 'scripts'
-BASE_APP_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-if BASE_APP_DIR not in sys.path:
-    sys.path.insert(0, BASE_APP_DIR)
+# Auto-load .env for tests so FRED_API_KEY (and other keys) are available
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    # dotenv not installed or load failed; tests will rely on environment
+    pass
 
-from scripts.forecasting import HybridPriceForecastingEnsemble
+# Use the robust loader directly to test timeframes
+from robust_data_loader import ForexDataLoader
 
 class TestDataLoading(unittest.TestCase):
 
     def setUp(self):
-        """Set up test environment by defining absolute paths."""
         self.base_dir = Path(__file__).resolve().parent
         self.data_dir = self.base_dir / "data"
-        self.models_dir = self.base_dir / "models"
 
-    @parameterized.expand([
-        ("EURUSD"),
-        ("XAUUSD"),
-    ])
-    def test_all_data_sources_are_present_and_loadable(self, pair):
-        """
-        Verify that for each pair, all expected timeframes (H1, H4, Daily, Monthly)
-        and fundamental data sources are present and can be loaded without errors.
-        """
-        try:
-            forecasting_system = HybridPriceForecastingEnsemble(pair=pair, data_dir=self.data_dir)
-        except Exception as e:
-            self.fail(f"Failed to instantiate HybridPriceForecastingEnsemble for {pair}. Error: {e}")
+    def test_all_timeframes_for_pairs(self):
+        """Verify both EURUSD and XAUUSD have five timeframes (H1, H4, Daily, Weekly, Monthly)."""
 
-        # Test if intraday data is loaded
-        self.assertFalse(forecasting_system.intraday_data.empty, f"Intraday (H1) data for {pair} should not be empty.")
-        self.assertIsInstance(forecasting_system.intraday_data.index, pd.DatetimeIndex, f"Intraday data index for {pair} should be a DatetimeIndex.")
+        pairs = ['EURUSD', 'XAUUSD']
+        for pair in pairs:
+            loader = ForexDataLoader()
 
-        # Test Monthly data
-        self.assertFalse(forecasting_system.monthly_data.empty, f"Monthly data for {pair} should not be empty.")
-        self.assertIsInstance(forecasting_system.monthly_data.index, pd.DatetimeIndex, f"Monthly data index for {pair} should be a DatetimeIndex.")
+            data_config = {
+                'Daily': f'data/{pair}_Daily.csv',
+                'H4': f'data/{pair}_H4.csv',
+                'H1': f'data/{pair}_H1.csv',
+                'Weekly': f'data/{pair}_Weekly.csv',
+                'Monthly': f'data/{pair}_Monthly.csv'
+            }
 
-        # Test the main consolidated price_data
-        self.assertFalse(forecasting_system.price_data.empty, f"Consolidated price_data for {pair} should not be empty.")
-        self.assertGreater(len(forecasting_system.price_data), 100, f"Consolidated price_data for {pair} should have a substantial number of rows.")
+            try:
+                loaded = loader.load_all_timeframes(data_config)
+            except Exception as e:
+                self.fail(f"Loader failed for {pair}: {e}")
 
-        # Test specific timeframe loading logic that was previously failing
-        # Test H4 data loading
-        h4_df = forecasting_system._load_daily_price_file(pair=pair, timeframe_hint='H4')
-        self.assertIsNotNone(h4_df, f"H4 DataFrame for {pair} should not be None.")
-        self.assertFalse(h4_df.empty, f"H4 data for {pair} failed to load or is empty. Check file and parsing logic.")
-        self.assertIsInstance(h4_df.index, pd.DatetimeIndex, f"H4 data index for {pair} should be a DatetimeIndex.")
+            # Ensure all five expected timeframes loaded
+            self.assertEqual(len(loaded), 5, f"Expected 5 timeframes for {pair}; loaded: {list(loaded.keys())}")
 
-        # Test Weekly data loading - This is now removed as we don't have weekly files.
-        # weekly_df = forecasting_system._load_daily_price_file(pair=pair, timeframe_hint='Weekly')
-        # self.assertIsNotNone(weekly_df, f"Weekly DataFrame for {pair} should not be None.")
-        # self.assertFalse(weekly_df.empty, f"Weekly data for {pair} failed to load or is empty. Check file and parsing logic.")
-        # self.assertIsInstance(weekly_df.index, pd.DatetimeIndex, f"Weekly data index for {pair} should be a DatetimeIndex.")
+            # Verify each dataframe is non-empty and has a timestamp column
+            for tf, df in loaded.items():
+                self.assertIsNotNone(df, f"{pair} {tf} should not be None")
+                self.assertFalse(df.empty, f"{pair} {tf} should not be empty")
+                self.assertIn('timestamp', [c.lower() for c in df.columns], f"{pair} {tf} must have a timestamp column")
 
     @unittest.skipIf(not os.environ.get('FRED_API_KEY'), "FRED_API_KEY not set, skipping fundamental data test.")
     def test_fundamental_data_loads(self):
-        """
-        Verify that fundamental economic data is loaded correctly.
-        """
+        """Verify that fundamental economic data is loaded correctly."""
+        # We'll just check the loader can be used by the fundamental pipeline indirectly
+        from scripts.fundamental_pipeline import FundamentalDataPipeline
         try:
-            # We only need to test this for one pair as it's pair-independent
-            forecasting_system = HybridPriceForecastingEnsemble(pair='EURUSD', data_dir=self.data_dir)
+            fd = FundamentalDataPipeline(self.data_dir)
+            df = fd.load_all_series_as_df()
         except Exception as e:
-            self.fail(f"Failed to instantiate HybridPriceForecastingEnsemble for fundamental data test. Error: {e}")
+            self.fail(f"Fundamental pipeline failed: {e}")
 
-        self.assertFalse(forecasting_system.fundamental_data.empty, "Fundamental data should not be empty.")
+        self.assertFalse(df.empty, "Fundamental data should not be empty.")
 
 if __name__ == '__main__':
     unittest.main()

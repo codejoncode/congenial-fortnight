@@ -1,4 +1,4 @@
-date,open,high,low,close,tickvol,vol,spread
+timestamp,open,high,low,close,tickvol,vol,spread
 2000-01-03,1.0073,1.0278,1.0054,1.0246,6642,0,50
 2000-01-04,1.0243,1.034,1.0213,1.0292,7339,0,50
 2000-01-05,1.0293,1.0402,1.0284,1.0326,6570,0,50

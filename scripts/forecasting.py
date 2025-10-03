@@ -618,6 +618,17 @@ class HybridPriceForecastingEnsemble:
 
         return feature_df
 
+
+if __name__ == '__main__':
+    # When running this module directly, delegate to the robust integration harness
+    try:
+        # Import here to avoid circular imports during normal module import
+        from forecasting_integration import main as _integration_main
+        _integration_main()
+    except Exception as _e:
+        logger.error(f"Failed to run integration main: {_e}")
+        raise
+
     def _load_daily_price_file(self, pair: Optional[str] = None, timeframe_hint: str = 'Daily') -> pd.DataFrame:
         """Load the provided daily CSV for the specified pair if available."""
         pair = pair or self.pair
