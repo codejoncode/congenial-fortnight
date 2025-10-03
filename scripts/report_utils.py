@@ -93,3 +93,18 @@ def generate_schema_report(df, pair: str, pairs: List[str] = None, out_dir: str 
     except Exception as e:
         logger.debug(f"generate_schema_report failed: {e}")
         return {}
+
+
+def save_prune_report(report: Dict, pair: str, out_dir: str = None) -> str:
+    """Save a prune report dict to disk and return the path. Returns empty string on failure."""
+    try:
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
+            out_path = os.path.join(out_dir, f'prune_report_{pair}.json')
+            with open(out_path, 'w') as f:
+                json.dump(report, f, indent=2)
+            logger.info(f"Saved prune report to {out_path}")
+            return out_path
+    except Exception as e:
+        logger.debug(f"Failed to save prune report: {e}")
+    return ''

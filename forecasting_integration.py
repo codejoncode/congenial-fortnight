@@ -1,3 +1,4 @@
+import os
 from robust_data_loader import robust_data_loading_pipeline, ForexDataLoader, emergency_data_recovery
 import pandas as pd
 import numpy as np
@@ -78,6 +79,17 @@ def main():
             except Exception as e:
                 logger.warning(f"⚠️  {timeframe}: Holloway features failed ({str(e)}), using data without Holloway")
                 final_datasets[timeframe] = df
+
+        # Generate schema reports for each final timeframe dataset
+        try:
+            from scripts.report_utils import generate_schema_report
+            for timeframe, dff in final_datasets.items():
+                try:
+                    generate_schema_report(dff, pair=timeframe, out_dir=os.path.join(os.getcwd(), 'output'))
+                except Exception:
+                    logger.debug(f"Failed to generate schema report for {timeframe}")
+        except Exception:
+            logger.debug("report_utils not available to generate reports")
         
         # STEP 5: MODEL TRAINING
         logger.info(f"\nSTEP 5: Training models...")
