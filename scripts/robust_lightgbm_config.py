@@ -16,7 +16,10 @@ class TimeoutException(Exception):
 
 def stop_on_negative_gain(env):
     """Callback to stop training if there's no positive gain."""
-    if getattr(env, 'best_score', None) is None or env.best_score < 0:
+    # Only consider aborting when we have a valid best_score; avoid aborting
+    # prematurely when best_score is still None during early iterations.
+    best = getattr(env, 'best_score', None)
+    if best is not None and best < 0:
         if env.iteration > 10:
             logging.getLogger('forecasting').warning(
                 f"Stopping training on iteration {env.iteration} due to no positive gain.")
