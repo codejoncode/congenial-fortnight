@@ -620,13 +620,20 @@ class HybridPriceForecastingEnsemble:
 
 
 if __name__ == '__main__':
-    # When running this module directly, delegate to the robust integration harness
+    # When run as a script, delegate to the integration harness which runs
+    # robust data loading, preprocessing, feature engineering, and training.
     try:
-        # Import here to avoid circular imports during normal module import
-        from forecasting_integration import main as _integration_main
-        _integration_main()
-    except Exception as _e:
-        logger.error(f"Failed to run integration main: {_e}")
+        from forecasting_integration import main as integration_main
+        integration_main()
+    except Exception as e:
+        logger.error(f"Failed to run forecasting integration: {e}")
+        # Fall back to data-loading test
+        if test_data_loading_only():
+            print("✅ Data loading works - ready to integrate into forecasting.py")
+        else:
+            print("❌ Data loading failed - check the issues above")
+            if input("Try emergency fix? (y/n): ").lower() == 'y':
+                emergency_data_fix()
         raise
 
     def _load_daily_price_file(self, pair: Optional[str] = None, timeframe_hint: str = 'Daily') -> pd.DataFrame:

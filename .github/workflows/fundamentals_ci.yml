@@ -1,0 +1,74 @@
+name: Fundamentals CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-fundamentals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-tests.txt
+
+      - name: Run fundamentals persistence tests
+        run: |
+          pytest -q tests/test_fundamental_features_persistence.py
+
+      - name: Run schema tests
+        run: |
+          pytest -q tests/test_fundamental_features_schema.py
+name: fundamentals-ci
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 6 * * *' # daily run at 06:00 UTC
+
+jobs:
+  test-fundamentals:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run fundamentals persistence tests
+        run: |
+          pytest -q tests/test_fundamental_features_persistence.py -q
+
+      - name: Run fundamentals schema tests (quick)
+        run: |
+          pytest -q tests/test_fundamental_features_schema.py -q
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fundamentals-test-logs
+          path: |
+            .pytest_cache
+            tests

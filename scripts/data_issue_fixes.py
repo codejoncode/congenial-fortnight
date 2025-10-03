@@ -1,3 +1,47 @@
+import os
+import logging
+import pandas as pd
+
+logger = logging.getLogger(__name__)
+
+
+def _count_rows_in_csv(path):
+    try:
+        df = pd.read_csv(path)
+        return len(df)
+    except Exception:
+        return 0
+
+
+def pre_training_data_fix(data_dir='data', min_rows=50):
+    """Scan CSV files in data_dir for minimal row counts and basic sanity.
+
+    Returns True if all checks pass, False otherwise.
+    """
+    missing = []
+    too_small = []
+
+    for root, _, files in os.walk(data_dir):
+        for f in files:
+            if f.lower().endswith('.csv'):
+                path = os.path.join(root, f)
+                rows = _count_rows_in_csv(path)
+                if rows == 0:
+                    missing.append(path)
+                elif rows < min_rows:
+                    too_small.append((path, rows))
+
+    if missing or too_small:
+        if missing:
+            logger.error(f"Missing or unreadable CSVs: {missing}")
+        if too_small:
+            logger.warning("Files with too few rows detected:")
+            for p, r in too_small:
+                logger.warning(f"  - {p}: {r} rows (min {min_rows})")
+        return False
+
+    logger.info("pre_training_data_fix: all CSV files passed basic checks")
+    return True
 import pandas as pd
 import logging
 import os
