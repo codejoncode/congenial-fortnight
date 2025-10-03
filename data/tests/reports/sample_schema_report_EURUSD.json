@@ -1,0 +1,25 @@
+{
+  "pair": "EURUSD",
+  "rows": 3,
+  "cols": 4,
+  "fund_cols": 1,
+  "cross_pair_cols": 0,
+  "sample_columns": [
+    "timestamp",
+    "open",
+    "close",
+    "fund_gdp"
+  ],
+  "na_counts": {
+    "timestamp": 0,
+    "open": 0,
+    "close": 0,
+    "fund_gdp": 0
+  },
+  "na_pct": {
+    "timestamp": 0.0,
+    "open": 0.0,
+    "close": 0.0,
+    "fund_gdp": 0.0
+  }
+}
