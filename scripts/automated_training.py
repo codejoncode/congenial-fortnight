@@ -56,7 +56,7 @@ class AutomatedTrainer:
         os.makedirs(os.path.join(BASE_APP_DIR, 'logs'), exist_ok=True)
         os.makedirs(os.path.join(BASE_APP_DIR, 'output'), exist_ok=True)
 
-    def run_automated_training(self, pairs: List[str] = None):
+    def run_automated_training(self, pairs: List[str] = None, dry_run: bool = False, dry_iterations: int = 10, dry_timeout_seconds: int = 60):
         """Run automated training for specified pairs using the robust pipeline"""
         if pairs is None:
             pairs = ['EURUSD', 'XAUUSD']
@@ -67,7 +67,7 @@ class AutomatedTrainer:
         final_results = {}
         start_time = datetime.now()
 
-        # Wrap pairs with tqdm for a progress bar
+    # Wrap pairs with tqdm for a progress bar
         for pair in tqdm(pairs, desc="Processing pairs"):
             try:
                 logger.info(f"--- Processing {pair} ---")
@@ -112,6 +112,9 @@ class AutomatedTrainer:
                 if x_len < 10:
                     # Too few samples to train reliably; skip or allow emergency config downstream
                     logger.warning(f"⚠️  {pair}: Very small training set ({x_len} samples). Training may use emergency minimal config.")
+
+                if dry_run:
+                    logger.info(f"🔬 Dry-run enabled for {pair}: capping iterations to {dry_iterations} and timeout {dry_timeout_seconds}s")
                 
                 # Print a per-pair schema report to help auditing what features will be used
                 def pair_schema_report(X_train, y_train, X_val, y_val):
@@ -258,10 +261,20 @@ class AutomatedTrainer:
 
                 # 3. Use the new robust training pipeline
                 # The enhanced pipeline now takes data directly
-                model = enhanced_lightgbm_training_pipeline(
-                    X_train_pruned, y_train, X_val_pruned, y_val,
-                    pair_name=pair # Pass pair name for logging
-                )
+                # If dry_run, call the arrays wrapper which respects our small-iteration configs
+                if dry_run:
+                    # Try to reduce training time by trimming columns or rows if needed
+                    model = enhanced_lightgbm_training_pipeline(
+                        X_train_pruned.head(dry_iterations * 10), y_train[:dry_iterations * 10],
+                        X_val_pruned.head(max(1, int(dry_iterations * 2))) if X_val_pruned is not None else None,
+                        y_val[:max(1, int(dry_iterations * 2))] if y_val is not None else None,
+                        pair_name=pair
+                    )
+                else:
+                    model = enhanced_lightgbm_training_pipeline(
+                        X_train_pruned, y_train, X_val_pruned, y_val,
+                        pair_name=pair # Pass pair name for logging
+                    )
                 
                 if model is None:
                     logger.error(f"❌ Training failed for {pair} - no model was produced.")
