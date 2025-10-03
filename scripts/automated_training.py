@@ -115,16 +115,71 @@ class AutomatedTrainer:
                 
                 # Print a per-pair schema report to help auditing what features will be used
                 def pair_schema_report(X_train, y_train, X_val, y_val):
+                    """Generate an expanded schema report and save as JSON under output/."""
                     try:
-                        cols = list(X_train.columns) if hasattr(X_train, 'columns') else []
-                        na_counts = X_train.isnull().sum().to_dict() if hasattr(X_train, 'isnull') else {}
+                        import numpy as _np
+
+                        df = X_train.copy() if hasattr(X_train, 'copy') else None
+                        cols = list(df.columns) if df is not None else []
+
+                        # Basic NA diagnostics
+                        na_counts = df.isnull().sum().to_dict() if df is not None else {}
+                        na_pct = {k: (v / max(1, int(df.shape[0]))) for k, v in na_counts.items()} if df is not None else {}
+
+                        # Dtypes
+                        dtypes = {c: str(df[c].dtype) for c in cols} if df is not None else {}
+
+                        # Variance and zero-count diagnostics (numeric only)
+                        variance = {}
+                        zero_counts = {}
+                        basic_stats = {}
+                        for c in cols:
+                            try:
+                                series = df[c]
+                                if _np.issubdtype(series.dtype, _np.number):
+                                    variance[c] = float(series.var(skipna=True)) if series.size > 0 else None
+                                    zero_counts[c] = int((series == 0).sum())
+                                    basic_stats[c] = {
+                                        'min': None if series.size == 0 else float(series.min(skipna=True)),
+                                        'max': None if series.size == 0 else float(series.max(skipna=True)),
+                                        'mean': None if series.size == 0 else float(series.mean(skipna=True)),
+                                    }
+                                else:
+                                    variance[c] = None
+                                    zero_counts[c] = None
+                                    basic_stats[c] = None
+                            except Exception:
+                                variance[c] = None
+                                zero_counts[c] = None
+                                basic_stats[c] = None
+
                         fund_cols = [c for c in cols if c.startswith('fund_')]
-                        cross_cols = [c for c in cols if any(p.lower() in c for p in ['eurusd', 'xauusd']) and not c.startswith('fund_')]
-                        logger.info(f"Pre-train schema for {pair}: cols={len(cols)}, fund_cols={len(fund_cols)}, cross_pair_cols={len(cross_cols)}")
-                        logger.debug(f"Sample columns: {cols[:20]}")
-                        # show up to 5 NA-heavy columns
-                        heavy_na = sorted(na_counts.items(), key=lambda x: -x[1])[:5]
-                        logger.info(f"Top NA in X_train: {heavy_na}")
+                        # Use configured pair names to detect cross pair columns heuristically
+                        cross_pair_keys = [p.lower() for p in (pairs or ['EURUSD', 'XAUUSD'])]
+                        cross_cols = [c for c in cols if any(k in c.lower() for k in cross_pair_keys) and not c.startswith('fund_')]
+
+                        report = {
+                            'pair': pair,
+                            'rows': int(df.shape[0]) if df is not None else 0,
+                            'cols': len(cols),
+                            'fund_cols': len(fund_cols),
+                            'cross_pair_cols': len(cross_cols),
+                            'sample_columns': cols[:50],
+                            'na_counts': {k: int(v) for k, v in na_counts.items()},
+                            'na_pct': na_pct,
+                            'dtypes': dtypes,
+                            'variance': variance,
+                            'zero_counts': zero_counts,
+                            'basic_stats': basic_stats,
+                        }
+
+                        # Save JSON output
+                        out_path = os.path.join(BASE_APP_DIR, 'output', f'schema_report_{pair}.json')
+                        with open(out_path, 'w') as f:
+                            json.dump(report, f, indent=2)
+
+                        logger.info(f"Pre-train schema for {pair}: rows={report['rows']}, cols={report['cols']}, fund_cols={report['fund_cols']}, cross_pair_cols={report['cross_pair_cols']}")
+                        logger.info(f"Saved schema report to {out_path}")
                     except Exception as e:
                         logger.debug(f"Could not generate schema report: {e}")
 
