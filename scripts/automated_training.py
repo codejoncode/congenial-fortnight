@@ -14,7 +14,8 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 # Add project root to path
-sys.path.insert(0, '/app')
+BASE_APP_DIR = os.environ.get('APP_ROOT', os.getcwd())
+sys.path.insert(0, BASE_APP_DIR)
 
 try:
     from scripts.advanced_regularization_optimizer import optimize_pair
@@ -35,7 +36,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler('/app/logs/automated_training.log')
+        logging.FileHandler(os.path.join(BASE_APP_DIR, 'logs', 'automated_training.log'))
     ]
 )
 logger = logging.getLogger(__name__)
@@ -56,18 +57,28 @@ class AutomatedTrainer:
         self.performance_history = {}
         self.stagnation_counters = {}
 
-        # Ensure directories exist
-        os.makedirs('/app/models', exist_ok=True)
-        os.makedirs('/app/logs', exist_ok=True)
-        os.makedirs('/app/output', exist_ok=True)
+    # Ensure directories exist (use workspace-local APP_ROOT)
+    os.makedirs(os.path.join(BASE_APP_DIR, 'models'), exist_ok=True)
+    os.makedirs(os.path.join(BASE_APP_DIR, 'logs'), exist_ok=True)
+    os.makedirs(os.path.join(BASE_APP_DIR, 'output'), exist_ok=True)
 
     def evaluate_current_performance(self, pair: str) -> Dict:
         """Evaluate current model performance"""
         try:
             # Load model and run backtest
+            # Use a dynamic backtest window: prefer the ensemble lookback if available
+            try:
+                ensemble = self.forecasting._build_ensemble(pair)
+                lookback_days = int(getattr(ensemble, 'lookback_window', 180))
+            except Exception:
+                lookback_days = 180
+
+            # Ensure a sensible minimum so daily data has enough rows
+            days_window = max(lookback_days, 180)
+
             results = self.forecasting.backtest_ensemble(
                 pair=pair,
-                days=30,  # Use last 30 days for evaluation
+                days=days_window,
                 save_results=False
             )
             return {
@@ -245,7 +256,7 @@ class AutomatedTrainer:
 
     def save_progress(self, pair: str, results_history: List[Dict]):
         """Save optimization progress"""
-        progress_file = f'/app/logs/optimization_progress_{pair}.json'
+        progress_file = os.path.join(BASE_APP_DIR, 'logs', f'optimization_progress_{pair}.json')
         try:
             with open(progress_file, 'w') as f:
                 json.dump({
@@ -333,7 +344,7 @@ class AutomatedTrainer:
             'results': results
         }
 
-        with open('/app/logs/automated_training_results.json', 'w') as f:
+        with open(os.path.join(BASE_APP_DIR, 'logs', 'automated_training_results.json'), 'w') as f:
             json.dump(final_results, f, indent=2)
 
         logger.info("Automated training completed")

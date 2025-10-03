@@ -71,7 +71,9 @@ class AdvancedRegularizationOptimizer:
         self.pairs = ['EURUSD', 'XAUUSD']
         
         # Optimization settings
-        self.optimization_trials = 100
+        # Lower default trials during iterative development for faster feedback.
+        # Increase this back to 100+ for full production runs.
+        self.optimization_trials = 20
         self.optimization_timeout = 3600  # 1 hour
         self.cv_folds = 5
         
@@ -221,7 +223,8 @@ class AdvancedRegularizationOptimizer:
                         model.fit(
                             X_train, y_train,
                             eval_set=[(X_val, y_val)],
-                            verbose=False
+                            callbacks=[optuna.integration.LightGBMPruningCallback(trial, "l1")],
+                            early_stopping_rounds=50
                         )
                     else:
                         model.fit(X_train, y_train)
