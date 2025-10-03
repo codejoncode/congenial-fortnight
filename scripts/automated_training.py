@@ -185,10 +185,81 @@ class AutomatedTrainer:
 
                 pair_schema_report(X_train, y_train, X_val, y_val)
 
+                # 2.5 Automatic pruning: drop columns with high NA% or zero variance
+                def prune_features(df, na_pct_threshold: float = 0.5, drop_zero_variance: bool = True):
+                    """Return (pruned_df, report) where report contains lists of dropped columns.
+
+                    - Drops columns with NA% > na_pct_threshold
+                    - Optionally drops numeric columns with variance == 0 (or <= tiny tolerance)
+                    """
+                    try:
+                        import numpy as _np
+
+                        report = {
+                            'dropped_na_pct': [],
+                            'dropped_zero_variance': [],
+                            'initial_cols': list(df.columns) if hasattr(df, 'columns') else [],
+                            'final_cols': None,
+                        }
+
+                        if df is None or not hasattr(df, 'shape'):
+                            report['final_cols'] = report['initial_cols']
+                            return df, report
+
+                        n = max(1, int(df.shape[0]))
+                        na_frac = df.isnull().sum() / n
+                        drop_na_cols = na_frac[na_frac > na_pct_threshold].index.tolist()
+
+                        drop_var_cols = []
+                        if drop_zero_variance:
+                            numeric = df.select_dtypes(include=[_np.number])
+                            # variance with skipna
+                            try:
+                                variances = numeric.var(skipna=True)
+                            except Exception:
+                                variances = numeric.var()
+                            drop_var_cols = variances[variances <= 0].index.tolist()
+
+                        # Unique-ify and remove any accidental overlap
+                        to_drop = list(dict.fromkeys(drop_na_cols + drop_var_cols))
+
+                        pruned = df.drop(columns=to_drop, errors='ignore')
+
+                        report['dropped_na_pct'] = drop_na_cols
+                        report['dropped_zero_variance'] = drop_var_cols
+                        report['final_cols'] = list(pruned.columns)
+                        report['n_initial_cols'] = len(report['initial_cols'])
+                        report['n_final_cols'] = len(report['final_cols'])
+
+                        return pruned, report
+                    except Exception as e:
+                        logger.debug(f"prune_features failed: {e}")
+                        return df, {'error': str(e)}
+
+                X_train_pruned, prune_report = prune_features(X_train, na_pct_threshold=0.5, drop_zero_variance=True)
+                # Align validation set to pruned columns
+                try:
+                    X_val_pruned = X_val[X_train_pruned.columns]
+                except Exception:
+                    # If X_val can't be subset, attempt to reindex
+                    try:
+                        X_val_pruned = X_val.reindex(columns=X_train_pruned.columns)
+                    except Exception:
+                        X_val_pruned = X_val
+
+                # Save pruning report
+                try:
+                    out_prune = os.path.join(BASE_APP_DIR, 'output', f'prune_report_{pair}.json')
+                    with open(out_prune, 'w') as f:
+                        json.dump(prune_report, f, indent=2)
+                    logger.info(f"Saved prune report to {out_prune}")
+                except Exception as e:
+                    logger.debug(f"Could not save prune report: {e}")
+
                 # 3. Use the new robust training pipeline
                 # The enhanced pipeline now takes data directly
                 model = enhanced_lightgbm_training_pipeline(
-                    X_train, y_train, X_val, y_val,
+                    X_train_pruned, y_train, X_val_pruned, y_val,
                     pair_name=pair # Pass pair name for logging
                 )
                 
