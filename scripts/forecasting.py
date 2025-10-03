@@ -832,41 +832,54 @@ if __name__ == '__main__':
         """Integrate cross-pair correlation features to enhance signal quality."""
         if df.empty:
             return df
-
-        cross_pair = self.cross_pair
-        if not cross_pair:
+        cross_spec = self.cross_pair
+        # allow the cross_pair attribute to be a string or a list of pairs
+        if not cross_spec:
             return df
 
-        cross_daily = self._load_daily_price_file(cross_pair)
-        if cross_daily.empty:
-            cross_intraday = self._load_intraday_data(cross_pair)
-            if not cross_intraday.empty:
-                cross_daily, _ = self._build_intraday_context(cross_intraday)
+        pairs = cross_spec if isinstance(cross_spec, (list, tuple)) else [cross_spec]
 
-        if cross_daily.empty:
-            logger.warning(f"Cross-pair data unavailable for {cross_pair}")
-            return df
-
-        cross_daily = cross_daily[['Close']].rename(columns={'Close': f'{cross_pair}_close'})
-        cross_daily[f'{cross_pair}_returns'] = cross_daily[f'{cross_pair}_close'].pct_change()
-
-        aligned_cross = cross_daily.reindex(df.index).fillna(method='ffill')
-
-        enriched = df.join(aligned_cross, how='left')
+        enriched = df.copy()
 
         base_returns = enriched.get('returns')
-        cross_returns = enriched.get(f'{cross_pair}_returns')
 
-        if base_returns is not None and cross_returns is not None:
-            enriched[f'corr_5_{cross_pair.lower()}'] = base_returns.rolling(5).corr(cross_returns)
-            enriched[f'corr_20_{cross_pair.lower()}'] = base_returns.rolling(20).corr(cross_returns)
-            enriched[f'return_spread_{cross_pair.lower()}'] = base_returns - cross_returns
+        for cross_pair in pairs:
+            try:
+                if not cross_pair:
+                    continue
 
-        cross_prices = enriched.get(f'{cross_pair}_close')
-        if cross_prices is not None:
-            safe_cross = cross_prices.replace(0, np.nan)
-            enriched[f'price_ratio_{cross_pair.lower()}'] = enriched['Close'] / safe_cross
-            enriched[f'price_spread_{cross_pair.lower()}'] = enriched['Close'] - cross_prices
+                cross_daily = self._load_daily_price_file(cross_pair)
+                if cross_daily.empty:
+                    cross_intraday = self._load_intraday_data(cross_pair)
+                    if not cross_intraday.empty:
+                        cross_daily, _ = self._build_intraday_context(cross_intraday)
+
+                if cross_daily.empty:
+                    logger.debug(f"Cross-pair data unavailable for {cross_pair}")
+                    continue
+
+                cross_daily = cross_daily[['Close']].rename(columns={'Close': f'{cross_pair}_close'})
+                cross_daily[f'{cross_pair}_returns'] = cross_daily[f'{cross_pair}_close'].pct_change()
+
+                aligned_cross = cross_daily.reindex(df.index).fillna(method='ffill')
+
+                enriched = enriched.join(aligned_cross, how='left')
+
+                cross_returns = enriched.get(f'{cross_pair}_returns')
+
+                if base_returns is not None and cross_returns is not None:
+                    enriched[f'corr_5_{cross_pair.lower()}'] = base_returns.rolling(5).corr(cross_returns)
+                    enriched[f'corr_20_{cross_pair.lower()}'] = base_returns.rolling(20).corr(cross_returns)
+                    enriched[f'return_spread_{cross_pair.lower()}'] = base_returns - cross_returns
+
+                cross_prices = enriched.get(f'{cross_pair}_close')
+                if cross_prices is not None:
+                    safe_cross = cross_prices.replace(0, np.nan)
+                    enriched[f'price_ratio_{cross_pair.lower()}'] = enriched['Close'] / safe_cross
+                    enriched[f'price_spread_{cross_pair.lower()}'] = enriched['Close'] - cross_prices
+
+            except Exception as e:
+                logger.warning(f"Error adding cross-pair features for {cross_pair}: {e}")
 
         return enriched
 
