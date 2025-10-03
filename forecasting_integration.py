@@ -159,21 +159,28 @@ def create_features_for_timeframe(df: pd.DataFrame, timeframe: str) -> pd.DataFr
     """
     
     try:
-        # Basic technical indicators
-        # Simple Moving Averages
+        # Enhanced technical indicators
+        # Simple & Exponential Moving Averages
         df['sma_20'] = df['close'].rolling(window=20).mean()
         df['sma_50'] = df['close'].rolling(window=50).mean()
-        
-        # RSI
+        df['ema_12'] = df['close'].ewm(span=12, adjust=False).mean()
+        df['ema_26'] = df['close'].ewm(span=26, adjust=False).mean()
+
+        # MACD
+        df['macd'] = df['ema_12'] - df['ema_26']
+        df['macd_signal'] = df['macd'].ewm(span=9, adjust=False).mean()
+        df['macd_hist'] = df['macd'] - df['macd_signal']
+
+        # RSI (robust calculation)
         def calculate_rsi(prices, window=14):
             delta = prices.diff()
-            gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
-            loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
-            rs = gain / loss
+            gain = delta.clip(lower=0).ewm(alpha=1/window, adjust=False).mean()
+            loss = (-delta).clip(lower=0).ewm(alpha=1/window, adjust=False).mean()
+            rs = gain / (loss + 1e-12)
             return 100 - (100 / (1 + rs))
-        
-        df['rsi'] = calculate_rsi(df['close'])
-        
+
+        df['rsi_14'] = calculate_rsi(df['close'], window=14)
+
         # Bollinger Bands
         bb_window = 20
         bb_std = 2
@@ -181,9 +188,30 @@ def create_features_for_timeframe(df: pd.DataFrame, timeframe: str) -> pd.DataFr
         bb_rolling_std = df['close'].rolling(window=bb_window).std()
         df['bb_upper'] = df['bb_middle'] + (bb_rolling_std * bb_std)
         df['bb_lower'] = df['bb_middle'] - (bb_rolling_std * bb_std)
-        
-        # Remove rows with NaN values from indicators
-        df = df.dropna().reset_index(drop=True)
+
+        # ATR (reuse code similar to Holloway's ATR calculation)
+        if set(['high', 'low', 'close']).issubset(df.columns):
+            high_low = (df['high'] - df['low']).abs()
+            high_close = (df['high'] - df['close'].shift(1)).abs()
+            low_close = (df['low'] - df['close'].shift(1)).abs()
+            tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+            df['tr'] = tr
+            df['atr_14'] = df['tr'].rolling(window=14).mean()
+
+        # Returns and lagged returns
+        df['return'] = df['close'].pct_change()
+        df['log_return'] = np.log(df['close']).diff()
+        for lag in range(1, 6):
+            df[f'return_lag_{lag}'] = df['return'].shift(lag)
+
+        # Momentum and volatility regime
+        df['mom_10'] = df['close'].pct_change(periods=10)
+        df['rv_20'] = df['log_return'].rolling(window=20).std() * np.sqrt(20)
+
+        # Conservative cleanup: drop rows with NaNs in the core engineered features
+        core_engineered = ['sma_20', 'sma_50', 'ema_12', 'ema_26', 'macd', 'rsi_14', 'bb_middle']
+        core_present = [c for c in core_engineered if c in df.columns]
+        df = df.dropna(subset=core_present).reset_index(drop=True)
         
         if len(df) == 0:
             logger.error(f"❌ {timeframe}: No data left after feature creation")
