@@ -22,12 +22,42 @@ PATTERNS = ['EURUSD_*', 'XAUUSD_*']
 def standardize_file(path: Path):
     logger.info(f"Processing {path}")
     backup = path.with_suffix(path.suffix + '.backup')
-    try:
-        # Read CSV with pandas
-        df = pd.read_csv(path)
-    except Exception as e:
-        logger.error(f"Failed to read {path}: {e}")
-        return False
+    # If a backup exists that looks like the original, try to read from it first
+    source_path = path
+    if backup.exists():
+        # prefer backup as the original raw file if it seems larger
+        source_path = backup
+
+    # Try multiple read strategies to handle varied delimiters / malformed headers
+    df = None
+    read_errors = []
+    for kwargs in [
+        {'sep': ',', 'engine': 'c'},
+        {'sep': '\t', 'engine': 'python'},
+        {'sep': '\s+', 'engine': 'python'},
+        {'sep': None, 'engine': 'python'}
+    ]:
+        try:
+            df_try = pd.read_csv(source_path, **kwargs)
+            # If we got more than one column, consider it successful
+            if df_try.shape[1] > 1:
+                df = df_try
+                break
+        except Exception as e:
+            read_errors.append((kwargs, str(e)))
+
+    if df is None:
+        # Last ditch: read without headers and try to split rows ourselves
+        try:
+            raw = source_path.read_text(encoding='utf-8', errors='ignore').splitlines()
+            rows = [r.strip() for r in raw if r.strip()]
+            # split on commas first
+            parsed = [r.split(',') for r in rows]
+            # make a DataFrame and hope for the best
+            df = pd.DataFrame(parsed[1:], columns=parsed[0])
+        except Exception as e:
+            logger.error(f"Failed to read {source_path} with multiple strategies: {e}")
+            return False
 
     # Detect a date-like column (timestamp/date/datetime) or fallback to first column
     date_candidates = ['timestamp', 'date', 'datetime', 'Date', 'Timestamp', 'DATE']

@@ -1,180 +1,252 @@
 {
-  "DEXUSEU": {
-    "last_update": "2025-10-01T09:52:03.335804",
-    "status": "success",
-    "last_data_date": "2025-09-26T00:00:00"
+  "BOPGSTB": {
+    "last_data_date": "2025-07-01T00:00:00",
+    "last_update": "2025-10-01T09:52:40.976827",
+    "status": "success"
   },
-  "DEXJPUS": {
-    "last_update": "2025-10-01T09:52:05.629485",
-    "status": "success",
-    "last_data_date": "2025-09-26T00:00:00"
-  },
-  "DEXCHUS": {
-    "last_update": "2025-10-01T09:52:07.739429",
-    "status": "success",
-    "last_data_date": "2025-09-26T00:00:00"
-  },
-  "FEDFUNDS": {
-    "last_update": "2025-10-01T09:52:08.573666",
-    "status": "success",
-    "last_data_date": "2025-08-01T00:00:00"
-  },
-  "DFF": {
-    "last_update": "2025-10-01T09:52:12.107787",
-    "status": "success",
-    "last_data_date": "2025-09-29T00:00:00"
-  },
-  "CPIAUCSL": {
-    "last_update": "2025-10-01T09:52:13.031561",
-    "status": "success",
-    "last_data_date": "2025-08-01T00:00:00"
+  "CP0000EZ19M086NEST": {
+    "last_data_date": "2025-08-01T00:00:00",
+    "last_update": "2025-10-01T09:52:24.298021",
+    "status": "success"
   },
   "CPALTT01USM661S": {
+    "last_data_date": "2025-04-01T00:00:00",
     "last_update": "2025-10-01T09:52:13.846556",
-    "status": "success",
-    "last_data_date": "2025-04-01T00:00:00"
+    "status": "success"
   },
-  "UNRATE": {
-    "last_update": "2025-10-01T09:52:14.664112",
-    "status": "success",
-    "last_data_date": "2025-08-01T00:00:00"
+  "CPIAUCSL": {
+    "last_data_date": "2025-08-01T00:00:00",
+    "last_update": "2025-10-01T09:52:13.031561",
+    "status": "success"
   },
-  "PAYEMS": {
-    "last_update": "2025-10-01T09:52:15.561495",
-    "status": "success",
-    "last_data_date": "2025-08-01T00:00:00"
+  "DCOILBRENTEU": {
+    "last_data_date": "2025-09-22T00:00:00",
+    "last_update": "2025-10-01T09:52:33.408812",
+    "status": "success"
   },
-  "INDPRO": {
-    "last_update": "2025-10-01T09:52:16.467925",
-    "status": "success",
-    "last_data_date": "2025-08-01T00:00:00"
+  "DCOILWTICO": {
+    "last_data_date": "2025-09-22T00:00:00",
+    "last_update": "2025-10-01T09:52:31.506721",
+    "status": "success"
+  },
+  "DEXCHUS": {
+    "last_data_date": "2025-09-26T00:00:00",
+    "last_update": "2025-10-01T09:52:07.739429",
+    "status": "success"
+  },
+  "DEXJPUS": {
+    "last_data_date": "2025-09-26T00:00:00",
+    "last_update": "2025-10-01T09:52:05.629485",
+    "status": "success"
+  },
+  "DEXUSEU": {
+    "last_data_date": "2025-09-26T00:00:00",
+    "last_update": "2025-10-01T09:52:03.335804",
+    "status": "success"
+  },
+  "DFF": {
+    "last_data_date": "2025-09-29T00:00:00",
+    "last_update": "2025-10-01T09:52:12.107787",
+    "status": "success"
   },
   "DGORDER": {
+    "last_data_date": "2025-08-01T00:00:00",
     "last_update": "2025-10-01T09:52:17.413696",
-    "status": "success",
-    "last_data_date": "2025-08-01T00:00:00"
+    "status": "success"
+  },
+  "DGS10": {
+    "last_data_date": "2025-09-29T00:00:00",
+    "last_update": "2025-10-01T09:52:37.929495",
+    "status": "success"
+  },
+  "DGS2": {
+    "last_data_date": "2025-09-29T00:00:00",
+    "last_update": "2025-10-01T09:52:40.187228",
+    "status": "success"
   },
   "ECBDFR": {
+    "last_data_date": "2025-10-01T00:00:00",
     "last_update": "2025-10-01T09:52:19.383238",
-    "status": "success",
-    "last_data_date": "2025-10-01T00:00:00"
+    "status": "success"
   },
   "ECBRR": {
     "last_update": "2025-10-01T09:52:23.552590",
     "status": "error"
   },
-  "CP0000EZ19M086NEST": {
-    "last_update": "2025-10-01T09:52:24.298021",
-    "status": "success",
-    "last_data_date": "2025-08-01T00:00:00"
+  "EURUSD_Daily": {
+    "last_data_date": "2025-09-29",
+    "last_inspected": "2025-10-03T22:37:41.195851Z",
+    "last_update": "2025-10-03T17:18:11.642132",
+    "rows": 6693,
+    "status": "success"
   },
-  "LRHUTTTTDEM156S": {
-    "last_update": "2025-10-01T09:52:25.070012",
-    "status": "success",
-    "last_data_date": "2025-07-01T00:00:00"
+  "EURUSD_H1": {
+    "last_data_date": "2025-09-28",
+    "last_inspected": "2025-10-03T22:37:41.214786Z",
+    "last_update": "2025-10-03T17:18:11.710173",
+    "rows": 1343,
+    "status": "success"
+  },
+  "EURUSD_H4": {
+    "last_data_date": "2025-09-28",
+    "last_inspected": "2025-10-03T22:37:41.231160Z",
+    "last_update": "2025-10-03T17:18:11.757372",
+    "rows": 1343,
+    "status": "success"
+  },
+  "EURUSD_Monthly": {
+    "last_data_date": "2025-09-28",
+    "last_inspected": "2025-10-03T22:37:41.272750Z",
+    "last_update": "2025-10-03T17:18:11.783376",
+    "rows": 1343,
+    "status": "success"
+  },
+  "EURUSD_Weekly": {
+    "last_data_date": "2025-09-28",
+    "last_inspected": "2025-10-03T22:37:41.299277Z",
+    "last_update": "2025-10-03T17:18:11.812568",
+    "rows": 1343,
+    "status": "success"
+  },
+  "EURUSD_daily_complete_holloway": {
+    "last_update": "2025-10-03T17:18:11.848011",
+    "rows": 1343,
+    "status": "success"
+  },
+  "EURUSD_h1_complete_holloway": {
+    "last_update": "2025-10-03T17:18:11.962066",
+    "rows": 99992,
+    "status": "success"
+  },
+  "EURUSD_h4_complete_holloway": {
+    "last_update": "2025-10-03T17:18:11.990568",
+    "rows": 1343,
+    "status": "success"
+  },
+  "EURUSD_latest_multi_timeframe_features": {
+    "last_data_date": "2025-09-28",
+    "last_inspected": "2025-10-03T22:37:41.246284Z",
+    "last_update": "2025-10-03T17:18:12.019028",
+    "rows": 1343,
+    "status": "success"
+  },
+  "EURUSD_monthly_complete_holloway": {
+    "last_update": "2025-10-03T17:18:12.044813",
+    "rows": 309,
+    "status": "success"
+  },
+  "EURUSD_weekly_complete_holloway": {
+    "last_update": "2025-10-03T17:18:12.072804",
+    "rows": 1343,
+    "status": "success"
+  },
+  "FEDFUNDS": {
+    "last_data_date": "2025-08-01T00:00:00",
+    "last_update": "2025-10-01T09:52:08.573666",
+    "status": "success"
   },
   "GOLDAMGBD228NLBM": {
     "last_update": "2025-10-01T09:52:29.240795",
     "status": "error"
   },
-  "DCOILWTICO": {
-    "last_update": "2025-10-01T09:52:31.506721",
-    "status": "success",
-    "last_data_date": "2025-09-22T00:00:00"
+  "INDPRO": {
+    "last_data_date": "2025-08-01T00:00:00",
+    "last_update": "2025-10-01T09:52:16.467925",
+    "status": "success"
   },
-  "DCOILBRENTEU": {
-    "last_update": "2025-10-01T09:52:33.408812",
-    "status": "success",
-    "last_data_date": "2025-09-22T00:00:00"
+  "LRHUTTTTDEM156S": {
+    "last_data_date": "2025-07-01T00:00:00",
+    "last_update": "2025-10-01T09:52:25.070012",
+    "status": "success"
+  },
+  "PAYEMS": {
+    "last_data_date": "2025-08-01T00:00:00",
+    "last_update": "2025-10-01T09:52:15.561495",
+    "status": "success"
+  },
+  "UNRATE": {
+    "last_data_date": "2025-08-01T00:00:00",
+    "last_update": "2025-10-01T09:52:14.664112",
+    "status": "success"
   },
   "VIXCLS": {
+    "last_data_date": "2025-09-30T00:00:00",
     "last_update": "2025-10-01T09:52:35.286184",
-    "status": "success",
-    "last_data_date": "2025-09-30T00:00:00"
+    "status": "success"
   },
-  "DGS10": {
-    "last_update": "2025-10-01T09:52:37.929495",
-    "status": "success",
-    "last_data_date": "2025-09-29T00:00:00"
+  "XAUUSD_Daily": {
+    "last_data_date": "2025-09-28",
+    "last_inspected": "2025-10-03T22:37:41.304670Z",
+    "last_update": "2025-10-03T17:18:12.102384",
+    "rows": 1113,
+    "status": "success"
   },
-  "DGS2": {
-    "last_update": "2025-10-01T09:52:40.187228",
-    "status": "success",
-    "last_data_date": "2025-09-29T00:00:00"
+  "XAUUSD_H1": {
+    "last_data_date": "2025-09-28",
+    "last_inspected": "2025-10-03T22:37:41.325795Z",
+    "last_update": "2025-10-03T17:18:12.174984",
+    "rows": 1113,
+    "status": "success"
   },
-  "BOPGSTB": {
-    "last_update": "2025-10-01T09:52:40.976827",
-    "status": "success",
-    "last_data_date": "2025-07-01T00:00:00"
+  "XAUUSD_H4": {
+    "last_data_date": "2025-09-28",
+    "last_inspected": "2025-10-03T22:37:41.344521Z",
+    "last_update": "2025-10-03T17:18:12.222521",
+    "rows": 1113,
+    "status": "success"
   },
-  "cftc_finfut": {
-    "last_update": "2025-10-01T09:52:43.248126",
+  "XAUUSD_Monthly": {
+    "last_data_date": "2025-09-28",
+    "last_inspected": "2025-10-03T22:37:41.380185Z",
+    "last_update": "2025-10-03T17:18:12.230200",
+    "rows": 1113,
+    "status": "success"
+  },
+  "XAUUSD_Weekly": {
+    "last_data_date": "2025-09-28",
+    "last_inspected": "2025-10-03T22:37:41.396849Z",
+    "last_update": "2025-10-03T17:18:12.255599",
+    "rows": 1113,
+    "status": "success"
+  },
+  "XAUUSD_daily_complete_holloway": {
+    "last_update": "2025-10-03T17:18:12.306665",
+    "rows": 32632,
+    "status": "success"
+  },
+  "XAUUSD_h1_complete_holloway": {
+    "last_update": "2025-10-03T17:18:12.405794",
+    "rows": 99992,
+    "status": "success"
+  },
+  "XAUUSD_h4_complete_holloway": {
+    "last_update": "2025-10-03T17:18:12.458985",
+    "rows": 32632,
+    "status": "success"
+  },
+  "XAUUSD_latest_multi_timeframe_features": {
+    "last_data_date": "2025-09-28",
+    "last_inspected": "2025-10-03T22:37:41.360198Z",
+    "last_update": "2025-10-03T17:18:12.475088",
+    "rows": 1113,
+    "status": "success"
+  },
+  "XAUUSD_monthly_complete_holloway": {
+    "last_update": "2025-10-03T17:18:12.495707",
+    "rows": 257,
+    "status": "success"
+  },
+  "XAUUSD_weekly_complete_holloway": {
+    "last_update": "2025-10-03T17:18:12.527567",
+    "rows": 1113,
     "status": "success"
   },
   "cftc_cftc_cot": {
     "last_update": "2025-10-01T09:52:45.915833",
     "status": "success"
-  }
-  ,
-  "EURUSD_Weekly": {
-    "last_update": "2025-10-02T18:11:06.221147",
-    "status": "success",
-    "last_data_date": "2025-09-28T00:00:00",
-    "rows": 1344
   },
-  "XAUUSD_Weekly": {
-    "last_update": "2025-10-02T18:11:06.221147",
-    "status": "success",
-    "last_data_date": "2025-09-28T00:00:00",
-    "rows": 1114
-  },
-  "EURUSD_Daily": {
-    "last_update": "2025-10-02T18:11:06.221147",
-    "status": "success",
-    "last_data_date": "2025-09-29T00:00:00",
-    "rows": 6694
-  },
-  "XAUUSD_Daily": {
-    "last_update": "2025-10-02T18:11:06.221147",
-    "status": "success",
-    "last_data_date": "2025-09-29T00:00:00",
-    "rows": 5473
-  }
-  ,
-  "EURUSD_H1": {
-    "last_update": "2025-10-02T18:16:40.982713",
-    "status": "success",
-    "last_data_date": "2025-10-02T08:00:00",
-    "rows": 99993
-  },
-  "EURUSD_H4": {
-    "last_update": "2025-10-02T18:16:40.982713",
-    "status": "success",
-    "last_data_date": "2025-10-02T12:00:00",
-    "rows": 40105
-  },
-  "EURUSD_Monthly": {
-    "last_update": "2025-10-02T18:16:40.982713",
-    "status": "success",
-    "last_data_date": "2025-10-01T00:00:00",
-    "rows": 310
-  },
-  "XAUUSD_H1": {
-    "last_update": "2025-10-02T18:16:40.982713",
-    "status": "success",
-    "last_data_date": "2025-10-02T08:00:00",
-    "rows": 99993
-  },
-  "XAUUSD_H4": {
-    "last_update": "2025-10-02T18:16:40.982713",
-    "status": "success",
-    "last_data_date": "2025-10-02T12:00:00",
-    "rows": 32633
-  },
-  "XAUUSD_Monthly": {
-    "last_update": "2025-10-02T18:16:40.982713",
-    "status": "success",
-    "last_data_date": "2025-10-01T00:00:00",
-    "rows": 258
+  "cftc_finfut": {
+    "last_update": "2025-10-01T09:52:43.248126",
+    "status": "success"
   }
 }
