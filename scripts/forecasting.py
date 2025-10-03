@@ -563,6 +563,47 @@ class HybridPriceForecastingEnsemble:
         # Add multi-timeframe Holloway features
         df = self._add_multi_timeframe_holloway_features(df)
 
+        # ------------------------------------------------------------------
+        # Attach fundamental features (macro & company-level) if available
+        # ------------------------------------------------------------------
+        try:
+            if hasattr(self, 'fundamental_data') and self.fundamental_data is not None and not self.fundamental_data.empty:
+                fund = self.fundamental_data.copy()
+
+                # Ensure datetime index
+                if not isinstance(fund.index, pd.DatetimeIndex):
+                    try:
+                        fund.index = pd.to_datetime(fund.index)
+                    except Exception:
+                        # some fundamental loaders use a 'date' column
+                        if 'date' in fund.columns:
+                            fund.index = pd.to_datetime(fund['date'])
+                            fund = fund.drop(columns=['date'], errors='ignore')
+
+                # Resample to daily and forward-fill to align with price dates
+                try:
+                    fund_daily = fund.resample('D').ffill()
+                except Exception:
+                    fund_daily = fund.copy()
+
+                # Reindex to price dataframe index and forward-fill
+                aligned = fund_daily.reindex(df.index).fillna(method='ffill').fillna(method='bfill')
+
+                # Prefix fundamental columns to avoid name collisions
+                prefixed = {c: f'fund_{c}' for c in aligned.columns}
+                aligned = aligned.rename(columns=prefixed)
+
+                # Convert numeric columns where possible
+                for col in aligned.columns:
+                    aligned[col] = pd.to_numeric(aligned[col], errors='coerce')
+
+                # Join into main feature df
+                df = df.join(aligned, how='left')
+
+                logger.info(f"Attached {len(aligned.columns)} fundamental features (prefixed) to {self.pair}")
+        except Exception as e:
+            logger.warning(f"Failed to attach fundamental features: {e}")
+
         # Drop rows with NaN values, but be more lenient with technical indicators
         # Only drop rows where essential columns (OHLC) have NaN
         essential_cols = ['Open', 'High', 'Low', 'Close', 'returns']
