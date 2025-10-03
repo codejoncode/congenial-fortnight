@@ -50,7 +50,7 @@ from sklearn.feature_selection import SelectFromModel, RFE, RFECV
 from sklearn.inspection import permutation_importance
 
 # Custom imports
-from forecasting import HybridPriceForecastingEnsemble
+from .forecasting import HybridPriceForecastingEnsemble
 
 # Configure logging
 logging.basicConfig(

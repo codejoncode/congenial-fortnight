@@ -50,7 +50,7 @@ from lightgbm import LGBMRegressor
 from xgboost import XGBRegressor
 
 # Custom imports
-from forecasting import HybridPriceForecastingEnsemble
+from .forecasting import HybridPriceForecastingEnsemble
 
 # Configure logging
 logging.basicConfig(

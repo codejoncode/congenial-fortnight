@@ -69,9 +69,10 @@ class FundamentalDataPipeline:
         # FRED API setup
         self.fred_api_key = fred_api_key or os.getenv('FRED_API_KEY')
         if not self.fred_api_key:
-            raise ValueError("FRED API key required. Set FRED_API_KEY environment variable or pass fred_api_key parameter.")
-
-        self.fred = Fred(api_key=self.fred_api_key)
+            logger.warning("FRED API key not found. Fundamental data will be unavailable.")
+            self.fred = None
+        else:
+            self.fred = Fred(api_key=self.fred_api_key)
 
         # Metadata file for tracking updates
         self.metadata_file = self.data_dir / "update_metadata.json"
@@ -722,6 +723,45 @@ class FundamentalDataPipeline:
 
         return issues
 
+    def load_all_series_as_df(self) -> pd.DataFrame:
+        """
+        Loads all FRED and CFTC data from CSVs into a single merged DataFrame.
+
+        This method iterates through all defined FRED series and CFTC reports,
+        loads their corresponding CSV files, and merges them into a single
+        time-series DataFrame, indexed by date.
+
+        Returns:
+            A pandas DataFrame containing all fundamental data, or an empty
+            DataFrame if no data is found.
+        """
+        if not self.fred:
+            logger.warning("Cannot load fundamental data because FRED API key is not configured.")
+            return pd.DataFrame()
+
+        all_dfs = []
+        all_series = list(self.fred_series.keys()) + [report['series_name'] for report in self.cftc_reports.values()]
+
+        for series_id in all_series:
+            df = self.load_series_from_csv(series_id)
+            if not df.empty:
+                all_dfs.append(df)
+
+        if not all_dfs:
+            return pd.DataFrame()
+
+        # Merge all DataFrames on date, using outer join to preserve all dates
+        merged_df = all_dfs[0]
+        for df in all_dfs[1:]:
+            merged_df = pd.merge(merged_df, df, on='date', how='outer', suffixes=('', '_dup'))
+
+        # Remove duplicate columns
+        merged_df = merged_df.loc[:, ~merged_df.columns.str.endswith('_dup')]
+
+        # Sort by date
+        merged_df = merged_df.sort_values('date')
+
+        return merged_df
 
 def main():
     """Main function for command-line usage."""
