@@ -349,3 +349,49 @@ def update_data(request):
         return Response({
             'error': f'Failed to update data: {str(e)}'
         }, status=500)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_holloway(request, pair):
+    """Return per-timeframe Holloway summary (bull/bear counts + averages) for a pair."""
+    try:
+        data_dir = os.path.join(os.getcwd(), 'data')
+        timeframes = ['daily', 'h4', 'h1', 'weekly', 'monthly']
+        out = {}
+        for tf in timeframes:
+            fname = os.path.join(data_dir, f"{pair}_{tf}_complete_holloway.csv")
+            if not os.path.exists(fname):
+                out[tf] = None
+                continue
+            df = pd.read_csv(fname)
+            df.columns = [c.lower() for c in df.columns]
+            if len(df) == 0:
+                out[tf] = None
+                continue
+            latest = df.iloc[-1]
+            def safe(col):
+                return float(latest[col]) if col in df.columns and pd.notna(latest[col]) else None
+
+            out[tf] = {
+                'bull_count': safe('bull_count'),
+                'bear_count': safe('bear_count'),
+                'bully': safe('bully'),
+                'beary': safe('beary'),
+                'holloway_bull_signals': int(df['holloway_bull_signal'].sum()) if 'holloway_bull_signal' in df.columns else 0,
+                'holloway_bear_signals': int(df['holloway_bear_signal'].sum()) if 'holloway_bear_signal' in df.columns else 0,
+                'data_points': len(df),
+                'filepath': fname
+            }
+
+        # also include merged latest features if available
+        merged = os.path.join(data_dir, f"{pair}_latest_multi_timeframe_features.csv")
+        if os.path.exists(merged):
+            mdf = pd.read_csv(merged)
+            mdf.columns = [c.lower() for c in mdf.columns]
+            out['latest_merged'] = mdf.to_dict(orient='records')[0] if len(mdf) > 0 else {}
+
+        return Response({'pair': pair, 'holloway': out})
+    except Exception as e:
+        logger.error(f"Error getting holloway for {pair}: {str(e)}")
+        return Response({'error': str(e)}, status=500)
