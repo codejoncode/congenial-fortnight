@@ -162,6 +162,50 @@ This outline integrates our in-depth conversation with your existing congenial-f
 
   - [x] `README.md` & feature spec (`congenial_fortnight_features.txt`)  - [x] `README.md` & feature spec (`congenial_fortnight_features.txt`)
 
+## 🧭 Usage & Quick Examples
+
+Run an automated training dry-run (fast, limited iterations) for EURUSD and XAUUSD:
+
+```bash
+python scripts/automated_training.py --dry-run --dry-iterations 5 --na-threshold 0.5 --pairs EURUSD XAUUSD
+```
+
+Run the full automated training (ensure data preflight passes):
+
+```bash
+python scripts/automated_training.py --pairs EURUSD XAUUSD
+```
+
+Reports and artifacts:
+- Schema reports: `output/schema_report_<PAIR>.json`
+- Prune reports: `output/prune_report_<PAIR>.json`
+- Training results: `logs/automated_training_results.json`
+
+CI badge: (replace with your workflow run badge URL)
+
+![CI](https://github.com/codejoncode/congenial-fortnight/actions/workflows/fundamentals_ci.yml/badge.svg)
+
+Pipeline (high level):
+
+```
+RAW CSVs / FRED / CFTC
+    |
+   robust_data_loader
+    |
+  preprocess_timeframe_data
+    |
+  create_features_for_timeframe -> add_holloway_features_safe
+    |
+  attach fundamentals (prefixed fund_*)
+    |
+  prune_features (NA% / zero-variance)
+    |
+  enhanced_lightgbm_training_pipeline
+    |
+  model artifacts -> models/ & logs/
+```
+
+
 
 
 ### 2. **Data Collection & Storage**### 2. **Data Collection & Storage**
