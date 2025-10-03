@@ -14,7 +14,8 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 # Add project root to path
-sys.path.insert(0, '/app')
+BASE_APP_DIR = os.environ.get('APP_ROOT', os.getcwd())
+sys.path.insert(0, BASE_APP_DIR)
 
 try:
     from scripts.advanced_regularization_optimizer import optimize_pair
@@ -26,7 +27,7 @@ try:
 except ImportError:
     get_regularization_config = None
 
-from scripts.forecasting import ForecastingSystem
+from scripts.forecasting import HybridPriceForecastingEnsemble as ForecastingSystem
 from notification_system import NotificationSystem
 
 # Configure logging
@@ -35,17 +36,17 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler('/app/logs/automated_training.log')
+        logging.FileHandler(os.path.join(BASE_APP_DIR, 'logs', 'automated_training.log'))
     ]
 )
 logger = logging.getLogger(__name__)
 
 class AutomatedTrainer:
-    def __init__(self, target_accuracy: float = 0.85, max_iterations: int = 50):
+    def __init__(self, pair, target_accuracy=0.75, max_iterations=100):
+        self.pair = pair
         self.target_accuracy = target_accuracy
         self.max_iterations = max_iterations
-        self.forecasting = ForecastingSystem()
-        self.notifier = NotificationSystem()
+        self.forecasting = ForecastingSystem(pair=self.pair)
 
         # Enhanced stopping criteria
         self.convergence_patience = 10  # Iterations without improvement
@@ -56,18 +57,28 @@ class AutomatedTrainer:
         self.performance_history = {}
         self.stagnation_counters = {}
 
-        # Ensure directories exist
-        os.makedirs('/app/models', exist_ok=True)
-        os.makedirs('/app/logs', exist_ok=True)
-        os.makedirs('/app/output', exist_ok=True)
+    # Ensure directories exist (use workspace-local APP_ROOT)
+    os.makedirs(os.path.join(BASE_APP_DIR, 'models'), exist_ok=True)
+    os.makedirs(os.path.join(BASE_APP_DIR, 'logs'), exist_ok=True)
+    os.makedirs(os.path.join(BASE_APP_DIR, 'output'), exist_ok=True)
 
     def evaluate_current_performance(self, pair: str) -> Dict:
         """Evaluate current model performance"""
         try:
             # Load model and run backtest
+            # Use a dynamic backtest window: prefer the ensemble lookback if available
+            try:
+                ensemble = self.forecasting._build_ensemble(pair)
+                lookback_days = int(getattr(ensemble, 'lookback_window', 180))
+            except Exception:
+                lookback_days = 180
+
+            # Ensure a sensible minimum so daily data has enough rows
+            days_window = max(lookback_days, 180)
+
             results = self.forecasting.backtest_ensemble(
                 pair=pair,
-                days=30,  # Use last 30 days for evaluation
+                days=days_window,
                 save_results=False
             )
             return {
@@ -245,7 +256,7 @@ class AutomatedTrainer:
 
     def save_progress(self, pair: str, results_history: List[Dict]):
         """Save optimization progress"""
-        progress_file = f'/app/logs/optimization_progress_{pair}.json'
+        progress_file = os.path.join(BASE_APP_DIR, 'logs', f'optimization_progress_{pair}.json')
         try:
             with open(progress_file, 'w') as f:
                 json.dump({
@@ -333,7 +344,7 @@ class AutomatedTrainer:
             'results': results
         }
 
-        with open('/app/logs/automated_training_results.json', 'w') as f:
+        with open(os.path.join(BASE_APP_DIR, 'logs', 'automated_training_results.json'), 'w') as f:
             json.dump(final_results, f, indent=2)
 
         logger.info("Automated training completed")
@@ -347,12 +358,14 @@ def main():
                        help='Target accuracy (default: 0.85)')
     parser.add_argument('--max-iterations', type=int, default=50,
                        help='Maximum iterations per pair (default: 50)')
+    parser.add_argument('--pair', type=str, default='EURUSD', help='The currency pair to train on.')
     parser.add_argument('--pairs', nargs='+', default=['EURUSD', 'XAUUSD'],
                        help='Currency pairs to optimize (default: EURUSD XAUUSD)')
 
     args = parser.parse_args()
 
     trainer = AutomatedTrainer(
+        pair=args.pair,
         target_accuracy=args.target,
         max_iterations=args.max_iterations
     )

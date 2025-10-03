@@ -1,0 +1,43 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/docker-existing-dockerfile
+{
+	// Sets the display name for your codespace, which is shown in the VS Code UI.
+	"name": "Forex Signal Codespace",
+
+	// Specifies how to build the development container.
+	"build": {
+		// Points to the Dockerfile that defines the container's environment.
+		"dockerfile": "Dockerfile"
+	},
+
+	// Contains VS Code-specific customizations.
+	"customizations": {
+		// Settings specifically for GitHub Codespaces.
+		"codespaces": {
+			// Requests a larger machine with more CPU and RAM, which is beneficial for
+			// computationally intensive tasks like model training and data analysis.
+			"machine": "standardLinuxXL"
+		}
+	},
+
+	// Adds pre-configured features to the dev container.
+	"features": {
+		// Installs Python, pip, and other necessary tools for Python development.
+		"ghcr.io/devcontainers/features/python:1": {}
+	}
+
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	// "features": {},
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	// Uncomment the next line to run commands after the container is created.
+	// "postCreateCommand": "cat /etc/os-release",
+
+	// Configure tool-specific properties.
+	// "customizations": {},
+
+	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+	// "remoteUser": "root"
+}

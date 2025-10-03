@@ -59,6 +59,41 @@ class CompleteHollowayAlgorithm:
             os.makedirs(self.data_dir)
             print(f"✅ Created data directory: {self.data_dir}")
 
+    def _normalize_price_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Ensure standard lowercase price columns exist (open, high, low, close, volume).
+
+        This accepts common capitalizations like 'Open', 'High', 'Low', 'Close' and
+        creates lowercase aliases so the rest of the algorithm can assume
+        'open','high','low','close' are present.
+        """
+        df = df.copy()
+        if df.empty:
+            return df
+
+        # Common canonical names we expect internally
+        needed = ["open", "high", "low", "close", "volume", "date"]
+
+        for name in needed:
+            if name in df.columns:
+                continue
+            # try common variants
+            for alt in (name.capitalize(), name.upper(), name.title()):
+                if alt in df.columns:
+                    df[name] = df[alt]
+                    break
+
+        # If a date column exists, try to set it as the index (preserve if already index)
+        if "date" in df.columns and not isinstance(df.index, pd.DatetimeIndex):
+            try:
+                df["date"] = pd.to_datetime(df["date"], errors="coerce")
+                if df["date"].notna().any():
+                    df = df.set_index("date")
+            except Exception:
+                # best-effort only
+                pass
+
+        return df
+
     def calculate_parabolic_sar(self, df: pd.DataFrame) -> pd.DataFrame:
         """Calculate Parabolic SAR exactly as defined in PineScript."""
         df = df.copy()
@@ -708,7 +743,8 @@ class CompleteHollowayAlgorithm:
         printer = print if verbose else (lambda *args, **kwargs: None)
 
         printer("🚀 Starting Complete Holloway Algorithm calculation...")
-        work_df = df.copy()
+        # Normalize common column names (High/Low/Close -> high/low/close)
+        work_df = self._normalize_price_columns(df)
 
         printer("  📊 Calculating Parabolic SAR...")
         work_df = self.calculate_parabolic_sar(work_df)
