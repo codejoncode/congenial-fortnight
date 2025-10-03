@@ -429,6 +429,32 @@ class FundamentalDataPipeline:
             logger.error(f"Error loading {csv_file}: {e}")
             return pd.DataFrame()
 
+    def _load_series_from_json_file(self, filepath: str) -> pd.DataFrame:
+        """
+        Load a simple JSON time-series file into a DataFrame.
+
+        This helper is intended for offline tests and small fixtures under
+        data/tests/fundamentals/. The JSON is expected to be a mapping of
+        column -> list of values, including a 'date' column.
+
+        Returns a pandas DataFrame with a parsed 'date' column when present.
+        """
+        try:
+            if not os.path.exists(filepath):
+                logger.error(f"JSON file not found: {filepath}")
+                return pd.DataFrame()
+
+            with open(filepath, 'r') as f:
+                j = json.load(f)
+
+            df = pd.DataFrame(j)
+            if 'date' in df.columns:
+                df['date'] = pd.to_datetime(df['date'], errors='coerce')
+            return df
+        except Exception as e:
+            logger.error(f"Failed to load JSON series {filepath}: {e}")
+            return pd.DataFrame()
+
     def update_fred_series(self, series_id: str) -> bool:
         """
         Update a single FRED series, fetching only new data if available.
