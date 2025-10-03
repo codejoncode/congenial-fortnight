@@ -24,6 +24,7 @@ function App() {
   const [backtestDays, setBacktestDays] = useState(30);
   const [chartType, setChartType] = useState('custom');
   const [darkMode, setDarkMode] = useState(false);
+  const [holloway, setHolloway] = useState(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [portfolio, setPortfolio] = useState({
     balance: 10000,
@@ -35,6 +36,7 @@ function App() {
 
   useEffect(() => {
     fetchSignals();
+    fetchHolloway(chartPair);
     const savedDarkMode = localStorage.getItem('darkMode') === 'true';
     setDarkMode(savedDarkMode);
   }, []);
@@ -67,6 +69,12 @@ function App() {
     axios.get(`${API_BASE_URL}/api/signals/`)
       .then(response => setSignals(response.data))
       .catch(error => console.error('Error fetching signals:', error));
+  };
+
+  const fetchHolloway = (pair) => {
+    axios.get(`${API_BASE_URL}/api/holloway/${pair}/`)
+      .then(resp => setHolloway(resp.data.holloway))
+      .catch(err => { console.error('Error fetching holloway', err); setHolloway(null); });
   };
 
   const toggleDarkMode = () => {
@@ -474,6 +482,34 @@ function App() {
                         </button>
                       </div>
                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Holloway Summary Panel */}
+            <div style={{
+              backgroundColor: darkMode ? '#222' : '#fff',
+              padding: '20px',
+              borderRadius: '12px',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.08)'
+            }}>
+              <h3>Holloway Multi-Timeframe Summary ({chartPair})</h3>
+              {!holloway ? (
+                <div>Loading Holloway data...</div>
+              ) : (
+                <div>
+                  {Object.keys(holloway).filter(k => k != 'latest_merged').map(tf => (
+                    holloway[tf] ? (
+                      <div key={tf} style={{marginBottom: '10px'}}>
+                        <strong>{tf.toUpperCase()}</strong>: Trend: {holloway[tf].trend_direction || 'N/A'}
+                        <div style={{fontSize: '13px'}}>
+                          Bull Count: {holloway[tf].bull_count} • Bear Count: {holloway[tf].bear_count} • Bully: {holloway[tf].bully} • Beary: {holloway[tf].beary}
+                        </div>
+                      </div>
+                    ) : (
+                      <div key={tf} style={{marginBottom: '6px'}}>{tf.toUpperCase()}: No data</div>
+                    )
                   ))}
                 </div>
               )}

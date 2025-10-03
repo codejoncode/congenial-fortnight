@@ -15,6 +15,7 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 import warnings
+import re
 
 warnings.filterwarnings("ignore")
 
@@ -123,8 +124,10 @@ class CompleteHollowayAlgorithm:
                         af[i] = prev_af
 
         df["sar"] = sar
-        df["bull_sar"] = df["close"] > df["sar"]
-        df["bear_sar"] = df["close"] < df["sar"]
+        # Ensure boolean dtype for SAR comparisons (avoid float/NaN which break bitwise ops)
+        df["bull_sar"] = (df["close"] > df["sar"]).fillna(False).astype(bool)
+        df["bear_sar"] = (df["close"] < df["sar"]).fillna(False).astype(bool)
+
         return df
 
     def calculate_pattern_signals(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -148,7 +151,7 @@ class CompleteHollowayAlgorithm:
         df["ema50"] = df["close"].ewm(span=50, adjust=False).mean()
 
         df["bullish_signal"] = (
-            (df["bull_sar"] & ~df["bull_sar"].shift(1))
+            (df["bull_sar"] & (~df["bull_sar"].shift(1).fillna(False)))
             & (
                 df["inside"] | df["inside"].shift(1) | df["inside"].shift(2)
                 | df["engulf"] | df["engulf"].shift(1) | df["engulf"].shift(2)
@@ -156,7 +159,7 @@ class CompleteHollowayAlgorithm:
             & (df["high"] > df["ema50"])
         )
         df["bearish_signal"] = (
-            (df["bear_sar"] & ~df["bear_sar"].shift(1))
+            (df["bear_sar"] & (~df["bear_sar"].shift(1).fillna(False)))
             & (
                 df["inside"] | df["inside"].shift(1) | df["inside"].shift(2)
                 | df["engulf"] | df["engulf"].shift(1) | df["engulf"].shift(2)
@@ -649,12 +652,12 @@ class CompleteHollowayAlgorithm:
         df["beary_support_periods"] = beary_sup
 
         df["resistance_reversal_signal"] = (
-            (df["bully_at_resistance"].shift(1) & ~df["bully_at_resistance"])
-            | (df["beary_at_resistance"].shift(1) & ~df["beary_at_resistance"])
+            (df["bully_at_resistance"].shift(1).fillna(False) & (~df["bully_at_resistance"].fillna(False)))
+            | (df["beary_at_resistance"].shift(1).fillna(False) & (~df["beary_at_resistance"].fillna(False)))
         ).fillna(False)
         df["support_reversal_signal"] = (
-            (df["bully_at_support"].shift(1) & ~df["bully_at_support"])
-            | (df["beary_at_support"].shift(1) & ~df["beary_at_support"])
+            (df["bully_at_support"].shift(1).fillna(False) & (~df["bully_at_support"].fillna(False)))
+            | (df["beary_at_support"].shift(1).fillna(False) & (~df["beary_at_support"].fillna(False)))
         ).fillna(False)
 
         return df
@@ -887,12 +890,21 @@ class CompleteHollowayAlgorithm:
         ]
 
         available_columns = [col for col in output_columns if col in df.columns]
-        df_to_save = df[available_columns]
+        df_to_save = df[available_columns].copy()
 
-        if df_to_save.index.name:
-            df_to_save.to_csv(filepath)
-        else:
-            df_to_save.to_csv(filepath, index=False)
+        # Add provenance: source filename used (if present as an attribute)
+        provenance_file = getattr(df, '_source_file', None)
+        if provenance_file:
+            df_to_save['source_file'] = provenance_file
+
+        # If index is datetime-like, reset it to a 'date' column for portability
+        if isinstance(df_to_save.index, pd.DatetimeIndex):
+            df_to_save = df_to_save.reset_index()
+            # rename index column to date if not already
+            if df_to_save.columns[0].lower() != 'date':
+                df_to_save.rename(columns={df_to_save.columns[0]: 'date'}, inplace=True)
+
+        df_to_save.to_csv(filepath, index=False)
 
         print(f"✅ Holloway results saved: {filepath}")
         return filepath
@@ -904,37 +916,106 @@ class CompleteHollowayAlgorithm:
 
 def load_data_file(pair: str, timeframe: str = "daily", data_dir: str = "data") -> pd.DataFrame:
     """Load OHLC data for the specified pair/timeframe."""
-    possible_names = [
-        f"{pair}_{timeframe}.csv",
-        f"{pair.lower()}_{timeframe}.csv",
-        f"{pair}.csv",
-        f"{pair.lower()}.csv",
-    ]
+    # Normalize search terms
+    pair_lower = pair.lower()
+    timeframe_lower = timeframe.lower()
 
-    for name in possible_names:
-        filepath = os.path.join(data_dir, name)
-        if not os.path.exists(filepath):
+    if not os.path.exists(data_dir):
+        print(f"❌ Data directory not found: {data_dir}")
+        return pd.DataFrame()
+
+    # List files and look for case-insensitive matches containing both pair and timeframe
+    candidates: List[str] = []
+    for fname in os.listdir(data_dir):
+        if not fname.lower().endswith('.csv'):
             continue
+        fl = fname.lower()
+        if pair_lower in fl and timeframe_lower in fl:
+            candidates.append(fname)
+
+    # If no exact timeframe match, accept any file with the pair name (e.g. EURUSD_Daily vs EURUSD_daily)
+    if not candidates:
+        for fname in os.listdir(data_dir):
+            if not fname.lower().endswith('.csv'):
+                continue
+            if pair_lower in fname.lower():
+                candidates.append(fname)
+
+    if not candidates:
+        print(f"❌ Could not find data for {pair} {timeframe} in {data_dir}")
+        return pd.DataFrame()
+
+    # Prefer candidates that explicitly contain timeframe (case-insensitive)
+    candidates = sorted(candidates, key=lambda x: (timeframe_lower in x.lower(), x), reverse=True)
+
+    for name in candidates:
+        filepath = os.path.join(data_dir, name)
         try:
-            df = pd.read_csv(filepath)
-            date_columns = ["date", "Date", "timestamp", "time"]
-            for column in date_columns:
-                if column in df.columns:
-                    df[column] = pd.to_datetime(df[column])
-                    df.set_index(column, inplace=True)
+            # Try a few separator options to handle comma, tab, semicolon, or whitespace-separated files
+            read_attempts = [
+                {"sep": ","},
+                {"sep": "\t"},
+                {"sep": ";"},
+                {"sep": None, "engine": "python"},
+            ]
+
+            df = None
+            for opts in read_attempts:
+                try:
+                    df = pd.read_csv(filepath, **opts)
+                    # if it parsed into a single column with tabs preserved, try next
+                    if df.shape[1] == 1 and df.iloc[0].astype(str).str.contains('\t').any():
+                        continue
                     break
+                except Exception:
+                    df = None
+                    continue
+
+            if df is None:
+                print(f"❌ Error parsing {filepath} with known separators")
+                continue
+
+            # Normalize column names: strip non-alphanumeric (e.g. '<' '>'), trim and lowercase
+            cleaned = []
+            for c in df.columns:
+                if not isinstance(c, str):
+                    c = str(c)
+                s = re.sub(r"[^0-9a-zA-Z_]", "", c).lower()
+                cleaned.append(s)
+            df.columns = cleaned
+
+            # If a date-like column exists (e.g. date, timestamp) set it as index
+            if 'date' in df.columns:
+                try:
+                    df['date'] = pd.to_datetime(df['date'])
+                    df.set_index('date', inplace=True)
+                except Exception:
+                    pass
+
+            # At this point index may be set; ensure it's datetime if possible
+            if not isinstance(df.index, pd.DatetimeIndex):
+                try:
+                    df.index = pd.to_datetime(df.index)
+                except Exception:
+                    pass
 
             required = {"open", "high", "low", "close"}
-            if not required.issubset(df.columns):
+            if not required.issubset(set(df.columns)):
                 print(f"⚠️ Missing required OHLC columns in {filepath}")
                 continue
 
-            print(f"✅ Loaded {pair} {timeframe}: {len(df)} records")
+            # attach provenance file name on the dataframe for downstream saving
+            try:
+                df._source_file = name
+            except Exception:
+                pass
+
+            print(f"✅ Loaded {pair} {timeframe} from {name}: {len(df)} records")
             return df
         except Exception as exc:
             print(f"❌ Error loading {filepath}: {exc}")
 
-    print(f"❌ Could not find data for {pair} {timeframe}")
+    print(f"❌ Could not load any candidate files for {pair} {timeframe}")
     return pd.DataFrame()
 
 
@@ -946,19 +1027,29 @@ def run_complete_holloway_analysis() -> Dict[str, Dict[str, Dict]]:
     holloway = CompleteHollowayAlgorithm()
 
     pairs = ["EURUSD", "XAUUSD"]
-    timeframes = ["daily"]
+    # Supported timeframe suffixes in data/ (do not resample, keep as-is)
+    timeframes = ["daily", "h4", "h1", "weekly", "monthly"]
     results: Dict[str, Dict[str, Dict]] = {}
 
     for pair in pairs:
         results[pair] = {}
+        # For each pair compute Holloway for all available timeframes and merge latest features
+        pair_features = {}
         for timeframe in timeframes:
             print(f"\n📊 Processing {pair} {timeframe}...")
             df = load_data_file(pair, timeframe)
             if df.empty:
                 print(f"⚠️ No data found for {pair} {timeframe}")
                 continue
+            # attach provenance and compute
+            # load_data_file does not currently set a field, so pass filename via attribute if known
+            # but load_data_file returns df without file info; attempt to infer from candidate names
+            df_holloway = holloway.calculate_complete_holloway_algorithm(df, verbose=False)
+            # attempt to attach provenance if load_data_file set _source_file
+            provenance = getattr(df, '_source_file', None)
+            if provenance is not None:
+                df_holloway._source_file = provenance
 
-            df_holloway = holloway.calculate_complete_holloway_algorithm(df, verbose=True)
             filepath = holloway.save_holloway_results(df_holloway, pair, timeframe)
             summary = holloway.get_holloway_summary(df_holloway)
 
@@ -968,27 +1059,36 @@ def run_complete_holloway_analysis() -> Dict[str, Dict[str, Dict]]:
                 "data_points": len(df_holloway),
             }
 
-            print(f"\n📋 RESULTS FOR {pair} {timeframe}:")
+            # Print compact per-timeframe summary
             if "current_state" in summary:
                 current = summary["current_state"]
                 signals = summary["signals"]
-                levels = summary["critical_levels"]
-                momentum = summary["momentum"]
+                print(
+                    f"  {timeframe.upper()}: {len(df_holloway)} periods, Trend: {current['trend_direction']}, "
+                    f"Bull Signals: {signals['holloway_bull_signals']}, Bear Signals: {signals['holloway_bear_signals']}"
+                )
 
-                print(f"  🎯 Current Trend: {current['trend_direction']}")
-                print(f"  📈 Bull Count: {current['bull_count']:.1f}")
-                print(f"  📉 Bear Count: {current['bear_count']:.1f}")
-                print(f"  🌊 Bully: {current['bully']:.1f}")
-                print(f"  🌊 Beary: {current['beary']:.1f}")
-                print(f"  🎯 Bull Signals: {signals['holloway_bull_signals']}")
-                print(f"  🎯 Bear Signals: {signals['holloway_bear_signals']}")
-                print(f"  ⚡ Strength Signals: {signals['strength_signals']}")
-                print(f"  🔄 Reversal Signals: {signals['reversal_signals']}")
-                print(f"  ⚠️ Weakness Signals: {signals['weakness_signals']}")
-                print(f"  📊 At Resistance: {'YES' if levels['at_resistance'] else 'NO'}")
-                print(f"  📊 At Support: {'YES' if levels['at_support'] else 'NO'}")
-                print(f"  📈 Bull Slowing: {'YES' if momentum['bull_slowing'] else 'NO'}")
-                print(f"  📉 Bear Slowing: {'YES' if momentum['bear_slowing'] else 'NO'}")
+            # store latest row features (if any) with suffix
+            if len(df_holloway) > 0:
+                latest = df_holloway.iloc[-1].to_dict()
+                # include provenance for this timeframe
+                if hasattr(df_holloway, '_source_file') and df_holloway._source_file:
+                    latest['source_file'] = df_holloway._source_file
+
+                suffixed = {f"{k}_{timeframe}": v for k, v in latest.items()}
+                pair_features[timeframe] = suffixed
+
+        # Merge latest-per-timeframe features into a single dataframe and save
+        if pair_features:
+            merged = {}
+            for tf, feat in pair_features.items():
+                merged.update(feat)
+
+            merged_df = pd.DataFrame([merged])
+            merged_path = os.path.join(holloway.data_dir, f"{pair}_latest_multi_timeframe_features.csv")
+            merged_df.to_csv(merged_path, index=False)
+            print(f"\n✅ Saved merged latest features for {pair}: {merged_path}")
+            results[pair]["latest_features"] = {"filepath": merged_path, "rows": len(merged_df)}
 
     print("\n🎉 COMPLETE HOLLOWAY ANALYSIS FINISHED!")
     print("=" * 70)
