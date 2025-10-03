@@ -1,0 +1,14 @@
+{
+  "name": "Forex Signal Codespace",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "customizations": {
+    "codespaces": {
+      "machine": "standardLinuxXL"
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {}
+  }
+}
