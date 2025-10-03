@@ -1,0 +1,37 @@
+name: Dry Run CI
+
+on:
+  push:
+    paths:
+      - 'scripts/**'
+      - 'tests/**'
+      - 'data/tests/**'
+  pull_request:
+    paths:
+      - 'scripts/**'
+      - 'tests/**'
+      - 'data/tests/**'
+
+jobs:
+  test-and-dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-tests.txt
+
+      - name: Run pytest
+        run: |
+          pytest -q
+
+      - name: Run automated dry-run
+        run: |
+          python scripts/automated_training.py --dry-run --dry-iterations 3 --na-threshold 0.5 --pairs EURUSD XAUUSD
