@@ -27,7 +27,7 @@ try:
 except ImportError:
     get_regularization_config = None
 
-from scripts.forecasting import ForecastingSystem
+from scripts.forecasting import HybridPriceForecastingEnsemble as ForecastingSystem
 from notification_system import NotificationSystem
 
 # Configure logging
@@ -42,11 +42,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class AutomatedTrainer:
-    def __init__(self, target_accuracy: float = 0.85, max_iterations: int = 50):
+    def __init__(self, pair, target_accuracy=0.75, max_iterations=100):
+        self.pair = pair
         self.target_accuracy = target_accuracy
         self.max_iterations = max_iterations
-        self.forecasting = ForecastingSystem()
-        self.notifier = NotificationSystem()
+        self.forecasting = ForecastingSystem(pair=self.pair)
 
         # Enhanced stopping criteria
         self.convergence_patience = 10  # Iterations without improvement
@@ -358,12 +358,14 @@ def main():
                        help='Target accuracy (default: 0.85)')
     parser.add_argument('--max-iterations', type=int, default=50,
                        help='Maximum iterations per pair (default: 50)')
+    parser.add_argument('--pair', type=str, default='EURUSD', help='The currency pair to train on.')
     parser.add_argument('--pairs', nargs='+', default=['EURUSD', 'XAUUSD'],
                        help='Currency pairs to optimize (default: EURUSD XAUUSD)')
 
     args = parser.parse_args()
 
     trainer = AutomatedTrainer(
+        pair=args.pair,
         target_accuracy=args.target,
         max_iterations=args.max_iterations
     )

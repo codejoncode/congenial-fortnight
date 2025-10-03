@@ -6,37 +6,18 @@ yfinance==0.2.40
 joblib==1.4.2
 scikit-learn==1.5.1
 xgboost==2.1.1
-pandas==2.2.2
-numpy==1.26.4
-
-# Advanced ML and Forecasting
+pandas==2.3.3
+numpy==2.0.0
 lightgbm==4.4.0
 fredapi==0.5.2
 prophet==1.1.5
 statsforecast==1.7.6
 darts==0.30.0
-
-# Deep Learning (optional - comment out if not needed)
-tensorflow==2.17.0
-keras==3.4.1
-
-# Technical Analysis
 ta==0.11.0
-
-# Data Visualization and Analysis
 matplotlib==3.9.0
 seaborn==0.13.2
 plotly==5.22.0
-
-# Statistics and Optimization
-scipy==1.14.0
-
-# API and Environment
 requests==2.32.3
 python-dotenv==1.0.0
-
-# Optional: SHAP for model interpretability
 shap==0.45.1
-
-# Optional: Yellowbrick for ML diagnostics
 yellowbrick==1.5

@@ -908,59 +908,76 @@ class HybridPriceForecastingEnsemble:
 
         return df
 
+    def _calculate_holloway_for_timeframe(self, tf: str) -> Optional[pd.DataFrame]:
+        """
+        Helper function to calculate Holloway features for a single timeframe.
+        This function is designed to be called in parallel.
+        """
+        try:
+            # Load raw data for the specific timeframe
+            tf_loader_map = {
+                'H1': self._load_intraday_data,
+                'H4': lambda p: self._load_daily_price_file(p, timeframe_hint='H4'),
+                'Daily': self._load_daily_price_file,
+                'Weekly': lambda p: self._load_daily_price_file(p, timeframe_hint='Weekly'),
+                'Monthly': self._load_monthly_data
+            }
+            
+            loader_func = tf_loader_map.get(tf)
+            if not loader_func:
+                return None
+
+            # Pass pair argument correctly
+            if tf in ['H4', 'Weekly', 'Daily']:
+                    tf_data = loader_func(self.pair)
+            else:
+                    tf_data = loader_func()
+
+            if tf_data.empty or len(tf_data) < 225:
+                logger.warning(f"Skipping Holloway for {tf} due to insufficient data ({len(tf_data)} rows)")
+                return None
+
+            # Calculate Holloway features for this timeframe
+            holloway_tf_df = self._holloway_algo.calculate_complete_holloway_algorithm(tf_data.copy())
+            
+            if holloway_tf_df.empty:
+                return None
+
+            # Prefix columns with timeframe
+            holloway_tf_df = holloway_tf_df.add_prefix(f'holloway_{tf.lower()}_')
+            
+            return holloway_tf_df
+
+        except Exception as e:
+            logger.error(f"Error processing Holloway features for {tf} timeframe: {e}")
+            return None
+
     def _add_multi_timeframe_holloway_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Calculate and integrate Holloway features from all available timeframes.
+        Calculate and integrate Holloway features from all available timeframes in parallel.
         """
         if df.empty:
             return df
 
-        logger.info("Calculating and merging multi-timeframe Holloway features...")
+        logger.info("Calculating and merging multi-timeframe Holloway features in parallel...")
         timeframes = ['H1', 'H4', 'Daily', 'Weekly', 'Monthly']
         
-        for tf in timeframes:
-            try:
-                # Load raw data for the specific timeframe
-                tf_loader_map = {
-                    'H1': self._load_intraday_data,
-                    'H4': lambda p: self._load_daily_price_file(p, timeframe_hint='H4'),
-                    'Daily': self._load_daily_price_file,
-                    'Weekly': lambda p: self._load_daily_price_file(p, timeframe_hint='Weekly'),
-                    'Monthly': self._load_monthly_data
-                }
-                
-                loader_func = tf_loader_map.get(tf)
-                if not loader_func:
-                    continue
+        results = joblib.Parallel(n_jobs=-1)(
+            joblib.delayed(self._calculate_holloway_for_timeframe)(tf) for tf in timeframes
+        )
 
-                # Pass pair argument correctly
-                if tf in ['H4', 'Weekly', 'Daily']:
-                     tf_data = loader_func(self.pair)
-                else:
-                     tf_data = loader_func()
-
-                if tf_data.empty or len(tf_data) < 225:
-                    logger.warning(f"Skipping Holloway for {tf} due to insufficient data ({len(tf_data)} rows)")
-                    continue
-
-                # Calculate Holloway features for this timeframe
-                holloway_tf_df = self._holloway_algo.calculate_complete_holloway_algorithm(tf_data.copy())
-                
-                if holloway_tf_df.empty:
-                    continue
-
-                # Prefix columns with timeframe
-                holloway_tf_df = holloway_tf_df.add_prefix(f'holloway_{tf.lower()}_')
-                
-                # Align with the main dataframe's index and forward-fill
-                aligned_features = holloway_tf_df.reindex(df.index).fillna(method='ffill')
-                
-                # Join the aligned features
-                df = df.join(aligned_features, how='left')
-                logger.info(f"Successfully merged Holloway features for {tf} timeframe.")
-
-            except Exception as e:
-                logger.error(f"Error processing Holloway features for {tf} timeframe: {e}")
+        for i, tf in enumerate(timeframes):
+            holloway_tf_df = results[i]
+            if holloway_tf_df is not None and not holloway_tf_df.empty:
+                try:
+                    # Align with the main dataframe's index and forward-fill
+                    aligned_features = holloway_tf_df.reindex(df.index).fillna(method='ffill')
+                    
+                    # Join the aligned features
+                    df = df.join(aligned_features, how='left')
+                    logger.info(f"Successfully merged Holloway features for {tf} timeframe.")
+                except Exception as e:
+                    logger.error(f"Error merging Holloway features for {tf} timeframe: {e}")
 
         return df
 
@@ -1327,59 +1344,76 @@ class HybridPriceForecastingEnsemble:
 
         return df
 
+    def _calculate_holloway_for_timeframe(self, tf: str) -> Optional[pd.DataFrame]:
+        """
+        Helper function to calculate Holloway features for a single timeframe.
+        This function is designed to be called in parallel.
+        """
+        try:
+            # Load raw data for the specific timeframe
+            tf_loader_map = {
+                'H1': self._load_intraday_data,
+                'H4': lambda p: self._load_daily_price_file(p, timeframe_hint='H4'),
+                'Daily': self._load_daily_price_file,
+                'Weekly': lambda p: self._load_daily_price_file(p, timeframe_hint='Weekly'),
+                'Monthly': self._load_monthly_data
+            }
+            
+            loader_func = tf_loader_map.get(tf)
+            if not loader_func:
+                return None
+
+            # Pass pair argument correctly
+            if tf in ['H4', 'Weekly', 'Daily']:
+                    tf_data = loader_func(self.pair)
+            else:
+                    tf_data = loader_func()
+
+            if tf_data.empty or len(tf_data) < 225:
+                logger.warning(f"Skipping Holloway for {tf} due to insufficient data ({len(tf_data)} rows)")
+                return None
+
+            # Calculate Holloway features for this timeframe
+            holloway_tf_df = self._holloway_algo.calculate_complete_holloway_algorithm(tf_data.copy())
+            
+            if holloway_tf_df.empty:
+                return None
+
+            # Prefix columns with timeframe
+            holloway_tf_df = holloway_tf_df.add_prefix(f'holloway_{tf.lower()}_')
+            
+            return holloway_tf_df
+
+        except Exception as e:
+            logger.error(f"Error processing Holloway features for {tf} timeframe: {e}")
+            return None
+
     def _add_multi_timeframe_holloway_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Calculate and integrate Holloway features from all available timeframes.
+        Calculate and integrate Holloway features from all available timeframes in parallel.
         """
         if df.empty:
             return df
 
-        logger.info("Calculating and merging multi-timeframe Holloway features...")
+        logger.info("Calculating and merging multi-timeframe Holloway features in parallel...")
         timeframes = ['H1', 'H4', 'Daily', 'Weekly', 'Monthly']
         
-        for tf in timeframes:
-            try:
-                # Load raw data for the specific timeframe
-                tf_loader_map = {
-                    'H1': self._load_intraday_data,
-                    'H4': lambda p: self._load_daily_price_file(p, timeframe_hint='H4'),
-                    'Daily': self._load_daily_price_file,
-                    'Weekly': lambda p: self._load_daily_price_file(p, timeframe_hint='Weekly'),
-                    'Monthly': self._load_monthly_data
-                }
-                
-                loader_func = tf_loader_map.get(tf)
-                if not loader_func:
-                    continue
+        results = joblib.Parallel(n_jobs=-1)(
+            joblib.delayed(self._calculate_holloway_for_timeframe)(tf) for tf in timeframes
+        )
 
-                # Pass pair argument correctly
-                if tf in ['H4', 'Weekly', 'Daily']:
-                     tf_data = loader_func(self.pair)
-                else:
-                     tf_data = loader_func()
-
-                if tf_data.empty or len(tf_data) < 225:
-                    logger.warning(f"Skipping Holloway for {tf} due to insufficient data ({len(tf_data)} rows)")
-                    continue
-
-                # Calculate Holloway features for this timeframe
-                holloway_tf_df = self._holloway_algo.calculate_complete_holloway_algorithm(tf_data.copy())
-                
-                if holloway_tf_df.empty:
-                    continue
-
-                # Prefix columns with timeframe
-                holloway_tf_df = holloway_tf_df.add_prefix(f'holloway_{tf.lower()}_')
-                
-                # Align with the main dataframe's index and forward-fill
-                aligned_features = holloway_tf_df.reindex(df.index).fillna(method='ffill')
-                
-                # Join the aligned features
-                df = df.join(aligned_features, how='left')
-                logger.info(f"Successfully merged Holloway features for {tf} timeframe.")
-
-            except Exception as e:
-                logger.error(f"Error processing Holloway features for {tf} timeframe: {e}")
+        for i, tf in enumerate(timeframes):
+            holloway_tf_df = results[i]
+            if holloway_tf_df is not None and not holloway_tf_df.empty:
+                try:
+                    # Align with the main dataframe's index and forward-fill
+                    aligned_features = holloway_tf_df.reindex(df.index).fillna(method='ffill')
+                    
+                    # Join the aligned features
+                    df = df.join(aligned_features, how='left')
+                    logger.info(f"Successfully merged Holloway features for {tf} timeframe.")
+                except Exception as e:
+                    logger.error(f"Error merging Holloway features for {tf} timeframe: {e}")
 
         return df
 
@@ -1746,478 +1780,76 @@ class HybridPriceForecastingEnsemble:
 
         return df
 
-    def _add_multi_timeframe_holloway_features(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _calculate_holloway_for_timeframe(self, tf: str) -> Optional[pd.DataFrame]:
         """
-        Calculate and integrate Holloway features from all available timeframes.
-        """
-        if df.empty:
-            return df
-
-        logger.info("Calculating and merging multi-timeframe Holloway features...")
-        timeframes = ['H1', 'H4', 'Daily', 'Weekly', 'Monthly']
-        
-        for tf in timeframes:
-            try:
-                # Load raw data for the specific timeframe
-                tf_loader_map = {
-                    'H1': self._load_intraday_data,
-                    'H4': lambda p: self._load_daily_price_file(p, timeframe_hint='H4'),
-                    'Daily': self._load_daily_price_file,
-                    'Weekly': lambda p: self._load_daily_price_file(p, timeframe_hint='Weekly'),
-                    'Monthly': self._load_monthly_data
-                }
-                
-                loader_func = tf_loader_map.get(tf)
-                if not loader_func:
-                    continue
-
-                # Pass pair argument correctly
-                if tf in ['H4', 'Weekly', 'Daily']:
-                     tf_data = loader_func(self.pair)
-                else:
-                     tf_data = loader_func()
-
-                if tf_data.empty or len(tf_data) < 225:
-                    logger.warning(f"Skipping Holloway for {tf} due to insufficient data ({len(tf_data)} rows)")
-                    continue
-
-                # Calculate Holloway features for this timeframe
-                holloway_tf_df = self._holloway_algo.calculate_complete_holloway_algorithm(tf_data.copy())
-                
-                if holloway_tf_df.empty:
-                    continue
-
-                # Prefix columns with timeframe
-                holloway_tf_df = holloway_tf_df.add_prefix(f'holloway_{tf.lower()}_')
-                
-                # Align with the main dataframe's index and forward-fill
-                aligned_features = holloway_tf_df.reindex(df.index).fillna(method='ffill')
-                
-                # Join the aligned features
-                df = df.join(aligned_features, how='left')
-                logger.info(f"Successfully merged Holloway features for {tf} timeframe.")
-
-            except Exception as e:
-                logger.error(f"Error processing Holloway features for {tf} timeframe: {e}")
-
-        return df
-
-    def _add_multi_timeframe_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Enrich feature set with multi-timeframe technical indicators."""
-        if df.empty or not isinstance(df.index, pd.DatetimeIndex):
-            return df
-
-        base_minutes = self._infer_base_frequency_minutes(df.index)
-        if base_minutes is None:
-            return df
-
-        timeframe_minutes = {
-            'H1': 60,
-            'H4': 240,
-            'D1': 1440,
-            'W1': 10080,
-            'M1': 43200,
-        }
-        timeframe_freq = {
-            'H1': '1H',
-            'H4': '4H',
-            'D1': '1D',
-            'W1': '1W',
-            'M1': '1M',
-        }
-
-        # Ensure the index is sorted for resampling
-        df = df.sort_index()
-
-        tolerance_factor = 0.8  # Allow small variance for calendar-based periods
-
-        for tf_name, minutes in timeframe_minutes.items():
-            if minutes < base_minutes * tolerance_factor:
-                continue  # Skip faster timeframes than the source data
-
-            freq = timeframe_freq[tf_name]
-
-            ohlc = df[['Open', 'High', 'Low', 'Close']]
-            try:
-                resampled = ohlc.resample(freq).agg({
-                    'Open': 'first',
-                    'High': 'max',
-                    'Low': 'min',
-                    'Close': 'last'
-                }).dropna(how='all')
-            except (ValueError, TypeError):
-                continue
-
-            if resampled.empty:
-                continue
-
-            features = pd.DataFrame(index=resampled.index)
-            features[f'{tf_name.lower()}_ema_20'] = resampled['Close'].ewm(span=20, min_periods=5).mean()
-            features[f'{tf_name.lower()}_ema_50'] = resampled['Close'].ewm(span=50, min_periods=10).mean()
-            features[f'{tf_name.lower()}_ema_200'] = resampled['Close'].ewm(span=200, min_periods=20).mean()
-            features[f'{tf_name.lower()}_sma_20'] = resampled['Close'].rolling(20, min_periods=5).mean()
-            features[f'{tf_name.lower()}_sma_50'] = resampled['Close'].rolling(50, min_periods=10).mean()
-            features[f'{tf_name.lower()}_slope_5'] = resampled['Close'].pct_change(5)
-            features[f'{tf_name.lower()}_slope_10'] = resampled['Close'].pct_change(10)
-            features[f'{tf_name.lower()}_rsi_14'] = self._calculate_rsi(resampled['Close'], 14)
-
-            # Align multi-timeframe features back to base timeframe using forward-fill
-            aligned = features.reindex(df.index).fillna(method='ffill')
-            df = df.join(aligned, how='left')
-
-        return df
-
-    def _infer_base_frequency_minutes(self, index: pd.DatetimeIndex) -> Optional[float]:
-        """Infer approximate base frequency in minutes for the given datetime index."""
-        if len(index) < 2:
-            return None
-
-        try:
-            freq = pd.infer_freq(index[:10])
-        except ValueError:
-            freq = None
-
-        if freq:
-            try:
-                offset = pd.tseries.frequencies.to_offset(freq)
-                if offset.delta is not None:
-                    return offset.delta.total_seconds() / 60
-                return offset.nanos / 1e9 / 60
-            except (AttributeError, ValueError):
-                pass
-
-        deltas = index.to_series().diff().dropna()
-        if deltas.empty:
-            return None
-
-        median_delta = deltas.median()
-        return median_delta.total_seconds() / 60
-
-    def _calculate_adx(self, df: pd.DataFrame, period: int) -> pd.Series:
-        """Calculate Average Directional Index."""
-        high = df['High']
-        low = df['Low']
-        close = df['Close']
-
-        # Calculate True Range
-        tr = pd.concat([
-            high - low,
-            (high - close.shift(1)).abs(),
-            (low - close.shift(1)).abs()
-        ], axis=1).max(axis=1)
-
-        # Calculate Directional Movement
-        dm_plus = np.where((high - high.shift(1)) > (low.shift(1) - low),
-                          np.maximum(high - high.shift(1), 0), 0)
-        dm_minus = np.where((low.shift(1) - low) > (high - high.shift(1)),
-                           np.maximum(low.shift(1) - low, 0), 0)
-
-        # Calculate Directional Indicators
-        di_plus = 100 * (pd.Series(dm_plus).rolling(period).mean() / tr.rolling(period).mean())
-        di_minus = 100 * (pd.Series(dm_minus).rolling(period).mean() / tr.rolling(period).mean())
-
-        # Calculate ADX
-        dx = 100 * abs(di_plus - di_minus) / (di_plus + di_minus)
-        adx = dx.rolling(period).mean()
-
-        return adx
-
-    def _load_daily_price_file(self, pair: Optional[str] = None, timeframe_hint: str = 'Daily') -> pd.DataFrame:
-        """Load the provided daily CSV for the specified pair if available."""
-        pair = pair or self.pair
-        
-        # Dynamically create candidate filenames based on hint
-        timeframe_variants = [timeframe_hint.upper(), timeframe_hint.lower()]
-        if 'daily' in timeframe_hint.lower():
-            timeframe_variants.extend(['D1', 'd1'])
-
-        candidate_files = []
-        for variant in set(timeframe_variants):
-            candidate_files.append(self.data_dir / f"{pair}_{variant}.csv")
-        
-        # Add generic fallback
-        if 'daily' in timeframe_hint.lower():
-            candidate_files.append(self.data_dir / f"{pair}.csv")
-            candidate_files.append(self.data_dir / "raw" / f"{pair}_Daily.csv")
-
-
-        for csv_file in candidate_files:
-            if not csv_file.exists():
-                continue
-
-            try:
-                df = pd.read_csv(csv_file)
-
-                if '<DATE>' in df.columns and '<TIME>' in df.columns:
-                    df['Date'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'])
-                elif '<DATE>' in df.columns:
-                    df['Date'] = pd.to_datetime(df['<DATE>'])
-                elif 'Date' in df.columns:
-                    df['Date'] = pd.to_datetime(df['Date'])
-                elif 'date' in df.columns:
-                    df['Date'] = pd.to_datetime(df['date'])
-                else:
-                    logger.warning(f"Unable to identify date column in {csv_file}")
-                    continue
-
-                df = df.sort_values('Date').set_index('Date')
-
-                rename_map = {
-                    '<OPEN>': 'Open',
-                    '<HIGH>': 'High',
-                    '<LOW>': 'Low',
-                    '<CLOSE>': 'Close',
-                    '<VOL>': 'Volume',
-                    '<TICKVOL>': 'TickVolume',
-                    'open': 'Open',
-                    'high': 'High',
-                    'low': 'Low',
-                    'close': 'Close',
-                    'volume': 'Volume',
-                    'tick_volume': 'TickVolume',
-                    'spread': 'Spread'
-                }
-                available_map = {k: v for k, v in rename_map.items() if k in df.columns}
-                if available_map:
-                    df = df.rename(columns=available_map)
-
-                if not all(col in df.columns for col in ['Open', 'High', 'Low', 'Close']):
-                    logger.warning(f"Daily file {csv_file} missing OHLC columns after normalization")
-                    continue
-
-                numeric_cols = [col for col in df.columns if col not in ['symbol', 'currency']]
-                df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
-
-                df = df.dropna(subset=['Open', 'High', 'Low', 'Close'])
-                df = df[~df.index.duplicated(keep='last')]
-
-                logger.info(
-                    "%s daily coverage -> rows: %d, span: %s to %s from %s",
-                    pair,
-                    len(df),
-                    df.index.min().date(),
-                    df.index.max().date(),
-                    csv_file.name
-                )
-
-                return df
-            except Exception as e:
-                logger.warning(f"Error loading daily data from {csv_file}: {e}")
-
-        return pd.DataFrame()
-
-    def _build_intraday_context(self, hourly: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Aggregate hourly candles into daily OHLC and derive intraday statistics."""
-        if hourly.empty or not isinstance(hourly.index, pd.DatetimeIndex):
-            return pd.DataFrame(), pd.DataFrame()
-
-        hourly = hourly.sort_index()
-
-        daily_ohlc = hourly[['Open', 'High', 'Low', 'Close']].resample('1D').agg({
-            'Open': 'first',
-            'High': 'max',
-            'Low': 'min',
-            'Close': 'last'
-        }).dropna(how='all')
-
-        intraday_features = pd.DataFrame(index=daily_ohlc.index)
-
-        if 'Volume' in hourly.columns:
-            intraday_features['intraday_volume_sum'] = hourly['Volume'].resample('1D').sum()
-            intraday_features['intraday_volume_std'] = hourly['Volume'].resample('1D').std()
-
-        if 'TickVolume' in hourly.columns:
-            intraday_features['intraday_tick_volume_sum'] = hourly['TickVolume'].resample('1D').sum()
-
-        if 'RealVolume' in hourly.columns:
-            intraday_features['intraday_real_volume_sum'] = hourly['RealVolume'].resample('1D').sum()
-
-        if 'Spread' in hourly.columns:
-            intraday_features['intraday_spread_mean'] = hourly['Spread'].resample('1D').mean()
-
-        intraday_returns = hourly['Close'].pct_change()
-        intraday_range = (hourly['High'] - hourly['Low'])
-
-        intraday_features['intraday_close_std'] = hourly['Close'].resample('1D').std()
-        intraday_features['intraday_return_volatility'] = intraday_returns.resample('1D').std()
-        intraday_features['intraday_return_sum'] = intraday_returns.resample('1D').sum()
-        intraday_features['intraday_range_mean'] = intraday_range.resample('1D').mean()
-        intraday_features['intraday_range_max'] = intraday_range.resample('1D').max()
-        intraday_features['intraday_range_std'] = intraday_range.resample('1D').std()
-        intraday_features['intraday_bar_count'] = hourly['Close'].resample('1D').count()
-
-        intraday_features = intraday_features.replace([np.inf, -np.inf], np.nan)
-
-        return daily_ohlc.dropna(subset=['Open', 'High', 'Low', 'Close'], how='any'), intraday_features
-
-    def _combine_daily_sources(self, primary: pd.DataFrame, supplemental: pd.DataFrame) -> pd.DataFrame:
-        """Merge provided daily candles with intraday-derived aggregates."""
-        combined = primary.copy()
-        for col in ['Open', 'High', 'Low', 'Close']:
-            if col not in combined.columns:
-                combined[col] = supplemental[col]
-            else:
-                combined[col] = combined[col].combine_first(supplemental[col])
-
-        combined = combined.dropna(subset=['Open', 'High', 'Low', 'Close'])
-        combined = combined[~combined.index.duplicated(keep='last')]
-
-        return combined
-
-    def _get_cross_pair(self) -> Optional[str]:
-        """Identify the complementary pair used for cross-asset signals."""
-        cross_map = {
-            'EURUSD': 'XAUUSD',
-            'XAUUSD': 'EURUSD'
-        }
-        return cross_map.get(self.pair)
-
-    def _add_cross_pair_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Integrate cross-pair correlation features to enhance signal quality."""
-        if df.empty:
-            return df
-
-        cross_pair = self.cross_pair
-        if not cross_pair:
-            return df
-
-        cross_daily = self._load_daily_price_file(cross_pair)
-        if cross_daily.empty:
-            cross_intraday = self._load_intraday_data(cross_pair)
-            if not cross_intraday.empty:
-                cross_daily, _ = self._build_intraday_context(cross_intraday)
-
-        if cross_daily.empty:
-            logger.warning(f"Cross-pair data unavailable for {cross_pair}")
-            return df
-
-        cross_daily = cross_daily[['Close']].rename(columns={'Close': f'{cross_pair}_close'})
-        cross_daily[f'{cross_pair}_returns'] = cross_daily[f'{cross_pair}_close'].pct_change()
-
-        aligned_cross = cross_daily.reindex(df.index).fillna(method='ffill')
-
-        enriched = df.join(aligned_cross, how='left')
-
-        base_returns = enriched.get('returns')
-        cross_returns = enriched.get(f'{cross_pair}_returns')
-
-        if base_returns is not None and cross_returns is not None:
-            enriched[f'corr_5_{cross_pair.lower()}'] = base_returns.rolling(5).corr(cross_returns)
-            enriched[f'corr_20_{cross_pair.lower()}'] = base_returns.rolling(20).corr(cross_returns)
-            enriched[f'return_spread_{cross_pair.lower()}'] = base_returns - cross_returns
-
-        cross_prices = enriched.get(f'{cross_pair}_close')
-        if cross_prices is not None:
-            safe_cross = cross_prices.replace(0, np.nan)
-            enriched[f'price_ratio_{cross_pair.lower()}'] = enriched['Close'] / safe_cross
-            enriched[f'price_spread_{cross_pair.lower()}'] = enriched['Close'] - cross_prices
-
-        return enriched
-
-    def _calculate_atr(self, df: pd.DataFrame, period: int) -> pd.Series:
-        """Calculate Average True Range."""
-        high = df['High']
-        low = df['Low']
-        close = df['Close'].shift(1)
-
-        tr = pd.concat([
-            high - low,
-            (high - close).abs(),
-            (low - close).abs()
-        ], axis=1).max(axis=1)
-
-        return tr.rolling(period).mean()
-
-    def _calculate_rsi(self, prices: pd.Series, period: int) -> pd.Series:
-        """Calculate Relative Strength Index."""
-        delta = prices.diff()
-        gain = (delta.where(delta > 0, 0)).rolling(period).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(period).mean()
-        rs = gain / loss
-        return 100 - (100 / (1 + rs))
-
-    def _calculate_macd(self, prices: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9):
-        """Calculate MACD indicator."""
-        ema_fast = prices.ewm(span=fast).mean()
-        ema_slow = prices.ewm(span=slow).mean()
-        macd = ema_fast - ema_slow
-        macd_signal = macd.ewm(span=signal).mean()
-        macd_hist = macd - macd_signal
-        return macd, macd_signal, macd_hist
-
-    def _calculate_holloway_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Calculate and integrate features from the Complete Holloway Algorithm.
+        Helper function to calculate Holloway features for a single timeframe.
+        This function is designed to be called in parallel.
         """
         try:
-            # Run the complete Holloway algorithm
-            holloway_df = self._holloway_algo.calculate_complete_holloway_algorithm(df.copy())
-
-            # Merge all Holloway features back into the main dataframe
-            # Prefix Holloway features to avoid column name collisions
-            holloway_features = holloway_df.add_prefix('holloway_')
+            # Load raw data for the specific timeframe
+            tf_loader_map = {
+                'H1': self._load_intraday_data,
+                'H4': lambda p: self._load_daily_price_file(p, timeframe_hint='H4'),
+                'Daily': self._load_daily_price_file,
+                'Weekly': lambda p: self._load_daily_price_file(p, timeframe_hint='Weekly'),
+                'Monthly': self._load_monthly_data
+            }
             
-            # Align indices before merging
-            df = df.join(holloway_features, how='left')
+            loader_func = tf_loader_map.get(tf)
+            if not loader_func:
+                return None
+
+            # Pass pair argument correctly
+            if tf in ['H4', 'Weekly', 'Daily']:
+                    tf_data = loader_func(self.pair)
+            else:
+                    tf_data = loader_func()
+
+            if tf_data.empty or len(tf_data) < 225:
+                logger.warning(f"Skipping Holloway for {tf} due to insufficient data ({len(tf_data)} rows)")
+                return None
+
+            # Calculate Holloway features for this timeframe
+            holloway_tf_df = self._holloway_algo.calculate_complete_holloway_algorithm(tf_data.copy())
+            
+            if holloway_tf_df.empty:
+                return None
+
+            # Prefix columns with timeframe
+            holloway_tf_df = holloway_tf_df.add_prefix(f'holloway_{tf.lower()}_')
+            
+            return holloway_tf_df
 
         except Exception as e:
-            logger.error(f"Error calculating Holloway features: {e}")
-
-        return df
+            logger.error(f"Error processing Holloway features for {tf} timeframe: {e}")
+            return None
 
     def _add_multi_timeframe_holloway_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Calculate and integrate Holloway features from all available timeframes.
+        Calculate and integrate Holloway features from all available timeframes in parallel.
         """
         if df.empty:
             return df
 
-        logger.info("Calculating and merging multi-timeframe Holloway features...")
+        logger.info("Calculating and merging multi-timeframe Holloway features in parallel...")
         timeframes = ['H1', 'H4', 'Daily', 'Weekly', 'Monthly']
         
-        for tf in timeframes:
-            try:
-                # Load raw data for the specific timeframe
-                tf_loader_map = {
-                    'H1': self._load_intraday_data,
-                    'H4': lambda p: self._load_daily_price_file(p, timeframe_hint='H4'),
-                    'Daily': self._load_daily_price_file,
-                    'Weekly': lambda p: self._load_daily_price_file(p, timeframe_hint='Weekly'),
-                    'Monthly': self._load_monthly_data
-                }
-                
-                loader_func = tf_loader_map.get(tf)
-                if not loader_func:
-                    continue
+        results = joblib.Parallel(n_jobs=-1)(
+            joblib.delayed(self._calculate_holloway_for_timeframe)(tf) for tf in timeframes
+        )
 
-                # Pass pair argument correctly
-                if tf in ['H4', 'Weekly', 'Daily']:
-                     tf_data = loader_func(self.pair)
-                else:
-                     tf_data = loader_func()
-
-                if tf_data.empty or len(tf_data) < 225:
-                    logger.warning(f"Skipping Holloway for {tf} due to insufficient data ({len(tf_data)} rows)")
-                    continue
-
-                # Calculate Holloway features for this timeframe
-                holloway_tf_df = self._holloway_algo.calculate_complete_holloway_algorithm(tf_data.copy())
-                
-                if holloway_tf_df.empty:
-                    continue
-
-                # Prefix columns with timeframe
-                holloway_tf_df = holloway_tf_df.add_prefix(f'holloway_{tf.lower()}_')
-                
-                # Align with the main dataframe's index and forward-fill
-                aligned_features = holloway_tf_df.reindex(df.index).fillna(method='ffill')
-                
-                # Join the aligned features
-                df = df.join(aligned_features, how='left')
-                logger.info(f"Successfully merged Holloway features for {tf} timeframe.")
-
-            except Exception as e:
-                logger.error(f"Error processing Holloway features for {tf} timeframe: {e}")
+        for i, tf in enumerate(timeframes):
+            holloway_tf_df = results[i]
+            if holloway_tf_df is not None and not holloway_tf_df.empty:
+                try:
+                    # Align with the main dataframe's index and forward-fill
+                    aligned_features = holloway_tf_df.reindex(df.index).fillna(method='ffill')
+                    
+                    # Join the aligned features
+                    df = df.join(aligned_features, how='left')
+                    logger.info(f"Successfully merged Holloway features for {tf} timeframe.")
+                except Exception as e:
+                    logger.error(f"Error merging Holloway features for {tf} timeframe: {e}")
 
         return df
 
@@ -2340,1039 +1972,3 @@ class HybridPriceForecastingEnsemble:
         adx = dx.rolling(period).mean()
 
         return adx
-
-    def _load_daily_price_file(self, pair: Optional[str] = None, timeframe_hint: str = 'Daily') -> pd.DataFrame:
-        """Load the provided daily CSV for the specified pair if available."""
-        pair = pair or self.pair
-        
-        # Dynamically create candidate filenames based on hint
-        timeframe_variants = [timeframe_hint.upper(), timeframe_hint.lower()]
-        if 'daily' in timeframe_hint.lower():
-            timeframe_variants.extend(['D1', 'd1'])
-
-        candidate_files = []
-        for variant in set(timeframe_variants):
-            candidate_files.append(self.data_dir / f"{pair}_{variant}.csv")
-        
-        # Add generic fallback
-        if 'daily' in timeframe_hint.lower():
-            candidate_files.append(self.data_dir / f"{pair}.csv")
-            candidate_files.append(self.data_dir / "raw" / f"{pair}_Daily.csv")
-
-
-        for csv_file in candidate_files:
-            if not csv_file.exists():
-                continue
-
-            try:
-                df = pd.read_csv(csv_file)
-
-                if '<DATE>' in df.columns and '<TIME>' in df.columns:
-                    df['Date'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'])
-                elif '<DATE>' in df.columns:
-                    df['Date'] = pd.to_datetime(df['<DATE>'])
-                elif 'Date' in df.columns:
-                    df['Date'] = pd.to_datetime(df['Date'])
-                elif 'date' in df.columns:
-                    df['Date'] = pd.to_datetime(df['date'])
-                else:
-                    logger.warning(f"Unable to identify date column in {csv_file}")
-                    continue
-
-                df = df.sort_values('Date').set_index('Date')
-
-                rename_map = {
-                    '<OPEN>': 'Open',
-                    '<HIGH>': 'High',
-                    '<LOW>': 'Low',
-                    '<CLOSE>': 'Close',
-                    '<VOL>': 'Volume',
-                    '<TICKVOL>': 'TickVolume',
-                    'open': 'Open',
-                    'high': 'High',
-                    'low': 'Low',
-                    'close': 'Close',
-                    'volume': 'Volume',
-                    'tick_volume': 'TickVolume',
-                    'spread': 'Spread'
-                }
-                available_map = {k: v for k, v in rename_map.items() if k in df.columns}
-                if available_map:
-                    df = df.rename(columns=available_map)
-
-                if not all(col in df.columns for col in ['Open', 'High', 'Low', 'Close']):
-                    logger.warning(f"Daily file {csv_file} missing OHLC columns after normalization")
-                    continue
-
-                numeric_cols = [col for col in df.columns if col not in ['symbol', 'currency']]
-                df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
-
-                df = df.dropna(subset=['Open', 'High', 'Low', 'Close'])
-                df = df[~df.index.duplicated(keep='last')]
-
-                logger.info(
-                    "%s daily coverage -> rows: %d, span: %s to %s from %s",
-                    pair,
-                    len(df),
-                    df.index.min().date(),
-                    df.index.max().date(),
-                    csv_file.name
-                )
-
-                return df
-            except Exception as e:
-                logger.warning(f"Error loading daily data from {csv_file}: {e}")
-
-        return pd.DataFrame()
-
-    def _build_intraday_context(self, hourly: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Aggregate hourly candles into daily OHLC and derive intraday statistics."""
-        if hourly.empty or not isinstance(hourly.index, pd.DatetimeIndex):
-            return pd.DataFrame(), pd.DataFrame()
-
-        hourly = hourly.sort_index()
-
-        daily_ohlc = hourly[['Open', 'High', 'Low', 'Close']].resample('1D').agg({
-            'Open': 'first',
-            'High': 'max',
-            'Low': 'min',
-            'Close': 'last'
-        }).dropna(how='all')
-
-        intraday_features = pd.DataFrame(index=daily_ohlc.index)
-
-        if 'Volume' in hourly.columns:
-            intraday_features['intraday_volume_sum'] = hourly['Volume'].resample('1D').sum()
-            intraday_features['intraday_volume_std'] = hourly['Volume'].resample('1D').std()
-
-        if 'TickVolume' in hourly.columns:
-            intraday_features['intraday_tick_volume_sum'] = hourly['TickVolume'].resample('1D').sum()
-
-        if 'RealVolume' in hourly.columns:
-            intraday_features['intraday_real_volume_sum'] = hourly['RealVolume'].resample('1D').sum()
-
-        if 'Spread' in hourly.columns:
-            intraday_features['intraday_spread_mean'] = hourly['Spread'].resample('1D').mean()
-
-        intraday_returns = hourly['Close'].pct_change()
-        intraday_range = (hourly['High'] - hourly['Low'])
-
-        intraday_features['intraday_close_std'] = hourly['Close'].resample('1D').std()
-        intraday_features['intraday_return_volatility'] = intraday_returns.resample('1D').std()
-        intraday_features['intraday_return_sum'] = intraday_returns.resample('1D').sum()
-        intraday_features['intraday_range_mean'] = intraday_range.resample('1D').mean()
-        intraday_features['intraday_range_max'] = intraday_range.resample('1D').max()
-        intraday_features['intraday_range_std'] = intraday_range.resample('1D').std()
-        intraday_features['intraday_bar_count'] = hourly['Close'].resample('1D').count()
-
-        intraday_features = intraday_features.replace([np.inf, -np.inf], np.nan)
-
-        return daily_ohlc.dropna(subset=['Open', 'High', 'Low', 'Close'], how='any'), intraday_features
-
-    def _combine_daily_sources(self, primary: pd.DataFrame, supplemental: pd.DataFrame) -> pd.DataFrame:
-        """Merge provided daily candles with intraday-derived aggregates."""
-        combined = primary.copy()
-        for col in ['Open', 'High', 'Low', 'Close']:
-            if col not in combined.columns:
-                combined[col] = supplemental[col]
-            else:
-                combined[col] = combined[col].combine_first(supplemental[col])
-
-        combined = combined.dropna(subset=['Open', 'High', 'Low', 'Close'])
-        combined = combined[~combined.index.duplicated(keep='last')]
-
-        return combined
-
-    def _get_cross_pair(self) -> Optional[str]:
-        """Identify the complementary pair used for cross-asset signals."""
-        cross_map = {
-            'EURUSD': 'XAUUSD',
-            'XAUUSD': 'EURUSD'
-        }
-        return cross_map.get(self.pair)
-
-    def _add_cross_pair_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Integrate cross-pair correlation features to enhance signal quality."""
-        if df.empty:
-            return df
-
-        cross_pair = self.cross_pair
-        if not cross_pair:
-            return df
-
-        cross_daily = self._load_daily_price_file(cross_pair)
-        if cross_daily.empty:
-            cross_intraday = self._load_intraday_data(cross_pair)
-            if not cross_intraday.empty:
-                cross_daily, _ = self._build_intraday_context(cross_intraday)
-
-        if cross_daily.empty:
-            logger.warning(f"Cross-pair data unavailable for {cross_pair}")
-            return df
-
-        cross_daily = cross_daily[['Close']].rename(columns={'Close': f'{cross_pair}_close'})
-        cross_daily[f'{cross_pair}_returns'] = cross_daily[f'{cross_pair}_close'].pct_change()
-
-        aligned_cross = cross_daily.reindex(df.index).fillna(method='ffill')
-
-        enriched = df.join(aligned_cross, how='left')
-
-        base_returns = enriched.get('returns')
-        cross_returns = enriched.get(f'{cross_pair}_returns')
-
-        if base_returns is not None and cross_returns is not None:
-            enriched[f'corr_5_{cross_pair.lower()}'] = base_returns.rolling(5).corr(cross_returns)
-            enriched[f'corr_20_{cross_pair.lower()}'] = base_returns.rolling(20).corr(cross_returns)
-            enriched[f'return_spread_{cross_pair.lower()}'] = base_returns - cross_returns
-
-        cross_prices = enriched.get(f'{cross_pair}_close')
-        if cross_prices is not None:
-            safe_cross = cross_prices.replace(0, np.nan)
-            enriched[f'price_ratio_{cross_pair.lower()}'] = enriched['Close'] / safe_cross
-            enriched[f'price_spread_{cross_pair.lower()}'] = enriched['Close'] - cross_prices
-
-        return enriched
-
-    def _calculate_atr(self, df: pd.DataFrame, period: int) -> pd.Series:
-        """Calculate Average True Range."""
-        high = df['High']
-        low = df['Low']
-        close = df['Close'].shift(1)
-
-        tr = pd.concat([
-            high - low,
-            (high - close).abs(),
-            (low - close).abs()
-        ], axis=1).max(axis=1)
-
-        return tr.rolling(period).mean()
-
-    def _calculate_rsi(self, prices: pd.Series, period: int) -> pd.Series:
-        """Calculate Relative Strength Index."""
-        delta = prices.diff()
-        gain = (delta.where(delta > 0, 0)).rolling(period).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(period).mean()
-        rs = gain / loss
-        return 100 - (100 / (1 + rs))
-
-    def _calculate_macd(self, prices: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9):
-        """Calculate MACD indicator."""
-        ema_fast = prices.ewm(span=fast).mean()
-        ema_slow = prices.ewm(span=slow).mean()
-        macd = ema_fast - ema_slow
-        macd_signal = macd.ewm(span=signal).mean()
-        macd_hist = macd - macd_signal
-        return macd, macd_signal, macd_hist
-
-    def _calculate_holloway_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Calculate and integrate features from the Complete Holloway Algorithm.
-        """
-        try:
-            # Run the complete Holloway algorithm
-            holloway_df = self._holloway_algo.calculate_complete_holloway_algorithm(df.copy())
-
-            # Merge all Holloway features back into the main dataframe
-            # Prefix Holloway features to avoid column name collisions
-            holloway_features = holloway_df.add_prefix('holloway_')
-            
-            # Align indices before merging
-            df = df.join(holloway_features, how='left')
-
-        except Exception as e:
-            logger.error(f"Error calculating Holloway features: {e}")
-
-        return df
-
-    def _add_multi_timeframe_holloway_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Calculate and integrate Holloway features from all available timeframes.
-        """
-        if df.empty:
-            return df
-
-        logger.info("Calculating and merging multi-timeframe Holloway features...")
-        timeframes = ['H1', 'H4', 'Daily', 'Weekly', 'Monthly']
-        
-        for tf in timeframes:
-            try:
-                # Load raw data for the specific timeframe
-                tf_loader_map = {
-                    'H1': self._load_intraday_data,
-                    'H4': lambda p: self._load_daily_price_file(p, timeframe_hint='H4'),
-                    'Daily': self._load_daily_price_file,
-                    'Weekly': lambda p: self._load_daily_price_file(p, timeframe_hint='Weekly'),
-                    'Monthly': self._load_monthly_data
-                }
-                
-                loader_func = tf_loader_map.get(tf)
-                if not loader_func:
-                    continue
-
-                # Pass pair argument correctly
-                if tf in ['H4', 'Weekly', 'Daily']:
-                     tf_data = loader_func(self.pair)
-                else:
-                     tf_data = loader_func()
-
-                if tf_data.empty or len(tf_data) < 225:
-                    logger.warning(f"Skipping Holloway for {tf} due to insufficient data ({len(tf_data)} rows)")
-                    continue
-
-                # Calculate Holloway features for this timeframe
-                holloway_tf_df = self._holloway_algo.calculate_complete_holloway_algorithm(tf_data.copy())
-                
-                if holloway_tf_df.empty:
-                    continue
-
-                # Prefix columns with timeframe
-                holloway_tf_df = holloway_tf_df.add_prefix(f'holloway_{tf.lower()}_')
-                
-                # Align with the main dataframe's index and forward-fill
-                aligned_features = holloway_tf_df.reindex(df.index).fillna(method='ffill')
-                
-                # Join the aligned features
-                df = df.join(aligned_features, how='left')
-                logger.info(f"Successfully merged Holloway features for {tf} timeframe.")
-
-            except Exception as e:
-                logger.error(f"Error processing Holloway features for {tf} timeframe: {e}")
-
-        return df
-
-    def _add_multi_timeframe_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Enrich feature set with multi-timeframe technical indicators."""
-        if df.empty or not isinstance(df.index, pd.DatetimeIndex):
-            return df
-
-        base_minutes = self._infer_base_frequency_minutes(df.index)
-        if base_minutes is None:
-            return df
-
-        timeframe_minutes = {
-            'H1': 60,
-            'H4': 240,
-            'D1': 1440,
-            'W1': 10080,
-            'M1': 43200,
-        }
-        timeframe_freq = {
-            'H1': '1H',
-            'H4': '4H',
-            'D1': '1D',
-            'W1': '1W',
-            'M1': '1M',
-        }
-
-        # Ensure the index is sorted for resampling
-        df = df.sort_index()
-
-        tolerance_factor = 0.8  # Allow small variance for calendar-based periods
-
-        for tf_name, minutes in timeframe_minutes.items():
-            if minutes < base_minutes * tolerance_factor:
-                continue  # Skip faster timeframes than the source data
-
-            freq = timeframe_freq[tf_name]
-
-            ohlc = df[['Open', 'High', 'Low', 'Close']]
-            try:
-                resampled = ohlc.resample(freq).agg({
-                    'Open': 'first',
-                    'High': 'max',
-                    'Low': 'min',
-                    'Close': 'last'
-                }).dropna(how='all')
-            except (ValueError, TypeError):
-                continue
-
-            if resampled.empty:
-                continue
-
-            features = pd.DataFrame(index=resampled.index)
-            features[f'{tf_name.lower()}_ema_20'] = resampled['Close'].ewm(span=20, min_periods=5).mean()
-            features[f'{tf_name.lower()}_ema_50'] = resampled['Close'].ewm(span=50, min_periods=10).mean()
-            features[f'{tf_name.lower()}_ema_200'] = resampled['Close'].ewm(span=200, min_periods=20).mean()
-            features[f'{tf_name.lower()}_sma_20'] = resampled['Close'].rolling(20, min_periods=5).mean()
-            features[f'{tf_name.lower()}_sma_50'] = resampled['Close'].rolling(50, min_periods=10).mean()
-            features[f'{tf_name.lower()}_slope_5'] = resampled['Close'].pct_change(5)
-            features[f'{tf_name.lower()}_slope_10'] = resampled['Close'].pct_change(10)
-            features[f'{tf_name.lower()}_rsi_14'] = self._calculate_rsi(resampled['Close'], 14)
-
-            # Align multi-timeframe features back to base timeframe using forward-fill
-            aligned = features.reindex(df.index).fillna(method='ffill')
-            df = df.join(aligned, how='left')
-
-        return df
-
-    def _infer_base_frequency_minutes(self, index: pd.DatetimeIndex) -> Optional[float]:
-        """Infer approximate base frequency in minutes for the given datetime index."""
-        if len(index) < 2:
-            return None
-
-        try:
-            freq = pd.infer_freq(index[:10])
-        except ValueError:
-            freq = None
-
-        if freq:
-            try:
-                offset = pd.tseries.frequencies.to_offset(freq)
-                if offset.delta is not None:
-                    return offset.delta.total_seconds() / 60
-                return offset.nanos / 1e9 / 60
-            except (AttributeError, ValueError):
-                pass
-
-        deltas = index.to_series().diff().dropna()
-        if deltas.empty:
-            return None
-
-        median_delta = deltas.median()
-        return median_delta.total_seconds() / 60
-
-    def _calculate_adx(self, df: pd.DataFrame, period: int) -> pd.Series:
-        """Calculate Average Directional Index."""
-        high = df['High']
-        low = df['Low']
-        close = df['Close']
-
-        # Calculate True Range
-        tr = pd.concat([
-            high - low,
-            (high - close.shift(1)).abs(),
-            (low - close.shift(1)).abs()
-        ], axis=1).max(axis=1)
-
-        # Calculate Directional Movement
-        dm_plus = np.where((high - high.shift(1)) > (low.shift(1) - low),
-                          np.maximum(high - high.shift(1), 0), 0)
-        dm_minus = np.where((low.shift(1) - low) > (high - high.shift(1)),
-                           np.maximum(low.shift(1) - low, 0), 0)
-
-        # Calculate Directional Indicators
-        di_plus = 100 * (pd.Series(dm_plus).rolling(period).mean() / tr.rolling(period).mean())
-        di_minus = 100 * (pd.Series(dm_minus).rolling(period).mean() / tr.rolling(period).mean())
-
-        # Calculate ADX
-        dx = 100 * abs(di_plus - di_minus) / (di_plus + di_minus)
-        adx = dx.rolling(period).mean()
-
-        return adx
-
-    def _load_daily_price_file(self, pair: Optional[str] = None, timeframe_hint: str = 'Daily') -> pd.DataFrame:
-        """Load the provided daily CSV for the specified pair if available."""
-        pair = pair or self.pair
-        
-        # Dynamically create candidate filenames based on hint
-        timeframe_variants = [timeframe_hint.upper(), timeframe_hint.lower()]
-        if 'daily' in timeframe_hint.lower():
-            timeframe_variants.extend(['D1', 'd1'])
-
-        candidate_files = []
-        for variant in set(timeframe_variants):
-            candidate_files.append(self.data_dir / f"{pair}_{variant}.csv")
-        
-        # Add generic fallback
-        if 'daily' in timeframe_hint.lower():
-            candidate_files.append(self.data_dir / f"{pair}.csv")
-            candidate_files.append(self.data_dir / "raw" / f"{pair}_Daily.csv")
-
-
-        for csv_file in candidate_files:
-            if not csv_file.exists():
-                continue
-
-            try:
-                df = pd.read_csv(csv_file)
-
-                if '<DATE>' in df.columns and '<TIME>' in df.columns:
-                    df['Date'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'])
-                elif '<DATE>' in df.columns:
-                    df['Date'] = pd.to_datetime(df['<DATE>'])
-                elif 'Date' in df.columns:
-                    df['Date'] = pd.to_datetime(df['Date'])
-                elif 'date' in df.columns:
-                    df['Date'] = pd.to_datetime(df['date'])
-                else:
-                    logger.warning(f"Unable to identify date column in {csv_file}")
-                    continue
-
-                df = df.sort_values('Date').set_index('Date')
-
-                rename_map = {
-                    '<OPEN>': 'Open',
-                    '<HIGH>': 'High',
-                    '<LOW>': 'Low',
-                    '<CLOSE>': 'Close',
-                    '<VOL>': 'Volume',
-                    '<TICKVOL>': 'TickVolume',
-                    'open': 'Open',
-                    'high': 'High',
-                    'low': 'Low',
-                    'close': 'Close',
-                    'volume': 'Volume',
-                    'tick_volume': 'TickVolume',
-                    'spread': 'Spread'
-                }
-                available_map = {k: v for k, v in rename_map.items() if k in df.columns}
-                if available_map:
-                    df = df.rename(columns=available_map)
-
-                if not all(col in df.columns for col in ['Open', 'High', 'Low', 'Close']):
-                    logger.warning(f"Daily file {csv_file} missing OHLC columns after normalization")
-                    continue
-
-                numeric_cols = [col for col in df.columns if col not in ['symbol', 'currency']]
-                df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
-
-                df = df.dropna(subset=['Open', 'High', 'Low', 'Close'])
-                df = df[~df.index.duplicated(keep='last')]
-
-                logger.info(
-                    "%s daily coverage -> rows: %d, span: %s to %s from %s",
-                    pair,
-                    len(df),
-                    df.index.min().date(),
-                    df.index.max().date(),
-                    csv_file.name
-                )
-
-                return df
-            except Exception as e:
-                logger.warning(f"Error loading daily data from {csv_file}: {e}")
-
-        return pd.DataFrame()
-
-    def _build_intraday_context(self, hourly: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Aggregate hourly candles into daily OHLC and derive intraday statistics."""
-        if hourly.empty or not isinstance(hourly.index, pd.DatetimeIndex):
-            return pd.DataFrame(), pd.DataFrame()
-
-        hourly = hourly.sort_index()
-
-        daily_ohlc = hourly[['Open', 'High', 'Low', 'Close']].resample('1D').agg({
-            'Open': 'first',
-            'High': 'max',
-            'Low': 'min',
-            'Close': 'last'
-        }).dropna(how='all')
-
-        intraday_features = pd.DataFrame(index=daily_ohlc.index)
-
-        if 'Volume' in hourly.columns:
-            intraday_features['intraday_volume_sum'] = hourly['Volume'].resample('1D').sum()
-            intraday_features['intraday_volume_std'] = hourly['Volume'].resample('1D').std()
-
-        if 'TickVolume' in hourly.columns:
-            intraday_features['intraday_tick_volume_sum'] = hourly['TickVolume'].resample('1D').sum()
-
-        if 'RealVolume' in hourly.columns:
-            intraday_features['intraday_real_volume_sum'] = hourly['RealVolume'].resample('1D').sum()
-
-        if 'Spread' in hourly.columns:
-            intraday_features['intraday_spread_mean'] = hourly['Spread'].resample('1D').mean()
-
-        intraday_returns = hourly['Close'].pct_change()
-        intraday_range = (hourly['High'] - hourly['Low'])
-
-        intraday_features['intraday_close_std'] = hourly['Close'].resample('1D').std()
-        intraday_features['intraday_return_volatility'] = intraday_returns.resample('1D').std()
-        intraday_features['intraday_return_sum'] = intraday_returns.resample('1D').sum()
-        intraday_features['intraday_range_mean'] = intraday_range.resample('1D').mean()
-        intraday_features['intraday_range_max'] = intraday_range.resample('1D').max()
-        intraday_features['intraday_range_std'] = intraday_range.resample('1D').std()
-        intraday_features['intraday_bar_count'] = hourly['Close'].resample('1D').count()
-
-        intraday_features = intraday_features.replace([np.inf, -np.inf], np.nan)
-
-        return daily_ohlc.dropna(subset=['Open', 'High', 'Low', 'Close'], how='any'), intraday_features
-
-    def _combine_daily_sources(self, primary: pd.DataFrame, supplemental: pd.DataFrame) -> pd.DataFrame:
-        """Merge provided daily candles with intraday-derived aggregates."""
-        combined = primary.copy()
-        for col in ['Open', 'High', 'Low', 'Close']:
-            if col not in combined.columns:
-                combined[col] = supplemental[col]
-            else:
-                combined[col] = combined[col].combine_first(supplemental[col])
-
-        combined = combined.dropna(subset=['Open', 'High', 'Low', 'Close'])
-        combined = combined[~combined.index.duplicated(keep='last')]
-
-        return combined
-
-    def _get_cross_pair(self) -> Optional[str]:
-        """Identify the complementary pair used for cross-asset signals."""
-        cross_map = {
-            'EURUSD': 'XAUUSD',
-            'XAUUSD': 'EURUSD'
-        }
-        return cross_map.get(self.pair)
-
-    def _add_cross_pair_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Integrate cross-pair correlation features to enhance signal quality."""
-        if df.empty:
-            return df
-
-        cross_pair = self.cross_pair
-        if not cross_pair:
-            return df
-
-        cross_daily = self._load_daily_price_file(cross_pair)
-        if cross_daily.empty:
-            cross_intraday = self._load_intraday_data(cross_pair)
-            if not cross_intraday.empty:
-                cross_daily, _ = self._build_intraday_context(cross_intraday)
-
-        if cross_daily.empty:
-            logger.warning(f"Cross-pair data unavailable for {cross_pair}")
-            return df
-
-        cross_daily = cross_daily[['Close']].rename(columns={'Close': f'{cross_pair}_close'})
-        cross_daily[f'{cross_pair}_returns'] = cross_daily[f'{cross_pair}_close'].pct_change()
-
-        aligned_cross = cross_daily.reindex(df.index).fillna(method='ffill')
-
-        enriched = df.join(aligned_cross, how='left')
-
-        base_returns = enriched.get('returns')
-        cross_returns = enriched.get(f'{cross_pair}_returns')
-
-        if base_returns is not None and cross_returns is not None:
-            enriched[f'corr_5_{cross_pair.lower()}'] = base_returns.rolling(5).corr(cross_returns)
-            enriched[f'corr_20_{cross_pair.lower()}'] = base_returns.rolling(20).corr(cross_returns)
-            enriched[f'return_spread_{cross_pair.lower()}'] = base_returns - cross_returns
-
-        cross_prices = enriched.get(f'{cross_pair}_close')
-        if cross_prices is not None:
-            safe_cross = cross_prices.replace(0, np.nan)
-            enriched[f'price_ratio_{cross_pair.lower()}'] = enriched['Close'] / safe_cross
-            enriched[f'price_spread_{cross_pair.lower()}'] = enriched['Close'] - cross_prices
-
-        return enriched
-
-    def _calculate_atr(self, df: pd.DataFrame, period: int) -> pd.Series:
-        """Calculate Average True Range."""
-        high = df['High']
-        low = df['Low']
-        close = df['Close'].shift(1)
-
-        tr = pd.concat([
-            high - low,
-            (high - close).abs(),
-            (low - close).abs()
-        ], axis=1).max(axis=1)
-
-        return tr.rolling(period).mean()
-
-    def _calculate_rsi(self, prices: pd.Series, period: int) -> pd.Series:
-        """Calculate Relative Strength Index."""
-        delta = prices.diff()
-        gain = (delta.where(delta > 0, 0)).rolling(period).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(period).mean()
-        rs = gain / loss
-        return 100 - (100 / (1 + rs))
-
-    def _calculate_macd(self, prices: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9):
-        """Calculate MACD indicator."""
-        ema_fast = prices.ewm(span=fast).mean()
-        ema_slow = prices.ewm(span=slow).mean()
-        macd = ema_fast - ema_slow
-        macd_signal = macd.ewm(span=signal).mean()
-        macd_hist = macd - macd_signal
-        return macd, macd_signal, macd_hist
-
-    def _calculate_holloway_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Calculate and integrate features from the Complete Holloway Algorithm.
-        """
-        try:
-            # Run the complete Holloway algorithm
-            holloway_df = self._holloway_algo.calculate_complete_holloway_algorithm(df.copy())
-
-            # Merge all Holloway features back into the main dataframe
-            # Prefix Holloway features to avoid column name collisions
-            holloway_features = holloway_df.add_prefix('holloway_')
-            
-            # Align indices before merging
-            df = df.join(holloway_features, how='left')
-
-        except Exception as e:
-            logger.error(f"Error calculating Holloway features: {e}")
-
-        return df
-
-    def _add_multi_timeframe_holloway_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Calculate and integrate Holloway features from all available timeframes.
-        """
-        if df.empty:
-            return df
-
-        logger.info("Calculating and merging multi-timeframe Holloway features...")
-        timeframes = ['H1', 'H4', 'Daily', 'Weekly', 'Monthly']
-        
-        for tf in timeframes:
-            try:
-                # Load raw data for the specific timeframe
-                tf_loader_map = {
-                    'H1': self._load_intraday_data,
-                    'H4': lambda p: self._load_daily_price_file(p, timeframe_hint='H4'),
-                    'Daily': self._load_daily_price_file,
-                    'Weekly': lambda p: self._load_daily_price_file(p, timeframe_hint='Weekly'),
-                    'Monthly': self._load_monthly_data
-                }
-                
-                loader_func = tf_loader_map.get(tf)
-                if not loader_func:
-                    continue
-
-                # Pass pair argument correctly
-                if tf in ['H4', 'Weekly', 'Daily']:
-                     tf_data = loader_func(self.pair)
-                else:
-                     tf_data = loader_func()
-
-                if tf_data.empty or len(tf_data) < 225:
-                    logger.warning(f"Skipping Holloway for {tf} due to insufficient data ({len(tf_data)} rows)")
-                    continue
-
-                # Calculate Holloway features for this timeframe
-                holloway_tf_df = self._holloway_algo.calculate_complete_holloway_algorithm(tf_data.copy())
-                
-                if holloway_tf_df.empty:
-                    continue
-
-                # Prefix columns with timeframe
-                holloway_tf_df = holloway_tf_df.add_prefix(f'holloway_{tf.lower()}_')
-                
-                # Align with the main dataframe's index and forward-fill
-                aligned_features = holloway_tf_df.reindex(df.index).fillna(method='ffill')
-                
-                # Join the aligned features
-                df = df.join(aligned_features, how='left')
-                logger.info(f"Successfully merged Holloway features for {tf} timeframe.")
-
-            except Exception as e:
-                logger.error(f"Error processing Holloway features for {tf} timeframe: {e}")
-
-        return df
-
-    def _add_multi_timeframe_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Enrich feature set with multi-timeframe technical indicators."""
-        if df.empty or not isinstance(df.index, pd.DatetimeIndex):
-            return df
-
-        base_minutes = self._infer_base_frequency_minutes(df.index)
-        if base_minutes is None:
-            return df
-
-        timeframe_minutes = {
-            'H1': 60,
-            'H4': 240,
-            'D1': 1440,
-            'W1': 10080,
-            'M1': 43200,
-        }
-        timeframe_freq = {
-            'H1': '1H',
-            'H4': '4H',
-            'D1': '1D',
-            'W1': '1W',
-            'M1': '1M',
-        }
-
-        # Ensure the index is sorted for resampling
-        df = df.sort_index()
-
-        tolerance_factor = 0.8  # Allow small variance for calendar-based periods
-
-        for tf_name, minutes in timeframe_minutes.items():
-            if minutes < base_minutes * tolerance_factor:
-                continue  # Skip faster timeframes than the source data
-
-            freq = timeframe_freq[tf_name]
-
-            ohlc = df[['Open', 'High', 'Low', 'Close']]
-            try:
-                resampled = ohlc.resample(freq).agg({
-                    'Open': 'first',
-                    'High': 'max',
-                    'Low': 'min',
-                    'Close': 'last'
-                }).dropna(how='all')
-            except (ValueError, TypeError):
-                continue
-
-            if resampled.empty:
-                continue
-
-            features = pd.DataFrame(index=resampled.index)
-            features[f'{tf_name.lower()}_ema_20'] = resampled['Close'].ewm(span=20, min_periods=5).mean()
-            features[f'{tf_name.lower()}_ema_50'] = resampled['Close'].ewm(span=50, min_periods=10).mean()
-            features[f'{tf_name.lower()}_ema_200'] = resampled['Close'].ewm(span=200, min_periods=20).mean()
-            features[f'{tf_name.lower()}_sma_20'] = resampled['Close'].rolling(20, min_periods=5).mean()
-            features[f'{tf_name.lower()}_sma_50'] = resampled['Close'].rolling(50, min_periods=10).mean()
-            features[f'{tf_name.lower()}_slope_5'] = resampled['Close'].pct_change(5)
-            features[f'{tf_name.lower()}_slope_10'] = resampled['Close'].pct_change(10)
-            features[f'{tf_name.lower()}_rsi_14'] = self._calculate_rsi(resampled['Close'], 14)
-
-            # Align multi-timeframe features back to base timeframe using forward-fill
-            aligned = features.reindex(df.index).fillna(method='ffill')
-            df = df.join(aligned, how='left')
-
-        return df
-
-    def _infer_base_frequency_minutes(self, index: pd.DatetimeIndex) -> Optional[float]:
-        """Infer approximate base frequency in minutes for the given datetime index."""
-        if len(index) < 2:
-            return None
-
-        try:
-            freq = pd.infer_freq(index[:10])
-        except ValueError:
-            freq = None
-
-        if freq:
-            try:
-                offset = pd.tseries.frequencies.to_offset(freq)
-                if offset.delta is not None:
-                    return offset.delta.total_seconds() / 60
-                return offset.nanos / 1e9 / 60
-            except (AttributeError, ValueError):
-                pass
-
-        deltas = index.to_series().diff().dropna()
-        if deltas.empty:
-            return None
-
-        median_delta = deltas.median()
-        return median_delta.total_seconds() / 60
-
-    def _calculate_adx(self, df: pd.DataFrame, period: int) -> pd.Series:
-        """Calculate Average Directional Index."""
-        high = df['High']
-        low = df['Low']
-        close = df['Close']
-
-        # Calculate True Range
-        tr = pd.concat([
-            high - low,
-            (high - close.shift(1)).abs(),
-            (low - close.shift(1)).abs()
-        ], axis=1).max(axis=1)
-
-        # Calculate Directional Movement
-        dm_plus = np.where((high - high.shift(1)) > (low.shift(1) - low),
-                          np.maximum(high - high.shift(1), 0), 0)
-        dm_minus = np.where((low.shift(1) - low) > (high - high.shift(1)),
-                           np.maximum(low.shift(1) - low, 0), 0)
-
-        # Calculate Directional Indicators
-        di_plus = 100 * (pd.Series(dm_plus).rolling(period).mean() / tr.rolling(period).mean())
-        di_minus = 100 * (pd.Series(dm_minus).rolling(period).mean() / tr.rolling(period).mean())
-
-        # Calculate ADX
-        dx = 100 * abs(di_plus - di_minus) / (di_plus + di_minus)
-        adx = dx.rolling(period).mean()
-
-        return adx
-
-    def _load_daily_price_file(self, pair: Optional[str] = None, timeframe_hint: str = 'Daily') -> pd.DataFrame:
-        """Load the provided daily CSV for the specified pair if available."""
-        pair = pair or self.pair
-        
-        # Dynamically create candidate filenames based on hint
-        timeframe_variants = [timeframe_hint.upper(), timeframe_hint.lower()]
-        if 'daily' in timeframe_hint.lower():
-            timeframe_variants.extend(['D1', 'd1'])
-
-        candidate_files = []
-        for variant in set(timeframe_variants):
-            candidate_files.append(self.data_dir / f"{pair}_{variant}.csv")
-        
-        # Add generic fallback
-        if 'daily' in timeframe_hint.lower():
-            candidate_files.append(self.data_dir / f"{pair}.csv")
-            candidate_files.append(self.data_dir / "raw" / f"{pair}_Daily.csv")
-
-
-        for csv_file in candidate_files:
-            if not csv_file.exists():
-                continue
-
-            try:
-                df = pd.read_csv(csv_file)
-
-                if '<DATE>' in df.columns and '<TIME>' in df.columns:
-                    df['Date'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'])
-                elif '<DATE>' in df.columns:
-                    df['Date'] = pd.to_datetime(df['<DATE>'])
-                elif 'Date' in df.columns:
-                    df['Date'] = pd.to_datetime(df['Date'])
-                elif 'date' in df.columns:
-                    df['Date'] = pd.to_datetime(df['date'])
-                else:
-                    logger.warning(f"Unable to identify date column in {csv_file}")
-                    continue
-
-                df = df.sort_values('Date').set_index('Date')
-
-                rename_map = {
-                    '<OPEN>': 'Open',
-                    '<HIGH>': 'High',
-                    '<LOW>': 'Low',
-                    '<CLOSE>': 'Close',
-                    '<VOL>': 'Volume',
-                    '<TICKVOL>': 'TickVolume',
-                    'open': 'Open',
-                    'high': 'High',
-                    'low': 'Low',
-                    'close': 'Close',
-                    'volume': 'Volume',
-                    'tick_volume': 'TickVolume',
-                    'spread': 'Spread'
-                }
-                available_map = {k: v for k, v in rename_map.items() if k in df.columns}
-                if available_map:
-                    df = df.rename(columns=available_map)
-
-                if not all(col in df.columns for col in ['Open', 'High', 'Low', 'Close']):
-                    logger.warning(f"Daily file {csv_file} missing OHLC columns after normalization")
-                    continue
-
-                numeric_cols = [col for col in df.columns if col not in ['symbol', 'currency']]
-                df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
-
-                df = df.dropna(subset=['Open', 'High', 'Low', 'Close'])
-                df = df[~df.index.duplicated(keep='last')]
-
-                logger.info(
-                    "%s daily coverage -> rows: %d, span: %s to %s from %s",
-                    pair,
-                    len(df),
-                    df.index.min().date(),
-                    df.index.max().date(),
-                    csv_file.name
-                )
-
-                return df
-            except Exception as e:
-                logger.warning(f"Error loading daily data from {csv_file}: {e}")
-
-        return pd.DataFrame()
-
-    def _build_intraday_context(self, hourly: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Aggregate hourly candles into daily OHLC and derive intraday statistics."""
-        if hourly.empty or not isinstance(hourly.index, pd.DatetimeIndex):
-            return pd.DataFrame(), pd.DataFrame()
-
-        hourly = hourly.sort_index()
-
-        daily_ohlc = hourly[['Open', 'High', 'Low', 'Close']].resample('1D').agg({
-            'Open': 'first',
-            'High': 'max',
-            'Low': 'min',
-            'Close': 'last'
-        }).dropna(how='all')
-
-        intraday_features = pd.DataFrame(index=daily_ohlc.index)
-
-        if 'Volume' in hourly.columns:
-            intraday_features['intraday_volume_sum'] = hourly['Volume'].resample('1D').sum()
-            intraday_features['intraday_volume_std'] = hourly['Volume'].resample('1D').std()
-
-        if 'TickVolume' in hourly.columns:
-            intraday_features['intraday_tick_volume_sum'] = hourly['TickVolume'].resample('1D').sum()
-
-        if 'RealVolume' in hourly.columns:
-            intraday_features['intraday_real_volume_sum'] = hourly['RealVolume'].resample('1D').sum()
-
-        if 'Spread' in hourly.columns:
-            intraday_features['intraday_spread_mean'] = hourly['Spread'].resample('1D').mean()
-
-        intraday_returns = hourly['Close'].pct_change()
-        intraday_range = (hourly['High'] - hourly['Low'])
-
-        intraday_features['intraday_close_std'] = hourly['Close'].resample('1D').std()
-        intraday_features['intraday_return_volatility'] = intraday_returns.resample('1D').std()
-        intraday_features['intraday_return_sum'] = intraday_returns.resample('1D').sum()
-        intraday_features['intraday_range_mean'] = intraday_range.resample('1D').mean()
-        intraday_features['intraday_range_max'] = intraday_range.resample('1D').max()
-        intraday_features['intraday_range_std'] = intraday_range.resample('1D').std()
-                    df.index.max().date(),
-                    csv_file.name
-                )
-
-                return df
-            except Exception as e:
-                logger.warning(f"Error loading daily data from {csv_file}: {e}")
-
-        return pd.DataFrame()
-
-    def _build_intraday_context(self, hourly: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Aggregate hourly candles into daily OHLC and derive intraday statistics."""
-        if hourly.empty or not isinstance(hourly.index, pd.DatetimeIndex):
-            return pd.DataFrame(), pd.DataFrame()
-
-        hourly = hourly.sort_index()
-
-        daily_ohlc = hourly[['Open', 'High', 'Low', 'Close']].resample('1D').agg({
-            'Open': 'first',
-            'High': 'max',
-            'Low': 'min',
-            'Close': 'last'
-        }).dropna(how='all')
-
-        intraday_features = pd.DataFrame(index=daily_ohlc.index)
-
-        if 'Volume' in hourly.columns:
-            intraday_features['intraday_volume_sum'] = hourly['Volume'].resample('1D').sum()
-            intraday_features['intraday_volume_std'] = hourly['Volume'].resample('1D').std()
-
-        if 'TickVolume' in hourly.columns:
-            intraday_features['intraday_tick_volume_sum'] = hourly['TickVolume'].resample('1D').sum()
-
-        if 'RealVolume' in hourly.columns:
-            intraday_features['intraday_real_volume_sum'] = hourly['RealVolume'].resample('1D').sum()
-
-        if 'Spread' in hourly.columns:
-            intraday_features['intraday_spread_mean'] = hourly['Spread'].resample('1D').mean()
-
-        intraday_returns = hourly['Close'].pct_change()
-        intraday_range = (hourly['High'] - hourly['Low'])
-
-        intraday_features['intraday_close_std'] = hourly['Close'].resample('1D').std()
-        intraday_features['intraday_return_volatility'] = intraday_returns.resample('1D').std()
-        intraday_features['intraday_return_sum'] = intraday_returns.resample('1D').sum()
-        intraday_features['intraday_range_mean'] = intraday_range.resample('1D').mean()
-        intraday_features['intraday_range_max'] = intraday_range.resample('1D').max()
-        intraday_features['intraday_range_std'] = intraday_range.resample('1D').std()
-        intraday_features['intraday_bar_count'] = hourly['Close'].resample('1D').count()
-
-        intraday_features = intraday_features.replace([np.inf, -np.inf], np.nan)
-
-        return daily_ohlc.dropna(subset=['Open', 'High', 'Low', 'Close'], how='any'), intraday_features
-
-    def _combine_daily_sources(self, primary: pd.DataFrame, supplemental: pd.DataFrame) -> pd.DataFrame:
-        """Merge provided daily candles with intraday-derived aggregates."""
-        combined = primary.copy()
-        for col in ['Open', 'High', 'Low', 'Close']:
-            if col not in combined.columns:
-                combined[col] = supplemental[col]
-            else:
-                combined[col] = combined[col].combine_first(supplemental[col])
-
-        combined = combined.dropna(subset=['Open', 'High', 'Low', 'Close'])
-        combined = combined[~combined.index.duplicated(keep='last')]
-
-        return combined
-
-    def _get_cross_pair(self) -> Optional[str]:
-        """Identify the complementary pair used for cross-asset signals."""
-        cross_map = {
-            'EURUSD': 'XAUUSD',
-            'XAUUSD': 'EURUSD'
-        }
-        return cross_map.get(self.pair)
