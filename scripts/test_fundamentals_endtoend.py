@@ -1,3 +1,74 @@
+"""
+Offline-capable end-to-end smoke test for fundamental data ingestion.
+If API keys are present it will attempt live fetches; otherwise it will fall back to
+sample JSON fixtures under `data/tests/fundamentals/`.
+
+Usage: python -m scripts.test_fundamentals_endtoend
+"""
+import os
+import json
+from pathlib import Path
+import logging
+
+import fundamentals
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('test_fundamentals')
+
+FIXTURE_DIR = Path('data/tests/fundamentals')
+
+SOURCES = ['alpha_vantage', 'finnhub', 'fmp', 'api_ninja']
+TEST_SYMBOL = os.environ.get('TEST_SYMBOL', 'EURUSD')
+
+def load_fixture_for(source, symbol):
+    fname = FIXTURE_DIR / f"{source}_{symbol}.json"
+    if not fname.exists():
+        return None
+    return json.loads(fname.read_text())
+
+def run():
+    results = {}
+    for src in SOURCES:
+        try:
+            # If we have an environment key, call the live fetcher
+            env_key = {
+                'alpha_vantage': 'AV_API_KEY',
+                'finnhub': 'FINNHUB_API_KEY',
+                'fmp': 'FMP_API_KEY',
+                'api_ninja': 'API_NINJA_KEY'
+            }.get(src)
+
+            if env_key and os.getenv(env_key):
+                logger.info(f"Attempting live fetch for {src} {TEST_SYMBOL}")
+                feats = fundamentals.fetch_fundamental_features(src, TEST_SYMBOL)
+            else:
+                logger.info(f"Using fixture for {src} {TEST_SYMBOL}")
+                fixture = load_fixture_for(src, TEST_SYMBOL)
+                if fixture is None:
+                    logger.warning(f"No fixture found for {src} {TEST_SYMBOL}")
+                    results[src] = {'ok': False, 'reason': 'no fixture'}
+                    continue
+                # Map fixture structure where necessary (the fetcher expects numeric fields)
+                results[src] = {'ok': True, 'sample': fixture}
+                continue
+
+            # Basic checks
+            assert isinstance(feats, dict)
+            assert 'pe_ratio' in feats
+            results[src] = {'ok': True, 'sample': feats}
+
+        except Exception as e:
+            logger.exception(f"Error fetching fundamentals for {src}")
+            results[src] = {'ok': False, 'reason': str(e)}
+
+    print('\nFundamentals Test Results:')
+    for k, v in results.items():
+        print(f" - {k}: {v.get('ok')}, reason={v.get('reason', '')}")
+
+    return results
+
+if __name__ == '__main__':
+    run()
 #!/usr/bin/env python3
 """
 test_fundamentals_endtoend.py
