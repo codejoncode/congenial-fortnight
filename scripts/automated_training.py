@@ -113,6 +113,23 @@ class AutomatedTrainer:
                     # Too few samples to train reliably; skip or allow emergency config downstream
                     logger.warning(f"⚠️  {pair}: Very small training set ({x_len} samples). Training may use emergency minimal config.")
                 
+                # Print a per-pair schema report to help auditing what features will be used
+                def pair_schema_report(X_train, y_train, X_val, y_val):
+                    try:
+                        cols = list(X_train.columns) if hasattr(X_train, 'columns') else []
+                        na_counts = X_train.isnull().sum().to_dict() if hasattr(X_train, 'isnull') else {}
+                        fund_cols = [c for c in cols if c.startswith('fund_')]
+                        cross_cols = [c for c in cols if any(p.lower() in c for p in ['eurusd', 'xauusd']) and not c.startswith('fund_')]
+                        logger.info(f"Pre-train schema for {pair}: cols={len(cols)}, fund_cols={len(fund_cols)}, cross_pair_cols={len(cross_cols)}")
+                        logger.debug(f"Sample columns: {cols[:20]}")
+                        # show up to 5 NA-heavy columns
+                        heavy_na = sorted(na_counts.items(), key=lambda x: -x[1])[:5]
+                        logger.info(f"Top NA in X_train: {heavy_na}")
+                    except Exception as e:
+                        logger.debug(f"Could not generate schema report: {e}")
+
+                pair_schema_report(X_train, y_train, X_val, y_val)
+
                 # 3. Use the new robust training pipeline
                 # The enhanced pipeline now takes data directly
                 model = enhanced_lightgbm_training_pipeline(
