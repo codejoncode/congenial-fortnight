@@ -371,9 +371,16 @@ class FundamentalDataPipeline:
                     return pd.DataFrame()
 
                 # Convert to DataFrame
-                df = pd.DataFrame(data, columns=['value'])
+                df = pd.DataFrame(data)
                 df.index.name = 'date'
                 df = df.reset_index()
+
+                # Rename the value column to the series_id
+                if 'value' in df.columns:
+                    df = df.rename(columns={'value': series_id.lower()})
+                elif 0 in df.columns and len(df.columns) > 1:
+                     df = df.rename(columns={df.columns[1]: series_id.lower()})
+
 
                 # Clean data
                 df = df.dropna()
