@@ -86,6 +86,55 @@ class AutomatedTrainer:
         os.makedirs(os.path.join(BASE_APP_DIR, 'models'), exist_ok=True)
         os.makedirs(os.path.join(BASE_APP_DIR, 'logs'), exist_ok=True)
         os.makedirs(os.path.join(BASE_APP_DIR, 'output'), exist_ok=True)
+    
+    def walk_forward_cv(self, X, y, date_col, window_size=365, step_size=30, min_train=365):
+        """
+        Walk-forward cross-validation for time-series.
+        Args:
+            X: DataFrame of features (must include date_col)
+            y: Series/array of targets
+            date_col: str, name of date column in X
+            window_size: int, number of days in test window
+            step_size: int, number of days to move window forward each fold
+            min_train: int, minimum number of days for training set
+        Returns:
+            List of (val_acc, test_acc) for each fold
+        """
+        import numpy as np
+        from sklearn.metrics import accuracy_score
+        results = []
+        # Ensure data is sorted by date
+        X = X.sort_values(date_col).reset_index(drop=True)
+        y = y.loc[X.index]
+        n = len(X)
+        fold = 0
+        for start in range(min_train, n - window_size, step_size):
+            train_end = start
+            valid_end = start + window_size // 2
+            test_end = start + window_size
+            if test_end > n:
+                break
+            X_train, X_val, X_test = X.iloc[:train_end], X.iloc[train_end:valid_end], X.iloc[valid_end:test_end]
+            y_train, y_val, y_test = y.iloc[:train_end], y.iloc[train_end:valid_end], y.iloc[valid_end:test_end]
+            if len(X_test) == 0 or len(X_val) == 0 or len(X_train) < min_train:
+                continue
+            # Train model (use your pipeline)
+            model = enhanced_lightgbm_training_pipeline(X_train, y_train, X_val, y_val)
+            val_pred = model.predict(X_val)
+            test_pred = model.predict(X_test)
+            val_acc = accuracy_score(y_val, (val_pred > 0.5).astype(int))
+            test_acc = accuracy_score(y_test, (test_pred > 0.5).astype(int))
+            results.append((val_acc, test_acc))
+            print(f"Fold {fold}: Val Acc={val_acc:.3f}, Test Acc={test_acc:.3f}")
+            fold += 1
+        if results:
+            val_accs, test_accs = zip(*results)
+            print(f"\nWalk-forward CV Results: {fold} folds")
+            print(f"Mean Validation Accuracy: {np.mean(val_accs):.3f} ± {np.std(val_accs):.3f}")
+            print(f"Mean Test Accuracy: {np.mean(test_accs):.3f} ± {np.std(test_accs):.3f}")
+        else:
+            print("No valid walk-forward folds found.")
+        return results
 
     def run_automated_training(self, pairs: List[str] = None, dry_run: bool = False, dry_iterations: int = 10, dry_timeout_seconds: int = 60):
         """Run automated training for specified pairs using the robust pipeline"""
@@ -229,10 +278,13 @@ class AutomatedTrainer:
 
                         y = feature_df[target_col]
                         X = feature_df.drop(columns=[c for c in feature_df.columns if 'target' in c or 'next_close_change' in c], errors='ignore')
+                        # Simple train/val/test split: 70% train, 15% val, 15% test by time
+                        n = len(X)
+                        train_end = int(0.70 * n)
+                        valid_end = int(0.85 * n)
 
-                        train_size = int(len(X) * 0.8)
-                        X_train, X_val = X[:train_size], X[train_size:]
-                        y_train, y_val = y[:train_size], y[train_size:]
+                        X_train, X_val, X_test = X[:train_end], X[train_end:valid_end], X[valid_end:]
+                        y_train, y_val, y_test = y[:train_end], y[train_end:valid_end], y[valid_end:]
                     except Exception as e:
                         logger.error(f"Fallback feature preparation failed for {pair}: {e}")
                         raise  # Re-raise to stop training
@@ -338,6 +390,19 @@ class AutomatedTrainer:
                         val_accuracy = accuracy_score(y_val, val_predictions)
                         logger.info(f"📊 {pair} Validation Accuracy: {val_accuracy:.4f} ({val_accuracy*100:.1f}%)")
                         
+                        if X_test is not None and y_test is not None and len(X_test) > 0:
+                            test_predictions = model.predict(X_test)
+                            if hasattr(test_predictions, 'shape') and len(test_predictions.shape) > 1:
+                                test_predictions = (test_predictions > 0.5).astype(int)
+                            else:
+                                test_predictions = (test_predictions > 0.5).astype(int)
+                            test_accuracy = accuracy_score(y_test, test_predictions)
+                            logger.info(f"📊 {pair} Test Accuracy: {test_accuracy:.4f} ({test_accuracy*100:.1f}%)")
+                            print(f"▶️ Validation Accuracy: {val_accuracy:.2%}")
+                            print(f"▶️ Test       Accuracy: {test_accuracy:.2%}")
+                        else:
+                            logger.warning(f"⚠️ No test data available for {pair} accuracy evaluation")
+                        
                         # Check if target accuracy is reached
                         target_reached = val_accuracy >= self.target_accuracy
                         if target_reached:
@@ -345,6 +410,7 @@ class AutomatedTrainer:
                         else:
                             logger.warning(f"⚠️ {pair} Target not reached: {val_accuracy:.4f} < {self.target_accuracy:.4f}")
                         
+
                         final_results[pair] = {
                             'status': 'success',
                             'model_trained': True,
