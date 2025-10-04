@@ -74,10 +74,10 @@
     "status": "error"
   },
   "EURUSD_Daily": {
-    "last_data_date": "2025-10-03",
+    "last_data_date": "2025-09-29",
     "last_inspected": "2025-10-03T22:37:41.195851Z",
-    "last_update": "2025-10-04T11:18:13.709580",
-    "rows": 6697,
+    "last_update": "2025-10-03T17:18:11.642132",
+    "rows": 6693,
     "status": "success"
   },
   "EURUSD_H1": {
@@ -88,24 +88,24 @@
     "status": "success"
   },
   "EURUSD_H4": {
-    "last_data_date": "2025-10-03",
+    "last_data_date": "2021-01-15",
     "last_inspected": "2025-10-03T22:37:41.231160Z",
-    "last_update": "2025-10-04T11:18:13.709580",
-    "rows": 25095,
+    "last_update": "2025-10-03T17:18:11.757372",
+    "rows": 24998,
     "status": "success"
   },
   "EURUSD_Monthly": {
-    "last_data_date": "2025-10-01",
+    "last_data_date": "2025-09-01",
     "last_inspected": "2025-10-03T22:37:41.272750Z",
-    "last_update": "2025-10-04T11:18:13.709580",
-    "rows": 195,
+    "last_update": "2025-10-03T17:18:11.783376",
+    "rows": 309,
     "status": "success"
   },
   "EURUSD_Weekly": {
-    "last_data_date": "2025-10-05",
+    "last_data_date": "2025-09-28",
     "last_inspected": "2025-10-03T22:37:41.299277Z",
-    "last_update": "2025-10-04T11:18:13.709580",
-    "rows": 842,
+    "last_update": "2025-10-03T17:18:11.812568",
+    "rows": 1343,
     "status": "success"
   },
   "EURUSD_daily_complete_holloway": {
@@ -175,10 +175,10 @@
     "status": "success"
   },
   "XAUUSD_Daily": {
-    "last_data_date": "2025-10-03",
+    "last_data_date": "2025-09-28",
     "last_inspected": "2025-10-03T22:37:41.304670Z",
-    "last_update": "2025-10-04T11:18:13.709580",
-    "rows": 4402,
+    "last_update": "2025-10-03T17:18:12.102384",
+    "rows": 1113,
     "status": "success"
   },
   "XAUUSD_H1": {
@@ -189,24 +189,24 @@
     "status": "success"
   },
   "XAUUSD_H4": {
-    "last_data_date": "2025-10-03",
+    "last_data_date": "2020-01-30",
     "last_inspected": "2025-10-03T22:37:41.344521Z",
-    "last_update": "2025-10-04T11:18:13.709580",
-    "rows": 26321,
+    "last_update": "2025-10-03T17:18:12.222521",
+    "rows": 24998,
     "status": "success"
   },
   "XAUUSD_Monthly": {
-    "last_data_date": "2025-10-01",
+    "last_data_date": "2025-09-01",
     "last_inspected": "2025-10-03T22:37:41.380185Z",
-    "last_update": "2025-10-04T11:18:13.709580",
-    "rows": 206,
+    "last_update": "2025-10-03T17:18:12.230200",
+    "rows": 256,
     "status": "success"
   },
   "XAUUSD_Weekly": {
-    "last_data_date": "2025-10-05",
+    "last_data_date": "2025-09-28",
     "last_inspected": "2025-10-03T22:37:41.396849Z",
-    "last_update": "2025-10-04T11:18:13.709580",
-    "rows": 892,
+    "last_update": "2025-10-03T17:18:12.255599",
+    "rows": 1113,
     "status": "success"
   },
   "XAUUSD_daily_complete_holloway": {
