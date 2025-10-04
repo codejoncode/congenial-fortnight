@@ -46,6 +46,35 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def ensure_environment_loaded():
+    """Ensure .env is loaded and FRED key is available"""
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        logger.warning("python-dotenv not available, skipping .env loading")
+        return False
+
+    env_paths = [
+        Path(".env"),
+        Path("../.env"),
+        Path(os.getcwd()) / ".env",
+        Path(os.environ.get('APP_ROOT', os.getcwd())) / ".env"
+    ]
+
+    for env_path in env_paths:
+        if env_path.exists():
+            load_dotenv(env_path, override=True)
+            logger.info(f"Loaded environment from: {env_path}")
+            break
+
+    fred_key = os.getenv('FRED_API_KEY')
+    if fred_key:
+        logger.info(f"✅ FRED API key loaded: {fred_key[:8]}...")
+        return True
+    else:
+        logger.warning("❌ FRED_API_KEY not found in environment")
+        return False
+
 class AutomatedTrainer:
     def __init__(self, target_accuracy=0.75, max_iterations=100):
         self.target_accuracy = target_accuracy
@@ -349,6 +378,9 @@ def main():
     parser.add_argument('--drop-zero-variance', action='store_true', help='Drop numeric zero-variance features during pruning')
 
     args = parser.parse_args()
+
+    # Ensure environment is loaded and FRED key is available
+    ensure_environment_loaded()
 
     # 1. Fix data issues first
     if not pre_training_data_fix():

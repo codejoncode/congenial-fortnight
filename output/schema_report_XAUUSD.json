@@ -1,8 +1,8 @@
 {
   "pair": "XAUUSD",
   "rows": 889,
-  "cols": 191,
-  "fund_cols": 0,
+  "cols": 212,
+  "fund_cols": 21,
   "cross_pair_cols": 0,
   "sample_columns": [
     "Open",
@@ -232,6 +232,27 @@
     "returns_lag_5": 0,
     "close_lag_10": 0,
     "returns_lag_10": 0,
+    "fund_date": 0,
+    "fund_dexuseu": 0,
+    "fund_dexjpus": 0,
+    "fund_dexchus": 0,
+    "fund_fedfunds": 0,
+    "fund_dff": 0,
+    "fund_cpiaucsl": 0,
+    "fund_cpaltt01usm661s": 0,
+    "fund_unrate": 0,
+    "fund_payems": 0,
+    "fund_indpro": 0,
+    "fund_dgorder": 0,
+    "fund_ecbdfr": 0,
+    "fund_cp0000ez19m086nest": 0,
+    "fund_lrhuttttdem156s": 0,
+    "fund_dcoilwtico": 0,
+    "fund_dcoilbrenteu": 0,
+    "fund_vixcls": 0,
+    "fund_dgs10": 0,
+    "fund_dgs2": 0,
+    "fund_bopgstb": 0,
     "Volume": 0,
     "tick_volume_sum": 0,
     "ema_7": 0,
@@ -425,6 +446,27 @@
     "returns_lag_5": 0.0,
     "close_lag_10": 0.0,
     "returns_lag_10": 0.0,
+    "fund_date": 0.0,
+    "fund_dexuseu": 0.0,
+    "fund_dexjpus": 0.0,
+    "fund_dexchus": 0.0,
+    "fund_fedfunds": 0.0,
+    "fund_dff": 0.0,
+    "fund_cpiaucsl": 0.0,
+    "fund_cpaltt01usm661s": 0.0,
+    "fund_unrate": 0.0,
+    "fund_payems": 0.0,
+    "fund_indpro": 0.0,
+    "fund_dgorder": 0.0,
+    "fund_ecbdfr": 0.0,
+    "fund_cp0000ez19m086nest": 0.0,
+    "fund_lrhuttttdem156s": 0.0,
+    "fund_dcoilwtico": 0.0,
+    "fund_dcoilbrenteu": 0.0,
+    "fund_vixcls": 0.0,
+    "fund_dgs10": 0.0,
+    "fund_dgs2": 0.0,
+    "fund_bopgstb": 0.0,
     "Volume": 0.0,
     "tick_volume_sum": 0.0,
     "ema_7": 0.0,
@@ -618,6 +660,27 @@
     "returns_lag_5": "float64",
     "close_lag_10": "float64",
     "returns_lag_10": "float64",
+    "fund_date": "int64",
+    "fund_dexuseu": "float64",
+    "fund_dexjpus": "float64",
+    "fund_dexchus": "float64",
+    "fund_fedfunds": "float64",
+    "fund_dff": "float64",
+    "fund_cpiaucsl": "float64",
+    "fund_cpaltt01usm661s": "float64",
+    "fund_unrate": "float64",
+    "fund_payems": "float64",
+    "fund_indpro": "float64",
+    "fund_dgorder": "float64",
+    "fund_ecbdfr": "float64",
+    "fund_cp0000ez19m086nest": "float64",
+    "fund_lrhuttttdem156s": "float64",
+    "fund_dcoilwtico": "float64",
+    "fund_dcoilbrenteu": "float64",
+    "fund_vixcls": "float64",
+    "fund_dgs10": "float64",
+    "fund_dgs2": "float64",
+    "fund_bopgstb": "float64",
     "Volume": "float64",
     "tick_volume_sum": "float64",
     "ema_7": "float64",
@@ -811,6 +874,27 @@
     "returns_lag_5": 0.0005799544366773486,
     "close_lag_10": 162790.93411732436,
     "returns_lag_10": 0.0005815912390723689,
+    "fund_date": 0.0,
+    "fund_dexuseu": 0.0,
+    "fund_dexjpus": 0.0,
+    "fund_dexchus": 0.0,
+    "fund_fedfunds": 0.0,
+    "fund_dff": 0.0,
+    "fund_cpiaucsl": 0.0,
+    "fund_cpaltt01usm661s": 0.0,
+    "fund_unrate": 0.0,
+    "fund_payems": 0.0,
+    "fund_indpro": 0.0,
+    "fund_dgorder": 0.0,
+    "fund_ecbdfr": 0.0,
+    "fund_cp0000ez19m086nest": 0.0,
+    "fund_lrhuttttdem156s": 0.0,
+    "fund_dcoilwtico": 0.0,
+    "fund_dcoilbrenteu": 0.0,
+    "fund_vixcls": 0.0,
+    "fund_dgs10": 0.0,
+    "fund_dgs2": 0.0,
+    "fund_bopgstb": 0.0,
     "Volume": 0.0,
     "tick_volume_sum": 0.0,
     "ema_7": 0.0,
@@ -1004,6 +1088,27 @@
     "returns_lag_5": 1,
     "close_lag_10": 0,
     "returns_lag_10": 1,
+    "fund_date": 0,
+    "fund_dexuseu": 889,
+    "fund_dexjpus": 889,
+    "fund_dexchus": 889,
+    "fund_fedfunds": 889,
+    "fund_dff": 889,
+    "fund_cpiaucsl": 889,
+    "fund_cpaltt01usm661s": 889,
+    "fund_unrate": 889,
+    "fund_payems": 889,
+    "fund_indpro": 889,
+    "fund_dgorder": 889,
+    "fund_ecbdfr": 889,
+    "fund_cp0000ez19m086nest": 889,
+    "fund_lrhuttttdem156s": 889,
+    "fund_dcoilwtico": 889,
+    "fund_dcoilbrenteu": 889,
+    "fund_vixcls": 889,
+    "fund_dgs10": 889,
+    "fund_dgs2": 889,
+    "fund_bopgstb": 889,
     "Volume": 889,
     "tick_volume_sum": 889,
     "ema_7": 889,
@@ -1648,6 +1753,111 @@
       "min": -0.08618568032209117,
       "max": 0.14106419139756832,
       "mean": 0.0023106254051666617
+    },
+    "fund_date": {
+      "min": -9.223372036854776e+18,
+      "max": -9.223372036854776e+18,
+      "mean": -9.223372036854776e+18
+    },
+    "fund_dexuseu": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "fund_dexjpus": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "fund_dexchus": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "fund_fedfunds": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "fund_dff": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "fund_cpiaucsl": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "fund_cpaltt01usm661s": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "fund_unrate": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "fund_payems": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "fund_indpro": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "fund_dgorder": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "fund_ecbdfr": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "fund_cp0000ez19m086nest": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "fund_lrhuttttdem156s": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "fund_dcoilwtico": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "fund_dcoilbrenteu": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "fund_vixcls": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "fund_dgs10": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "fund_dgs2": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    "fund_bopgstb": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
     },
     "Volume": {
       "min": 0.0,
