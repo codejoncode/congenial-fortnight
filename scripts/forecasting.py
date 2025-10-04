@@ -46,6 +46,11 @@ except ImportError:  # pragma: no cover - support standalone execution
     from fundamental_pipeline import FundamentalDataPipeline as FundamentalFeatureEngineer
 
 try:
+    import pywt
+except ImportError:
+    pywt = None
+
+try:
     from .holloway_algorithm import CompleteHollowayAlgorithm
 except ImportError:  # pragma: no cover - support standalone execution
     from holloway_algorithm import CompleteHollowayAlgorithm
@@ -82,12 +87,28 @@ try:
 except ImportError:
     tf = None
 
-# Technical analysis
+        # Technical analysis
 try:
     import ta
+    from ta.pattern import *
 except ImportError:
     ta = None
 
+# API clients
+try:
+    from fredapi import Fred
+except ImportError:
+    Fred = None
+
+try:
+    from alpha_vantage.foreignexchange import ForeignExchange
+except ImportError:
+    ForeignExchange = None
+
+try:
+    import finnhub
+except ImportError:
+    finnhub = None
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -238,8 +259,60 @@ class HybridPriceForecastingEnsemble:
         self.intraday_data = self._load_intraday_data()
         self.monthly_data = self._load_monthly_data()
 
+
+
+
+        # Load daily data as the consolidated price data (true daily OHLC)
+        # This will be set after price_data is loaded below
+        self.daily_data = None
+
+        # Load weekly data from the correct file (e.g., EURUSD_Weekly.csv)
+        weekly_path = self.data_dir / f'{self.pair}_Weekly.csv'
+        if weekly_path.exists():
+            try:
+                weekly_df = pd.read_csv(weekly_path)
+                # Try to parse a datetime index from timestamp/date columns
+                if 'timestamp' in weekly_df.columns:
+                    weekly_df['datetime'] = pd.to_datetime(weekly_df['timestamp'], errors='coerce')
+                    weekly_df = weekly_df.set_index('datetime')
+                elif 'date' in weekly_df.columns:
+                    weekly_df['datetime'] = pd.to_datetime(weekly_df['date'], errors='coerce')
+                    weekly_df = weekly_df.set_index('datetime')
+                else:
+                    # fallback: try to parse first column as date
+                    try:
+                        weekly_df.index = pd.to_datetime(weekly_df.iloc[:, 0], errors='coerce')
+                    except Exception:
+                        pass
+                # Normalize OHLCV columns
+                rename_map = {}
+                for col in weekly_df.columns:
+                    key = col.strip().lower()
+                    if key in ('open',):
+                        rename_map[col] = 'Open'
+                    if key in ('high',):
+                        rename_map[col] = 'High'
+                    if key in ('low',):
+                        rename_map[col] = 'Low'
+                    if key in ('close',):
+                        rename_map[col] = 'Close'
+                    if key in ('volume',):
+                        rename_map[col] = 'Volume'
+                if rename_map:
+                    weekly_df = weekly_df.rename(columns=rename_map)
+                # Only keep standard columns if present
+                keep_cols = [c for c in ['Open', 'High', 'Low', 'Close', 'Volume'] if c in weekly_df.columns]
+                self.weekly_data = weekly_df[keep_cols]
+            except Exception as e:
+                self.logger.error(f"Error loading weekly data for {self.pair}: {e}")
+                self.weekly_data = pd.DataFrame()
+        else:
+            self.logger.warning(f"Weekly data file not found: {weekly_path}")
+            self.weekly_data = pd.DataFrame()
+
         # _load_price_data may call methods that aren't bound (left in module scope).
         # Attempt to use it, otherwise construct a sensible daily price DataFrame
+
         try:
             self.price_data = self._load_price_data()
         except Exception:
@@ -259,6 +332,10 @@ class HybridPriceForecastingEnsemble:
                 self.price_data = daily
             except Exception:
                 self.price_data = pd.DataFrame()
+
+        # Set daily_data to the true daily/consolidated price data
+        self.daily_data = self.price_data
+
         self.fundamental_engineer = FundamentalFeatureEngineer(self.data_dir)
         self.fundamental_data = self._load_fundamental_data()
         # _get_cross_pair may not exist in some refactored versions; be resilient
@@ -533,10 +610,10 @@ class HybridPriceForecastingEnsemble:
             return pd.DataFrame()
 
     def _load_intraday_data(self, pair: Optional[str] = None):
-        """Loads H1 data for the specified pair."""
+        """Loads H4 data for the specified pair."""
         pair = pair or self.pair
-        intraday_path = self.data_dir / f'{pair}_H1.csv'
-        self.logger.info(f"Loading H1 data from: {intraday_path}")
+        intraday_path = self.data_dir / f'{pair}_H4.csv'
+        self.logger.info(f"Loading H4 data from: {intraday_path}")
         try:
             # Read permissively and then attempt to detect date/time columns
             # Let pandas infer delimiter (commonly comma) so CSVs with commas parse correctly
@@ -592,19 +669,19 @@ class HybridPriceForecastingEnsemble:
             # Ensure we have the expected columns; if not, log and return empty
             expected_cols = ['Open', 'High', 'Low', 'Close']
             if not all(col in data.columns for col in expected_cols):
-                self.logger.error(f"Error loading H1 data for {pair}: missing OHLC columns after normalization")
+                self.logger.error(f"Error loading H4 data for {pair}: missing OHLC columns after normalization")
                 return pd.DataFrame()
 
             # Volume is optional
             cols = ['Open', 'High', 'Low', 'Close'] + (['Volume'] if 'Volume' in data.columns else [])
             self.intraday_data = data[cols]
-            self.logger.info(f"Successfully loaded H1 data for {pair}. Shape: {self.intraday_data.shape}")
+            self.logger.info(f"Successfully loaded H4 data for {pair}. Shape: {self.intraday_data.shape}")
             return self.intraday_data
         except FileNotFoundError:
-            self.logger.error(f"H1 data file not found at {intraday_path}")
+            self.logger.error(f"H4 data file not found at {intraday_path}")
             return pd.DataFrame()
         except Exception as e:
-            self.logger.error(f"Error loading H1 data for {pair}: {e}")
+            self.logger.error(f"Error loading H4 data for {pair}: {e}")
             return pd.DataFrame()
 
     def _load_monthly_data(self):
@@ -721,6 +798,9 @@ class HybridPriceForecastingEnsemble:
         # Add Holloway Algorithm features
         df = self._calculate_holloway_features(df)
 
+        # Add candlestick pattern features
+        df = self._add_candlestick_patterns(df)
+
         # Trend indicators (remove ADX as it uses TR which is candle size dependent)
         # df['adx_14'] = self._calculate_adx(df, 14)  # Removed: depends on candle ranges
 
@@ -733,6 +813,43 @@ class HybridPriceForecastingEnsemble:
         if 'Volume' in df.columns:
             df['volume_sma_20'] = df['Volume'].rolling(20).mean()
             df['volume_ratio'] = df['Volume'] / df['volume_sma_20']
+
+        # Time-based features
+        df['day_of_week'] = df.index.dayofweek
+        df['day_of_month'] = df.index.day
+        df['week_of_year'] = df.index.isocalendar().week.astype(int)
+        df['month_of_year'] = df.index.month
+
+        # Interaction features
+        df['high_x_day'] = df['High'] * (df['day_of_week'] + 1)
+        df['low_x_day'] = df['Low'] * (df['day_of_week'] + 1)
+        df['close_x_month'] = df['Close'] * df['month_of_year']
+
+        # Rolling statistics
+        for window in [5, 10, 20, 50]:
+            df[f'returns_roll_mean_{window}'] = df['returns'].rolling(window).mean()
+            df[f'returns_roll_std_{window}'] = df['returns'].rolling(window).std()
+            df[f'volatility_roll_mean_{window}'] = df['volatility_20'].rolling(window).mean()
+
+        # Fourier features
+        close_fft = np.fft.fft(df['Close'].fillna(0))
+        for i in [1, 2, 3, 5, 10]:
+            df[f'fft_real_{i}'] = close_fft.real[i]
+            df[f'fft_imag_{i}'] = close_fft.imag[i]
+
+        # Wavelet features
+        if pywt:
+            for level in range(3):
+                try:
+                    coeffs = pywt.wavedec(df['Close'].fillna(0), 'db1', level=level+1)
+                    for i, c in enumerate(coeffs):
+                        df[f'wavelet_level{level}_{i}'] = c[0] if len(c) > 0 else 0
+                except Exception as e:
+                    self.logger.warning(f"Could not calculate wavelet features for level {level}: {e}")
+
+        # Statistical features
+        df['skewness_20'] = df['returns'].rolling(20).skew()
+        df['kurtosis_20'] = df['returns'].rolling(20).kurt()
 
         # Lagged features
         for lag in [1, 2, 3, 5, 10]:
@@ -849,285 +966,53 @@ class HybridPriceForecastingEnsemble:
         return feature_df
 
 
-if __name__ == '__main__':
-    # When run as a script, delegate to the integration harness which runs
-    # robust data loading, preprocessing, feature engineering, and training.
-    try:
-        from forecasting_integration import main as integration_main
-        integration_main()
-    except Exception as e:
-        logger.error(f"Failed to run forecasting integration: {e}")
-        # Fall back to data-loading test
-        if test_data_loading_only():
-            print("✅ Data loading works - ready to integrate into forecasting.py")
-        else:
-            print("❌ Data loading failed - check the issues above")
-            if input("Try emergency fix? (y/n): ").lower() == 'y':
-                emergency_data_fix()
-        raise
-
-    def _load_daily_price_file(self, pair: Optional[str] = None, timeframe_hint: str = 'Daily') -> pd.DataFrame:
-        """Load the provided daily CSV for the specified pair if available."""
-        pair = pair or self.pair
-        
-        # Dynamically create candidate filenames based on hint
-        timeframe_variants = [timeframe_hint.upper(), timeframe_hint.lower()]
-        if 'daily' in timeframe_hint.lower():
-            timeframe_variants.extend(['D1', 'd1'])
-
-        candidate_files = []
-        for variant in set(timeframe_variants):
-            candidate_files.append(self.data_dir / f"{pair}_{variant}.csv")
-        
-        # Add H4 fallback
-        if 'daily' in timeframe_hint.lower() or 'h4' in timeframe_hint.lower():
-            candidate_files.append(self.data_dir / f"{pair}.csv")
-            candidate_files.append(self.data_dir / f"{pair}_H4.csv")
-
-
-
-        for csv_file in candidate_files:
-            if not csv_file.exists():
-                continue
-
-            try:
-                df = pd.read_csv(csv_file, sep=r'\s+', engine='python')
-
-                if '<DATE>' in df.columns and '<TIME>' in df.columns:
-                    df['Date'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'])
-                elif '<DATE>' in df.columns:
-                    df['Date'] = pd.to_datetime(df['<DATE>'])
-                elif 'Date' in df.columns:
-                    df['Date'] = pd.to_datetime(df['Date'])
-                elif 'date' in df.columns:
-                    df['Date'] = pd.to_datetime(df['date'])
-                else:
-                    logger.warning(f"Unable to identify date column in {csv_file}")
-                    continue
-
-                df = df.sort_values('Date').set_index('Date')
-
-                rename_map = {
-                    '<OPEN>': 'Open',
-                    '<HIGH>': 'High',
-                    '<LOW>': 'Low',
-                    '<CLOSE>': 'Close',
-                    '<VOL>': 'Volume',
-                    '<TICKVOL>': 'TickVolume',
-                    'open': 'Open',
-                    'high': 'High',
-                    'low': 'Low',
-                    'close': 'Close',
-                    'volume': 'Volume',
-                    'tick_volume': 'TickVolume',
-                    'spread': 'Spread'
-                }
-                available_map = {k: v for k, v in rename_map.items() if k in df.columns}
-                if available_map:
-                    df = df.rename(columns=available_map)
-
-                if not all(col in df.columns for col in ['Open', 'High', 'Low', 'Close']):
-                    logger.warning(f"Daily file {csv_file} missing OHLC columns after normalization")
-                    continue
-
-                numeric_cols = [col for col in df.columns if col not in ['symbol', 'currency']]
-                df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
-
-                df = df.dropna(subset=['Open', 'High', 'Low', 'Close'])
-                df = df[~df.index.duplicated(keep='last')]
-
-                logger.info(
-                    "%s daily coverage -> rows: %d, span: %s to %s from %s",
-                    pair,
-                    len(df),
-                    df.index.min().date(),
-                    df.index.max().date(),
-                    csv_file.name
-                )
-
-                return df
-            except Exception as e:
-                logger.warning(f"Error loading daily data from {csv_file}: {e}")
-
-        return pd.DataFrame()
-
-    def _build_intraday_context(self, hourly: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Aggregate hourly candles into daily OHLC and derive intraday statistics."""
-        if hourly.empty or not isinstance(hourly.index, pd.DatetimeIndex):
-            return pd.DataFrame(), pd.DataFrame()
-
-        hourly = hourly.sort_index()
-
-        daily_ohlc = hourly[['Open', 'High', 'Low', 'Close']].resample('1D').agg({
-            'Open': 'first',
-            'High': 'max',
-            'Low': 'min',
-            'Close': 'last'
-        }).dropna(how='all')
-
-        intraday_features = pd.DataFrame(index=daily_ohlc.index)
-
-        if 'Volume' in hourly.columns:
-            intraday_features['intraday_volume_sum'] = hourly['Volume'].resample('1D').sum()
-            intraday_features['intraday_volume_std'] = hourly['Volume'].resample('1D').std()
-
-        if 'TickVolume' in hourly.columns:
-            intraday_features['intraday_tick_volume_sum'] = hourly['TickVolume'].resample('1D').sum()
-
-        if 'RealVolume' in hourly.columns:
-            intraday_features['intraday_real_volume_sum'] = hourly['RealVolume'].resample('1D').sum()
-
-        if 'Spread' in hourly.columns:
-            intraday_features['intraday_spread_mean'] = hourly['Spread'].resample('1D').mean()
-
-        intraday_returns = hourly['Close'].pct_change()
-        intraday_range = (hourly['High'] - hourly['Low'])
-
-        intraday_features['intraday_close_std'] = hourly['Close'].resample('1D').std()
-        intraday_features['intraday_return_volatility'] = intraday_returns.resample('1D').std()
-        intraday_features['intraday_return_sum'] = intraday_returns.resample('1D').sum()
-        intraday_features['intraday_range_mean'] = intraday_range.resample('1D').mean()
-        intraday_features['intraday_range_max'] = intraday_range.resample('1D').max()
-        intraday_features['intraday_range_std'] = intraday_range.resample('1D').std()
-        intraday_features['intraday_bar_count'] = hourly['Close'].resample('1D').count()
-
-        intraday_features = intraday_features.replace([np.inf, -np.inf], np.nan)
-
-        return daily_ohlc.dropna(subset=['Open', 'High', 'Low', 'Close'], how='any'), intraday_features
-
-    def _combine_daily_sources(self, primary: pd.DataFrame, supplemental: pd.DataFrame) -> pd.DataFrame:
-        """Merge provided daily candles with intraday-derived aggregates."""
-        combined = primary.copy()
-        for col in ['Open', 'High', 'Low', 'Close']:
-            if col not in combined.columns:
-                combined[col] = supplemental[col]
-            else:
-                combined[col] = combined[col].combine_first(supplemental[col])
-
-        combined = combined.dropna(subset=['Open', 'High', 'Low', 'Close'])
-        combined = combined[~combined.index.duplicated(keep='last')]
-
-        return combined
-
-    def _load_daily_price_file(self, pair: Optional[str] = None, timeframe_hint: str = 'Daily') -> pd.DataFrame:
-        """Class-level fallback loader for daily price CSVs. This ensures the
-        method exists even if a module-level function was defined elsewhere.
-
-        It attempts to load a daily file, then falls back to H4 or intraday
-        aggregation when necessary.
+    def _add_candlestick_patterns(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        pair = pair or self.pair
-        candidate_files = [
-            self.data_dir / f"{pair}_Daily.csv",
-            self.data_dir / f"{pair}_daily.csv",
-            self.data_dir / f"{pair}.csv",
-            self.data_dir / f"{pair}_D1.csv",
-            self.data_dir / f"{pair}_H4.csv",
-            self.data_dir / f"{pair}_Monthly.csv",
+        Adds candlestick pattern features to the dataframe.
+        """
+        if df.empty or ta is None:
+            return df
+
+        # List of all available candlestick pattern functions from the 'ta' library
+        pattern_functions = [
+            CDL2CROWS, CDL3BLACKCROWS, CDL3INSIDE, CDL3LINESTRIKE, CDL3OUTSIDE,
+            CDL3STARSINSOUTH, CDL3WHITESOLDIERS, CDLABANDONEDBABY, CDLADVANCEBLOCK,
+            CDLBELTHOLD, CDLBREAKAWAY, CDLCLOSINGMARUBOZU, CDLCONCEALBABYSWALL,
+            CDLCOUNTERATTACK, CDLDARKCLOUDCOVER, CDLDOJI, CDLDOJISTAR,
+            CDLDRAGONFLYDOJI, CDLENGULFING, CDLEVENINGDOJISTAR, CDLEVENINGSTAR,
+            CDLGAPSIDESIDEWHITE, CDLGRAVESTONEDOJI, CDLHAMMER, CDLHANGINGMAN,
+            CDLHARAMI, CDLHARAMICROSS, CDLHIGHWAVE, CDLHIKKAKE, CDLHIKKAKEMOD,
+            CDLHOMINGPIGEON, CDLIDENTICAL3CROWS, CDLINNECK, CDLINVERTEDHAMMER,
+            CDLKICKING, CDLKICKINGBYLENGTH, CDLLADDERBOTTOM, CDLLONGLEGGEDDOJI,
+
+            CDLLONGLINE, CDLMARUBOZU, CDLMATCHINGLOW, CDLMATHOLD, CDLMORNINGDOJISTAR,
+            CDLMORNINGSTAR, CDLONNECK, CDLPIERCING, CDLRICKSHAWMAN,
+            CDLRISEFALL3METHODS, CDLSEPARATINGLINES, CDLSHOOTINGSTAR,
+            CDLSHORTLINE, CDLSPINNINGTOP, CDLSTALLEDPATTERN, CDLSTICKSANDWICH,
+            CDLTAKURI, CDLTASUKIGAP, CDLTHRUSTING, CDLTRISTAR, CDLUNIQUE3RIVER,
+            CDLUPSIDEGAP2CROWS, CDLXSIDEGAP3METHODS
         ]
 
-        for csv_file in candidate_files:
-            if not csv_file.exists():
-                continue
+        df_patterns = df.copy()
 
+        for pattern_func in pattern_functions:
             try:
-                raw = pd.read_csv(csv_file, engine='python')
-                df = _normalize_price_dataframe(raw)
-                if df.empty:
-                    continue
-
-                # If we have intraday-like data (multiple entries per day), try to aggregate
-                if 'Open' in df.columns and df.index.inferred_type in ('datetime64', 'datetime'):
-                    # If multiple intraday bars per day, resample to daily OHLC
-                    if df.index.to_series().duplicated().any() or (df.index.max() - df.index.min()).days > len(df):
-                        try:
-                            daily = df[['Open', 'High', 'Low', 'Close']].resample('1D').agg({
-                                'Open': 'first', 'High': 'max', 'Low': 'min', 'Close': 'last'
-                            }).dropna()
-                            return daily
-                        except Exception:
-                            pass
-
-                # Otherwise, assume it's already daily
-                if all(col in df.columns for col in ['Open', 'High', 'Low', 'Close']):
-                    return df[['Open', 'High', 'Low', 'Close']]
-
-            except Exception:
-                continue
-
-        # As a last resort, if intraday data is present, aggregate it
-        try:
-            if hasattr(self, 'intraday_data') and not self.intraday_data.empty:
-                daily, _ = self._build_intraday_context(self.intraday_data)
-                if not daily.empty:
-                    return daily
-        except Exception:
-            pass
-
-        return pd.DataFrame()
-
-    def _get_cross_pair(self) -> Optional[str]:
-        """Identify the complementary pair used for cross-asset signals."""
-        cross_map = {
-            'EURUSD': 'XAUUSD',
-            'XAUUSD': 'EURUSD'
-        }
-        return cross_map.get(self.pair)
-
-    def _add_cross_pair_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Integrate cross-pair correlation features to enhance signal quality."""
-        if df.empty:
-            return df
-        cross_spec = self.cross_pair
-        # allow the cross_pair attribute to be a string or a list of pairs
-        if not cross_spec:
-            return df
-
-        pairs = cross_spec if isinstance(cross_spec, (list, tuple)) else [cross_spec]
-
-        enriched = df.copy()
-
-        base_returns = enriched.get('returns')
-
-        for cross_pair in pairs:
-            try:
-                if not cross_pair:
-                    continue
-
-                cross_daily = self._load_daily_price_file(cross_pair)
-                if cross_daily.empty:
-                    cross_intraday = self._load_intraday_data(cross_pair)
-                    if not cross_intraday.empty:
-                        cross_daily, _ = self._build_intraday_context(cross_intraday)
-
-                if cross_daily.empty:
-                    logger.debug(f"Cross-pair data unavailable for {cross_pair}")
-                    continue
-
-                cross_daily = cross_daily[['Close']].rename(columns={'Close': f'{cross_pair}_close'})
-                cross_daily[f'{cross_pair}_returns'] = cross_daily[f'{cross_pair}_close'].pct_change()
-
-                aligned_cross = cross_daily.reindex(df.index).fillna(method='ffill')
-
-                enriched = enriched.join(aligned_cross, how='left')
-
-                cross_returns = enriched.get(f'{cross_pair}_returns')
-
-                if base_returns is not None and cross_returns is not None:
-                    enriched[f'corr_5_{cross_pair.lower()}'] = base_returns.rolling(5).corr(cross_returns)
-                    enriched[f'corr_20_{cross_pair.lower()}'] = base_returns.rolling(20).corr(cross_returns)
-                    enriched[f'return_spread_{cross_pair.lower()}'] = base_returns - cross_returns
-
-                cross_prices = enriched.get(f'{cross_pair}_close')
-                if cross_prices is not None:
-                    safe_cross = cross_prices.replace(0, np.nan)
-                    enriched[f'price_ratio_{cross_pair.lower()}'] = enriched['Close'] / safe_cross
-                    enriched[f'price_spread_{cross_pair.lower()}'] = enriched['Close'] - cross_prices
-
+                # The pattern functions are classes that need to be instantiated
+                indicator = pattern_func(
+                    open=df_patterns['Open'],
+                    high=df_patterns['High'],
+                    low=df_patterns['Low'],
+                    close=df_patterns['Close']
+                )
+                # The result is in a method, usually with the same name as the function
+                pattern_name = pattern_func.__name__.lower()
+                result_series = getattr(indicator, indicator.name.lower())()
+                if result_series is not None:
+                    df_patterns[pattern_name] = result_series
             except Exception as e:
-                logger.warning(f"Error adding cross-pair features for {cross_pair}: {e}")
+                self.logger.warning(f"Could not calculate candlestick pattern {pattern_func.__name__}: {e}")
 
-        return enriched
+        return df_patterns
 
     def _calculate_atr(self, df: pd.DataFrame, period: int) -> pd.Series:
         """Calculate Average True Range."""
@@ -1182,13 +1067,12 @@ if __name__ == '__main__':
 
     def _calculate_holloway_for_timeframe(self, tf: str) -> Optional[pd.DataFrame]:
         """
-        Helper function to calculate Holloway features for a single timeframe.
+        Helper function to calculate Holloway features for a single timeframe
         This function is designed to be called in parallel.
         """
         try:
             # Load raw data for the specific timeframe
             tf_loader_map = {
-                'H1': self._load_intraday_data,
                 'H4': lambda p: self._load_daily_price_file(p, timeframe_hint='H4'),
                 'Daily': self._load_daily_price_file,
                 'Weekly': lambda p: self._load_daily_price_file(p, timeframe_hint='Weekly'),
@@ -1232,7 +1116,7 @@ if __name__ == '__main__':
             return df
 
         logger.info("Calculating and merging multi-timeframe Holloway features in parallel...")
-        timeframes = ['H1', 'H4', 'Daily', 'Weekly', 'Monthly']
+        timeframes = ['H4', 'Daily', 'Weekly', 'Monthly']
         
         results = joblib.Parallel(n_jobs=-1)(
             joblib.delayed(self._calculate_holloway_for_timeframe)(tf) for tf in timeframes
@@ -1245,8 +1129,8 @@ if __name__ == '__main__':
                     # Align with the main dataframe's index and forward-fill
                     aligned_features = holloway_tf_df.reindex(df.index).fillna(method='ffill')
                     
-                    # Join the aligned features
-                    df = df.join(aligned_features, how='left')
+                    # Join the aligned features, adding a suffix to avoid conflicts
+                    df = df.join(aligned_features, how='left', rsuffix=f'_{tf.lower()}_holloway')
                     logger.info(f"Successfully merged Holloway features for {tf} timeframe.")
                 except Exception as e:
                     logger.error(f"Error merging Holloway features for {tf} timeframe: {e}")
@@ -1578,7 +1462,7 @@ if __name__ == '__main__':
         # Perform time-based split
         train_size = int(len(X) * train_size_split)
         X_train, X_val = X[:train_size], X[train_size:]
-        y_train, y_val = y[:train_size], y[train_size:]
+        y_train, y_val = y[:train_size], y[train_size:] if y is not None else (None, None)
 
         logger.info(f"Data prepared: X_train: {X_train.shape}, X_val: {X_val.shape}")
 
@@ -1679,30 +1563,6 @@ if not hasattr(HybridPriceForecastingEnsemble, '_load_daily_price_file'):
 
 if not hasattr(HybridPriceForecastingEnsemble, '_build_intraday_context'):
     HybridPriceForecastingEnsemble._build_intraday_context = _compat_build_intraday_context
-
-
-# Map of helper function names that may exist at module scope but need to be
-# available as bound methods on the class. For each name, if the class lacks
-# the attribute but a module-level function exists, create a thin wrapper that
-# forwards the call (injecting self) so older orchestrators and tests work.
-_module_helpers = [
-    '_calculate_rsi', '_calculate_macd', '_calculate_atr',
-    '_calculate_holloway_features', '_calculate_holloway_for_timeframe',
-    '_add_multi_timeframe_holloway_features', '_add_multi_timeframe_indicators',
-    '_infer_base_frequency_minutes', '_calculate_adx', '_add_cross_pair_features'
-]
-
-for _name in _module_helpers:
-    if not hasattr(HybridPriceForecastingEnsemble, _name) and _name in globals():
-        func = globals().get(_name)
-        if callable(func):
-            # create a wrapper that calls module-level function, passing self first
-            def _make_wrapper(f):
-                def _wrapper(self, *args, **kwargs):
-                    return f(self, *args, **kwargs)
-                return _wrapper
-
-            setattr(HybridPriceForecastingEnsemble, _name, _make_wrapper(func))
 
 
 # Provide minimal module-level helper implementations for core indicators

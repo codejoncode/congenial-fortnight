@@ -36,28 +36,52 @@ def run_diagnostic():
 
     pair = 'EURUSD'
 
+
     try:
         print(f"1. Instantiating forecasting system for {pair}...")
         fs = HybridPriceForecastingEnsemble(pair)
         print("✅ Forecasting system instantiated successfully")
 
-        print("\n2. Checking data loads...")
-        print(f"   Intraday data: {fs.intraday_data.shape if hasattr(fs, 'intraday_data') and fs.intraday_data is not None else 'None'}")
-        print(f"   Monthly data: {fs.monthly_data.shape if hasattr(fs, 'monthly_data') and fs.monthly_data is not None else 'None'}")
-        print(f"   Price data: {fs.price_data.shape if hasattr(fs, 'price_data') and fs.price_data is not None else 'None'}")
+        print("\n2. Checking data loads (all timeframes)...")
+        # Report all timeframes with user-specified labels
+        tf_labels = [
+            ("4H", getattr(fs, 'intraday_data', None)),
+            ("Daily", getattr(fs, 'daily_data', None)),
+            ("Weekly", getattr(fs, 'weekly_data', None)),
+            ("Monthly", getattr(fs, 'monthly_data', None)),
+        ]
+
+        for label, df in tf_labels:
+            shape = df.shape if df is not None and hasattr(df, 'shape') else 'None'
+            status = "✅" if (df is not None and hasattr(df, 'empty') and not df.empty) else "⚠️  MISSING/EMPTY"
+            print(f"   {label} data: {shape} {status}")
+            # For Daily data, print the first few rows to verify content
+            if label == "Daily" and df is not None and hasattr(df, 'head'):
+                print("   Daily data sample:")
+                print(df.head(5))
+
+        # Also check price_data for completeness
+        price_shape = fs.price_data.shape if hasattr(fs, 'price_data') and fs.price_data is not None else 'None'
+        price_status = "✅" if (hasattr(fs, 'price_data') and fs.price_data is not None and not fs.price_data.empty) else "❌ EMPTY"
+        print(f"   Consolidated price data: {price_shape} {price_status}")
 
         if fs.price_data is None or fs.price_data.empty:
             print("❌ Price data is empty - cannot proceed")
             return False
 
         print("\n3. Checking fundamentals...")
+        # Check if FRED_API_KEY is loaded
+        fred_key = os.getenv('FRED_API_KEY')
+        if not fred_key:
+            print("⚠️  FRED_API_KEY not loaded from environment/.env - fundamentals will not be available!")
         fundamentals = fs.fundamental_data if hasattr(fs, 'fundamental_data') else None
         if fundamentals is not None and not fundamentals.empty:
             print(f"✅ Fundamentals loaded: {fundamentals.shape}")
-            fund_cols = [c for c in fundamentals.columns if c.startswith('fund_')]
-            print(f"   Fundamental columns: {len(fund_cols)} (prefixed with 'fund_')")
+            fund_cols = [c for c in fundamentals.columns if c.startswith('fund_') or c.lower() not in ['date']]
+            print(f"   Fundamental columns: {len(fund_cols)}")
+            print(f"   Fundamental column names: {fund_cols}")
         else:
-            print("⚠️  No fundamentals loaded (check FRED_API_KEY)")
+            print("⚠️  No fundamentals loaded (check FRED_API_KEY and .env setup)")
 
         print("\n4. Testing feature engineering...")
         feature_df = fs._prepare_features()
