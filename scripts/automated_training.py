@@ -11,6 +11,7 @@ import json
 import logging
 from datetime import datetime
 from typing import List
+from pathlib import Path
 from tqdm import tqdm
 
 from .data_issue_fixes import pre_training_data_fix
@@ -73,6 +74,68 @@ class AutomatedTrainer:
             try:
                 logger.info(f"--- Processing {pair} ---")
                 
+                # 1. Ensure ForecastingSystem has compatibility helpers (class-level)
+                # in case different versions of the class are present in this repo.
+                if not hasattr(ForecastingSystem, '_get_cross_pair'):
+                    def _get_cross_pair(self):
+                        return 'XAUUSD' if getattr(self, 'pair', None) == 'EURUSD' else 'EURUSD'
+                    setattr(ForecastingSystem, '_get_cross_pair', _get_cross_pair)
+
+                if not hasattr(ForecastingSystem, '_load_daily_price_file'):
+                    def _load_daily_price_file(self, pair_hint=None, timeframe_hint='Daily'):
+                        try:
+                            from pathlib import Path
+                            import pandas as _pd
+                            root = Path(os.getcwd()) / 'data'
+                            pair_name = pair_hint or getattr(self, 'pair', None)
+                            candidates = [
+                                root / f"{pair_name}_Daily.csv",
+                                root / f"{pair_name}_daily.csv",
+                                root / f"{pair_name}.csv",
+                                root / f"{pair_name}_D1.csv",
+                                root / f"{pair_name}_H4.csv",
+                                root / f"{pair_name}_Monthly.csv",
+                            ]
+                            for c in candidates:
+                                if c.exists():
+                                    raw = _pd.read_csv(c, engine='python')
+                                    # Use forecasting module's normalizer if available
+                                    try:
+                                        from scripts.forecasting import _normalize_price_dataframe
+                                        df = _normalize_price_dataframe(raw)
+                                    except Exception:
+                                        df = raw
+                                    # If dataframe has datetime-like index, return common columns
+                                    if isinstance(df.index, _pd.DatetimeIndex):
+                                        cols = [col for col in ['Open', 'High', 'Low', 'Close'] if col in df.columns]
+                                        if len(cols) == 4:
+                                            return df[cols]
+                                    # Try to coerce a Date column
+                                    for k in ['<DATE>', 'Date', 'date', 'timestamp']:
+                                        if k in df.columns:
+                                            try:
+                                                df[k] = _pd.to_datetime(df[k], errors='coerce')
+                                                df = df.dropna(subset=[k]).set_index(k)
+                                                cols = [col for col in ['Open', 'High', 'Low', 'Close'] if col in df.columns]
+                                                if len(cols) == 4:
+                                                    return df[cols]
+                                            except Exception:
+                                                continue
+                            # fallback: try to build from intraday H1
+                            try:
+                                if hasattr(self, 'intraday_data') and getattr(self, 'intraday_data') is not None:
+                                    intr = getattr(self, 'intraday_data')
+                                    if not intr.empty and isinstance(intr.index, _pd.DatetimeIndex):
+                                        daily = intr[['Open', 'High', 'Low', 'Close']].resample('1D').agg({
+                                            'Open': 'first', 'High': 'max', 'Low': 'min', 'Close': 'last'
+                                        }).dropna()
+                                        return daily
+                            except Exception:
+                                pass
+                        except Exception:
+                            return None
+                    setattr(ForecastingSystem, '_load_daily_price_file', _load_daily_price_file)
+
                 # 1. Initialize forecasting system for the specific pair
                 forecasting_system = ForecastingSystem(pair=pair)
 
@@ -122,14 +185,18 @@ class AutomatedTrainer:
                     try:
                         feature_df = forecasting_system._prepare_features()
                         if feature_df is None or feature_df.empty:
-                            raise ValueError('Feature engineering produced empty dataframe')
+                            error_msg = f"Feature engineering produced empty dataframe for {pair}. Cannot proceed with training."
+                            logger.error(f"❌ {error_msg}")
+                            raise ValueError(error_msg)
 
                         target_col = 'target_1d'
                         if target_col not in feature_df.columns:
                             # try alternative naming
                             target_col = next((c for c in feature_df.columns if c.startswith('target_')), None)
                         if not target_col:
-                            raise ValueError('No target column found in features')
+                            error_msg = f"No target column found in features for {pair}. Available columns: {list(feature_df.columns)}"
+                            logger.error(f"❌ {error_msg}")
+                            raise ValueError(error_msg)
 
                         y = feature_df[target_col]
                         X = feature_df.drop(columns=[c for c in feature_df.columns if 'target' in c or 'next_close_change' in c], errors='ignore')
@@ -139,16 +206,15 @@ class AutomatedTrainer:
                         y_train, y_val = y[:train_size], y[train_size:]
                     except Exception as e:
                         logger.error(f"Fallback feature preparation failed for {pair}: {e}")
-                        X_train, y_train, X_val, y_val = None, None, None, None
+                        raise  # Re-raise to stop training
 
                 # Input validation: ensure we have proper arrays/frames and matching lengths
                 def invalid_input(reason):
                     logger.error(f"❌ Data preparation failed for {pair}: {reason}")
-                    final_results[pair] = {'error': f'Data preparation failed: {reason}'}
+                    raise ValueError(f"Data preparation failed for {pair}: {reason}")
 
                 if X_train is None or y_train is None:
                     invalid_input('Missing training data or labels')
-                    continue
 
                 # Convert pandas objects to numpy where helpful
                 try:
@@ -162,19 +228,18 @@ class AutomatedTrainer:
                         y_len = len(y_train)
                 except Exception:
                     invalid_input('Could not determine dataset lengths')
-                    continue
 
                 if x_len == 0 or y_len == 0:
                     invalid_input('Empty training arrays')
-                    continue
 
                 if x_len != y_len:
                     invalid_input(f'Mismatched lengths: X_train={x_len}, y_train={y_len}')
-                    continue
 
                 if x_len < 10:
-                    # Too few samples to train reliably; skip or allow emergency config downstream
-                    logger.warning(f"⚠️  {pair}: Very small training set ({x_len} samples). Training may use emergency minimal config.")
+                    # Too few samples to train reliably; raise error instead of warning
+                    error_msg = f"Insufficient training data for {pair}: only {x_len} samples. Need at least 10 samples."
+                    logger.error(f"❌ {error_msg}")
+                    raise ValueError(error_msg)
 
                 if dry_run:
                     logger.info(f"🔬 Dry-run enabled for {pair}: capping iterations to {dry_iterations} and timeout {dry_timeout_seconds}s")
@@ -240,7 +305,7 @@ class AutomatedTrainer:
 
             except Exception as e:
                 logger.error(f"An error occurred while processing {pair}: {e}", exc_info=True)
-                final_results[pair] = {'error': str(e)}
+                raise  # Re-raise to stop the training process on any error
 
         end_time = datetime.now()
         duration = end_time - start_time
@@ -259,6 +324,16 @@ class AutomatedTrainer:
         return final_results
 
 def main():
+    # Load .env file if present to ensure environment variables like FRED_API_KEY are available
+    env_path = Path(__file__).parent.parent / '.env'
+    if env_path.exists():
+        try:
+            from dotenv import load_dotenv
+            load_dotenv(env_path)
+            logger.info("✅ Loaded environment variables from .env")
+        except ImportError:
+            logger.warning("⚠️  python-dotenv not installed, environment variables may not be loaded from .env")
+
     import argparse
 
     parser = argparse.ArgumentParser(description='Automated Model Training')
