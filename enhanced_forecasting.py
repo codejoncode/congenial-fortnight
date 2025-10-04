@@ -18,10 +18,12 @@ The run() function returns True when training may proceed, False otherwise.
 import logging
 from pathlib import Path
 
+
 try:
-    from data_validation import validate_data_before_training
+    from data_validation import validate_data_before_training, validate_data_before_training_auto
 except Exception:
     validate_data_before_training = None
+    validate_data_before_training_auto = None
 
 try:
     from data_issue_fixes import pre_training_data_fix
@@ -57,7 +59,7 @@ def run(dry_run=False):
         return False
 
     # Then validate
-    ok_valid = validate_data_before_training()
+    ok_valid = validate_data_before_training_auto()
     if not ok_valid:
         logger.error("Data validation failed after fixes. Aborting.")
         return False

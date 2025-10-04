@@ -292,7 +292,13 @@ class ForexDataValidator:
         
         for timeframe, filepath in data_sources.items():
             df = pd.read_csv(filepath)
-            
+            if timeframe == 'Monthly':
+                # Only require 12 rows (1 year) for Monthly timeframe
+                if len(df) < 12:
+                    insufficient_data.append(
+                        f"{timeframe}: {len(df)} rows (need 12 for minimum monthly check)"
+                    )
+                continue
             if len(df) < max_lookback * 2:  # Need extra buffer
                 insufficient_data.append(
                     f"{timeframe}: {len(df)} rows (need {max_lookback * 2} for indicators)"
