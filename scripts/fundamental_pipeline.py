@@ -619,6 +619,14 @@ class FundamentalDataPipeline:
         total = len(results)
         logger.info(f"Full update completed: {successful}/{total} successful")
 
+        # Post-update: Normalize all CSVs
+        try:
+            import subprocess
+            subprocess.run(['python', 'normalize_all_csvs.py'], cwd=str(self.data_dir.parent), check=True)
+            logger.info("Post-update CSV normalization complete.")
+        except Exception as e:
+            logger.error(f"CSV normalization failed: {e}")
+
         return results
 
     def run_daily_update(self) -> Dict[str, bool]:
@@ -650,6 +658,14 @@ class FundamentalDataPipeline:
         successful = sum(1 for status in results.values() if status)
         total = len(results)
         logger.info(f"Daily update completed: {successful}/{total} successful")
+
+        # Post-update: Normalize all CSVs
+        try:
+            import subprocess
+            subprocess.run(['python', 'normalize_all_csvs.py'], cwd=str(self.data_dir.parent), check=True)
+            logger.info("Post-update CSV normalization complete.")
+        except Exception as e:
+            logger.error(f"CSV normalization failed: {e}")
 
         return results
 

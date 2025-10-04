@@ -551,13 +551,13 @@ class HybridPriceForecastingEnsemble:
             # The engineer is already initialized in __init__
             fundamental_data = self.fundamental_engineer.load_all_series_as_df()
             if fundamental_data.empty:
-                self.logger.warning("Fundamental dataset is empty after processing.")
-                return pd.DataFrame()
+                self.logger.critical("FATAL: Fundamental dataset is empty after processing. Halting pipeline.")
+                raise RuntimeError("FATAL: Fundamental dataset is empty after processing. Pipeline halted.")
             self.logger.info(f"Successfully loaded fundamental data. Shape: {fundamental_data.shape}")
             return fundamental_data
         except Exception as e:
-            self.logger.error(f"Could not load fundamental data: {e}")
-            return pd.DataFrame()
+            self.logger.critical(f"FATAL: Could not load fundamental data: {e}. Halting pipeline.")
+            raise RuntimeError(f"FATAL: Could not load fundamental data: {e}. Pipeline halted.")
 
     def _load_price_data(self):
         """
@@ -945,6 +945,11 @@ class HybridPriceForecastingEnsemble:
         """
         # Engineer features from the loaded price data
         feature_df = self._engineer_features(self.price_data)
+
+        # Enforce: pipeline must halt if fundamental data is missing or empty
+        if not hasattr(self, 'fundamental_data') or self.fundamental_data is None or self.fundamental_data.empty:
+            self.logger.critical("FATAL: Fundamental data is missing or empty during feature preparation. Halting pipeline.")
+            raise RuntimeError("FATAL: Fundamental data is missing or empty during feature preparation. Pipeline halted.")
 
         if feature_df.empty:
             return feature_df

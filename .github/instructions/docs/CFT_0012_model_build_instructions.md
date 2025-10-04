@@ -30,6 +30,8 @@ Fundamental integration with free-tier API management
 Candlestick patterns across all timeframes
 
 4. Data Alignment Solution
+
+some of the data lines may be off  the point is everything is aligned 
 6,697 aligned daily rows for EURUSD (full history)
 
 5,476 aligned daily rows for XAUUSD (full history)
