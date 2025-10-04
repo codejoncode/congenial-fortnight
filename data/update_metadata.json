@@ -95,10 +95,10 @@
     "status": "success"
   },
   "EURUSD_Monthly": {
-    "last_data_date": "2025-09-28",
+    "last_data_date": "2025-09-01",
     "last_inspected": "2025-10-03T22:37:41.272750Z",
     "last_update": "2025-10-03T17:18:11.783376",
-    "rows": 1343,
+    "rows": 309,
     "status": "success"
   },
   "EURUSD_Weekly": {
@@ -196,10 +196,10 @@
     "status": "success"
   },
   "XAUUSD_Monthly": {
-    "last_data_date": "2025-09-28",
+    "last_data_date": "2025-09-01",
     "last_inspected": "2025-10-03T22:37:41.380185Z",
     "last_update": "2025-10-03T17:18:12.230200",
-    "rows": 1113,
+    "rows": 256,
     "status": "success"
   },
   "XAUUSD_Weekly": {
