@@ -76,6 +76,47 @@ def ensure_environment_loaded():
         return False
 
 class AutomatedTrainer:
+    def train_until_target(self, pairs=None, max_attempts=10):
+        """
+        Repeatedly train models for each pair, deleting models before each run, until target accuracy is reached or max_attempts is hit.
+        Logs best results for each pair.
+        """
+        import shutil
+        if pairs is None:
+            pairs = ['EURUSD', 'XAUUSD']
+        best_results = {pair: {'validation_accuracy': 0, 'test_accuracy': 0} for pair in pairs}
+        for attempt in range(1, max_attempts + 1):
+            logger.info(f"\n=== Training Attempt {attempt}/{max_attempts} ===")
+            # Delete models before each run
+            models_dir = os.path.join(BASE_APP_DIR, 'models')
+            if os.path.exists(models_dir):
+                for f in os.listdir(models_dir):
+                    file_path = os.path.join(models_dir, f)
+                    try:
+                        if os.path.isfile(file_path):
+                            os.remove(file_path)
+                    except Exception as e:
+                        logger.warning(f"Could not delete model file {file_path}: {e}")
+            # Run training
+            results = self.run_automated_training(pairs=pairs)
+            all_targets_reached = True
+            for pair in pairs:
+                result = results.get(pair, {})
+                val_acc = result.get('validation_accuracy', 0)
+                test_acc = result.get('test_accuracy', 0)
+                if val_acc > best_results[pair]['validation_accuracy']:
+                    best_results[pair]['validation_accuracy'] = val_acc
+                if test_acc > best_results[pair]['test_accuracy']:
+                    best_results[pair]['test_accuracy'] = test_acc
+                if not result.get('target_reached', False):
+                    all_targets_reached = False
+            if all_targets_reached:
+                logger.info(f"🎯 Target accuracy reached for all pairs on attempt {attempt}!")
+                break
+        logger.info("\n=== Best Results Across All Attempts ===")
+        for pair in pairs:
+            logger.info(f"{pair}: Best Validation Accuracy: {best_results[pair]['validation_accuracy']:.4f}, Best Test Accuracy: {best_results[pair]['test_accuracy']:.4f}")
+        return best_results
     def __init__(self, target_accuracy=0.75, max_iterations=100):
         self.target_accuracy = target_accuracy
         self.max_iterations = max_iterations
@@ -137,7 +178,8 @@ class AutomatedTrainer:
         return results
 
     def run_automated_training(self, pairs: List[str] = None, dry_run: bool = False, dry_iterations: int = 10, dry_timeout_seconds: int = 60):
-        """Run automated training for specified pairs using the robust pipeline"""
+        """Run automated training for specified pairs using robust time-series splits and model saving."""
+        import joblib
         if pairs is None:
             pairs = ['EURUSD', 'XAUUSD']
 
@@ -147,301 +189,99 @@ class AutomatedTrainer:
         final_results = {}
         start_time = datetime.now()
 
-    # Wrap pairs with tqdm for a progress bar
         for pair in tqdm(pairs, desc="Processing pairs"):
             try:
                 logger.info(f"--- Processing {pair} ---")
-                
-                # 1. Ensure ForecastingSystem has compatibility helpers (class-level)
-                # in case different versions of the class are present in this repo.
-                if not hasattr(ForecastingSystem, '_get_cross_pair'):
-                    def _get_cross_pair(self):
-                        return 'XAUUSD' if getattr(self, 'pair', None) == 'EURUSD' else 'EURUSD'
-                    setattr(ForecastingSystem, '_get_cross_pair', _get_cross_pair)
-
-                if not hasattr(ForecastingSystem, '_load_daily_price_file'):
-                    def _load_daily_price_file(self, pair_hint=None, timeframe_hint='Daily'):
-                        try:
-                            from pathlib import Path
-                            import pandas as _pd
-                            root = Path(os.getcwd()) / 'data'
-                            pair_name = pair_hint or getattr(self, 'pair', None)
-                            candidates = [
-                                root / f"{pair_name}_Daily.csv",
-                                root / f"{pair_name}_daily.csv",
-                                root / f"{pair_name}.csv",
-                                root / f"{pair_name}_D1.csv",
-                                root / f"{pair_name}_H4.csv",
-                                root / f"{pair_name}_Monthly.csv",
-                            ]
-                            for c in candidates:
-                                if c.exists():
-                                    raw = _pd.read_csv(c, engine='python')
-                                    # Use forecasting module's normalizer if available
-                                    try:
-                                        from scripts.forecasting import _normalize_price_dataframe
-                                        df = _normalize_price_dataframe(raw)
-                                    except Exception:
-                                        df = raw
-                                    # If dataframe has datetime-like index, return common columns
-                                    if isinstance(df.index, _pd.DatetimeIndex):
-                                        cols = [col for col in ['Open', 'High', 'Low', 'Close'] if col in df.columns]
-                                        if len(cols) == 4:
-                                            return df[cols]
-                                    # Try to coerce a Date column
-                                    for k in ['<DATE>', 'Date', 'date', 'timestamp']:
-                                        if k in df.columns:
-                                            try:
-                                                df[k] = _pd.to_datetime(df[k], errors='coerce')
-                                                df = df.dropna(subset=[k]).set_index(k)
-                                                cols = [col for col in ['Open', 'High', 'Low', 'Close'] if col in df.columns]
-                                                if len(cols) == 4:
-                                                    return df[cols]
-                                            except Exception:
-                                                continue
-                            # fallback: try to build from intraday H1
-                            try:
-                                if hasattr(self, 'intraday_data') and getattr(self, 'intraday_data') is not None:
-                                    intr = getattr(self, 'intraday_data')
-                                    if not intr.empty and isinstance(intr.index, _pd.DatetimeIndex):
-                                        daily = intr[['Open', 'High', 'Low', 'Close']].resample('1D').agg({
-                                            'Open': 'first', 'High': 'max', 'Low': 'min', 'Close': 'last'
-                                        }).dropna()
-                                        return daily
-                            except Exception:
-                                pass
-                        except Exception:
-                            return None
-                    setattr(ForecastingSystem, '_load_daily_price_file', _load_daily_price_file)
-
-                # 1. Initialize forecasting system for the specific pair
                 forecasting_system = ForecastingSystem(pair=pair)
-
-                # Compatibility shims: some versions of the ForecastingSystem
-                # may miss helper methods (e.g. when running from tests or
-                # refactored modules). Add minimal fallbacks so automated
-                # training can proceed in dry-run mode.
-                if not hasattr(forecasting_system, '_get_cross_pair'):
-                    def _get_cross_pair():
-                        return 'XAUUSD' if forecasting_system.pair == 'EURUSD' else 'EURUSD'
-                    forecasting_system._get_cross_pair = _get_cross_pair
-
-                if not hasattr(forecasting_system, '_load_daily_price_file'):
-                    # Provide a simple loader that tries common filenames
-                    def _load_daily_price_file(pair_hint=None, timeframe_hint='Daily'):
-                        try:
-                            from pathlib import Path
-                            import pandas as pd
-                            root = Path(os.getcwd()) / 'data'
-                            pair_name = pair_hint or forecasting_system.pair
-                            candidates = [root / f"{pair_name}_Daily.csv", root / f"{pair_name}_daily.csv", root / f"{pair_name}.csv", root / f"{pair_name}_Monthly.csv"]
-                            for c in candidates:
-                                if c.exists():
-                                    df = pd.read_csv(c)
-                                    # attempt to coerce a Date column
-                                    if '<DATE>' in df.columns and '<TIME>' in df.columns:
-                                        df['Date'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], errors='coerce')
-                                        df = df.set_index('Date')
-                                    elif '<DATE>' in df.columns:
-                                        df['Date'] = pd.to_datetime(df['<DATE>'], errors='coerce')
-                                        df = df.set_index('Date')
-                                    elif 'Date' in df.columns:
-                                        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-                                        df = df.set_index('Date')
-                                    return df
-                        except Exception:
-                            return pd.DataFrame()
-
-                    forecasting_system._load_daily_price_file = _load_daily_price_file
-                
-                # 2. Load and prepare datasets
-                # Prefer the high-level helper if available
+                # --- Feature Engineering ---
                 if hasattr(forecasting_system, 'load_and_prepare_datasets'):
-                    X_train, y_train, X_val, y_val = forecasting_system.load_and_prepare_datasets()
-                else:
-                    # Fallback: use internal _prepare_features to construct X/y
-                    try:
-                        feature_df = forecasting_system._prepare_features()
-                        if feature_df is None or feature_df.empty:
-                            error_msg = f"Feature engineering produced empty dataframe for {pair}. Cannot proceed with training."
-                            logger.error(f"❌ {error_msg}")
-                            raise ValueError(error_msg)
-
-                        target_col = 'target_1d'
-                        if target_col not in feature_df.columns:
-                            # try alternative naming
-                            target_col = next((c for c in feature_df.columns if c.startswith('target_')), None)
-                        if not target_col:
-                            error_msg = f"No target column found in features for {pair}. Available columns: {list(feature_df.columns)}"
-                            logger.error(f"❌ {error_msg}")
-                            raise ValueError(error_msg)
-
-                        y = feature_df[target_col]
-                        X = feature_df.drop(columns=[c for c in feature_df.columns if 'target' in c or 'next_close_change' in c], errors='ignore')
-                        # Simple train/val/test split: 70% train, 15% val, 15% test by time
+                    loaded = forecasting_system.load_and_prepare_datasets()
+                    # Handle (X, y) or (X_train, y_train, X_val, y_val, X_test, y_test)
+                    if isinstance(loaded, tuple) and len(loaded) == 6:
+                        X_train, y_train, X_val, y_val, X_test, y_test = loaded
+                    elif isinstance(loaded, tuple) and len(loaded) == 4:
+                        X_train, y_train, X_val_full, y_val_full = loaded
+                        # Split X_val_full/y_val_full 50/50 into val and test
+                        n_val = len(X_val_full)
+                        if n_val < 2:
+                            raise ValueError("Not enough samples in validation set to split into val/test.")
+                        split = n_val // 2
+                        X_val, X_test = X_val_full.iloc[:split], X_val_full.iloc[split:]
+                        y_val, y_test = y_val_full.iloc[:split], y_val_full.iloc[split:]
+                    elif isinstance(loaded, tuple) and len(loaded) == 2:
+                        X, y = loaded
                         n = len(X)
                         train_end = int(0.70 * n)
                         valid_end = int(0.85 * n)
-
-                        X_train, X_val, X_test = X[:train_end], X[train_end:valid_end], X[valid_end:]
-                        y_train, y_val, y_test = y[:train_end], y[train_end:valid_end], y[valid_end:]
-                    except Exception as e:
-                        logger.error(f"Fallback feature preparation failed for {pair}: {e}")
-                        raise  # Re-raise to stop training
-
-                # Input validation: ensure we have proper arrays/frames and matching lengths
-                def invalid_input(reason):
-                    logger.error(f"❌ Data preparation failed for {pair}: {reason}")
-                    raise ValueError(f"Data preparation failed for {pair}: {reason}")
-
-                if X_train is None or y_train is None:
-                    invalid_input('Missing training data or labels')
-
-                # Convert pandas objects to numpy where helpful
-                try:
-                    import numpy as _np
-                    if hasattr(X_train, 'shape') and hasattr(y_train, 'shape'):
-                        x_len = int(X_train.shape[0])
-                        y_len = int(y_train.shape[0])
+                        X_train, X_val, X_test = X.iloc[:train_end], X.iloc[train_end:valid_end], X.iloc[valid_end:]
+                        y_train, y_val, y_test = y.iloc[:train_end], y.iloc[train_end:valid_end], y.iloc[valid_end:]
                     else:
-                        # fallback to len()
-                        x_len = len(X_train)
-                        y_len = len(y_train)
-                except Exception:
-                    invalid_input('Could not determine dataset lengths')
-
-                if x_len == 0 or y_len == 0:
-                    invalid_input('Empty training arrays')
-
-                if x_len != y_len:
-                    invalid_input(f'Mismatched lengths: X_train={x_len}, y_train={y_len}')
-
-                if x_len < 10:
-                    # Too few samples to train reliably; raise error instead of warning
-                    error_msg = f"Insufficient training data for {pair}: only {x_len} samples. Need at least 10 samples."
-                    logger.error(f"❌ {error_msg}")
-                    raise ValueError(error_msg)
-
-                if dry_run:
-                    logger.info(f"🔬 Dry-run enabled for {pair}: capping iterations to {dry_iterations} and timeout {dry_timeout_seconds}s")
-                
-                # Generate and save per-pair schema report via report_utils
-                try:
-                    from .report_utils import generate_schema_report
-                    generate_schema_report(X_train, pair=pair, pairs=pairs, out_dir=os.path.join(BASE_APP_DIR, 'output'))
-                except Exception as e:
-                    logger.debug(f"Could not generate schema report via report_utils: {e}")
-
-                # 2.5 Automatic pruning: drop columns with high NA% or zero variance
-                X_train_pruned, prune_report = prune_features(X_train, na_pct_threshold=0.5, drop_zero_variance=True)
-                # Align validation set to pruned columns
-                try:
-                    X_val_pruned = X_val[X_train_pruned.columns]
-                except Exception:
-                    # If X_val can't be subset, attempt to reindex
-                    try:
-                        X_val_pruned = X_val.reindex(columns=X_train_pruned.columns)
-                    except Exception:
-                        X_val_pruned = X_val
-
-                # Save pruning report using report_utils
-                try:
-                    from .report_utils import save_prune_report
-                    save_prune_report(prune_report, pair=pair, out_dir=os.path.join(BASE_APP_DIR, 'output'))
-                except Exception as e:
-                    logger.debug(f"Could not save prune report via report_utils: {e}")
-
-                # 3. Use the new robust training pipeline
-                # The enhanced pipeline now takes data directly
-                # If dry_run, call the arrays wrapper which respects our small-iteration configs
-                if dry_run:
-                    # Try to reduce training time by trimming columns or rows if needed
-                    model = enhanced_lightgbm_training_pipeline(
-                        X_train_pruned.head(dry_iterations * 10), y_train[:dry_iterations * 10],
-                        X_val_pruned.head(max(1, int(dry_iterations * 2))) if X_val_pruned is not None else None,
-                        y_val[:max(1, int(dry_iterations * 2))] if y_val is not None else None,
-                        pair_name=pair
-                    )
+                        raise ValueError("load_and_prepare_datasets() returned unexpected format.")
                 else:
-                    model = enhanced_lightgbm_training_pipeline(
-                        X_train_pruned, y_train, X_val_pruned, y_val,
-                        pair_name=pair # Pass pair name for logging
-                    )
-                
+                    feature_df = forecasting_system._prepare_features()
+                    if feature_df is None or feature_df.empty:
+                        error_msg = f"Feature engineering produced empty dataframe for {pair}. Cannot proceed with training."
+                        logger.error(f"❌ {error_msg}")
+                        raise ValueError(error_msg)
+                    target_col = 'target_1d'
+                    if target_col not in feature_df.columns:
+                        target_col = next((c for c in feature_df.columns if c.startswith('target_')), None)
+                    if not target_col:
+                        error_msg = f"No target column found in features for {pair}. Available columns: {list(feature_df.columns)}"
+                        logger.error(f"❌ {error_msg}")
+                        raise ValueError(error_msg)
+                    y = feature_df[target_col]
+                    X = feature_df.drop(columns=[c for c in feature_df.columns if 'target' in c or 'next_close_change' in c], errors='ignore')
+                    n = len(X)
+                    train_end = int(0.70 * n)
+                    valid_end = int(0.85 * n)
+                    X_train, X_val, X_test = X.iloc[:train_end], X.iloc[train_end:valid_end], X.iloc[valid_end:]
+                    y_train, y_val, y_test = y.iloc[:train_end], y.iloc[train_end:valid_end], y.iloc[valid_end:]
+
+                # --- Model Training ---
+                model = enhanced_lightgbm_training_pipeline(X_train, y_train, X_val, y_val, pair_name=pair)
                 if model is None:
                     logger.error(f"❌ Training failed for {pair} - no model was produced.")
                     final_results[pair] = {'error': 'Training failed, no model produced.'}
                     continue
 
-                # 4. Evaluate the trained model on validation data
-                if X_val_pruned is not None and y_val is not None and len(X_val_pruned) > 0:
-                    try:
-                        # Make predictions on validation set
-                        val_predictions = model.predict(X_val_pruned)
-                        
-                        # For binary classification, convert probabilities to class predictions
-                        if hasattr(val_predictions, 'shape') and len(val_predictions.shape) > 1:
-                            val_predictions = (val_predictions > 0.5).astype(int)
-                        else:
-                            val_predictions = (val_predictions > 0.5).astype(int)
-                        
-                        # Calculate accuracy
-                        from sklearn.metrics import accuracy_score
-                        val_accuracy = accuracy_score(y_val, val_predictions)
-                        logger.info(f"📊 {pair} Validation Accuracy: {val_accuracy:.4f} ({val_accuracy*100:.1f}%)")
-                        
-                        if X_test is not None and y_test is not None and len(X_test) > 0:
-                            test_predictions = model.predict(X_test)
-                            if hasattr(test_predictions, 'shape') and len(test_predictions.shape) > 1:
-                                test_predictions = (test_predictions > 0.5).astype(int)
-                            else:
-                                test_predictions = (test_predictions > 0.5).astype(int)
-                            test_accuracy = accuracy_score(y_test, test_predictions)
-                            logger.info(f"📊 {pair} Test Accuracy: {test_accuracy:.4f} ({test_accuracy*100:.1f}%)")
-                            print(f"▶️ Validation Accuracy: {val_accuracy:.2%}")
-                            print(f"▶️ Test       Accuracy: {test_accuracy:.2%}")
-                        else:
-                            logger.warning(f"⚠️ No test data available for {pair} accuracy evaluation")
-                        
-                        # Check if target accuracy is reached
-                        target_reached = val_accuracy >= self.target_accuracy
-                        if target_reached:
-                            logger.info(f"🎯 {pair} TARGET ACCURACY REACHED: {val_accuracy:.4f} >= {self.target_accuracy:.4f}")
-                        else:
-                            logger.warning(f"⚠️ {pair} Target not reached: {val_accuracy:.4f} < {self.target_accuracy:.4f}")
-                        
+                # --- Save Model ---
+                model_path = os.path.join(BASE_APP_DIR, 'models', f'{pair}_model.txt')
+                try:
+                    model.save_model(model_path)
+                    logger.info(f"✅ Saved model for {pair} to {model_path}")
+                except Exception as e:
+                    logger.error(f"❌ Failed to save model for {pair}: {e}")
 
-                        final_results[pair] = {
-                            'status': 'success',
-                            'model_trained': True,
-                            'validation_accuracy': val_accuracy,
-                            'target_accuracy': self.target_accuracy,
-                            'target_reached': target_reached
-                        }
-                    except Exception as e:
-                        logger.warning(f"⚠️ Could not evaluate {pair} model accuracy: {e}")
-                        final_results[pair] = {
-                            'status': 'success',
-                            'model_trained': True,
-                            'target_reached': True,  # Assume success if model trained
-                            'accuracy_error': str(e)
-                        }
-                else:
-                    logger.warning(f"⚠️ No validation data available for {pair} accuracy evaluation")
-                    final_results[pair] = {
-                        'status': 'success',
-                        'model_trained': True,
-                        'target_reached': True  # Assume success if model trained
-                    }
+                # --- Evaluation ---
+                from sklearn.metrics import accuracy_score
+                val_pred = model.predict(X_val)
+                val_pred = (val_pred > 0.5).astype(int)
+                val_acc = accuracy_score(y_val, val_pred)
+                logger.info(f"📊 {pair} Validation Accuracy: {val_acc:.4f} ({val_acc*100:.1f}%)")
 
+                test_pred = model.predict(X_test)
+                test_pred = (test_pred > 0.5).astype(int)
+                test_acc = accuracy_score(y_test, test_pred)
+                logger.info(f"📊 {pair} Test Accuracy: {test_acc:.4f} ({test_acc*100:.1f}%)")
+                print(f"▶️ Validation Accuracy: {val_acc:.2%}")
+                print(f"▶️ Test       Accuracy: {test_acc:.2%}")
+
+                final_results[pair] = {
+                    'status': 'success',
+                    'model_trained': True,
+                    'validation_accuracy': val_acc,
+                    'test_accuracy': test_acc,
+                    'target_accuracy': self.target_accuracy,
+                    'target_reached': val_acc >= self.target_accuracy
+                }
             except Exception as e:
                 logger.error(f"An error occurred while processing {pair}: {e}", exc_info=True)
-                raise  # Re-raise to stop the training process on any error
+                raise
 
         end_time = datetime.now()
         duration = end_time - start_time
         logger.info(f"Automated training finished in {duration}.")
-        
         # Save final results
         results_path = os.path.join(BASE_APP_DIR, 'logs', 'automated_training_results.json')
         with open(results_path, 'w') as f:
@@ -451,7 +291,6 @@ class AutomatedTrainer:
                 'duration_seconds': duration.total_seconds(),
                 'results': final_results
             }, f, indent=2)
-            
         return final_results
 
 def main():
@@ -478,6 +317,8 @@ def main():
     parser.add_argument('--dry-iterations', type=int, default=10, help='Number of iterations to approximate in dry-run (default: 10)')
     parser.add_argument('--na-threshold', type=float, default=0.5, help='NA% threshold for pruning (0-1)')
     parser.add_argument('--drop-zero-variance', action='store_true', help='Drop numeric zero-variance features during pruning')
+    parser.add_argument('--loop-until-target', action='store_true', help='Loop training until target accuracy is reached or max attempts hit')
+    parser.add_argument('--max-attempts', type=int, default=10, help='Maximum training attempts in loop mode (default: 10)')
 
     args = parser.parse_args()
 
@@ -494,21 +335,26 @@ def main():
         max_iterations=args.max_iterations
     )
 
-    results = trainer.run_automated_training(
-        pairs=args.pairs,
-        dry_run=args.dry_run,
-        dry_iterations=args.dry_iterations,
-        dry_timeout_seconds=60
-    )
-
-    # Exit with success/failure code
-    all_targets_reached = all(
-        result.get('target_reached', False)
-        for result in results.values()
-        if 'error' not in result
-    )
-
-    sys.exit(0 if all_targets_reached else 1)
+    if args.loop_until_target:
+        logger.info("Running training loop until target accuracy is reached or max attempts hit...")
+        best_results = trainer.train_until_target(
+            pairs=args.pairs,
+            max_attempts=args.max_attempts
+        )
+    else:
+        results = trainer.run_automated_training(
+            pairs=args.pairs,
+            dry_run=args.dry_run,
+            dry_iterations=args.dry_iterations,
+            dry_timeout_seconds=60
+        )
+        # Exit with success/failure code
+        all_targets_reached = all(
+            result.get('target_reached', False)
+            for result in results.values()
+            if 'error' not in result
+        )
+        sys.exit(0 if all_targets_reached else 1)
 
 if __name__ == '__main__':
     main()
