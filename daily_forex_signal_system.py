@@ -134,6 +134,8 @@ class DailyForexSignal:
         # Map common variations to standard names
         column_mapping = {
             'time': None,  # Drop time column if present
+            'timestamp': 'date',  # Map timestamp to date
+            'volume': 'tickvol',  # Map volume to tickvol
             'tickvol': 'tickvol',
             'vol': 'vol',
             'spread': 'spread'
@@ -169,8 +171,12 @@ class DailyForexSignal:
             df[col] = pd.to_numeric(df[col], errors='coerce')
         print(f"After casting numerics: NaN counts {df[numeric_cols].isna().sum()}")
         
-        # Drop rows with NaN in key columns
-        df = df.dropna(subset=numeric_cols)
+        # Fill NaN tickvol with 0 (common for forex data without volume)
+        df['tickvol'] = df['tickvol'].fillna(0)
+        
+        # Drop rows with NaN in key columns (excluding tickvol which we just filled)
+        key_cols = ['open', 'high', 'low', 'close', 'vol', 'spread']
+        df = df.dropna(subset=key_cols)
         print(f"After dropna numerics: shape {df.shape}")
         
         # Sort by date

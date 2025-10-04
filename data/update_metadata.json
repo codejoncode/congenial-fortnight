@@ -74,9 +74,9 @@
     "status": "error"
   },
   "EURUSD_Daily": {
-    "last_data_date": "2025-09-29",
+    "last_data_date": "2025-09-29T00:00:00",
     "last_inspected": "2025-10-03T22:37:41.195851Z",
-    "last_update": "2025-10-03T17:18:11.642132",
+    "last_update": "2025-10-04T02:34:37.434836",
     "rows": 6693,
     "status": "success"
   },
