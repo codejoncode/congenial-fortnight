@@ -70,10 +70,43 @@ def run(dry_run=False):
         logger.info("Dry run requested - not starting training")
         return True
 
-    # Place holder for training start. Importing your existing training
-    # entrypoint would happen here. For now, return True to indicate OK.
-    logger.info("Starting training pipeline (placeholder) — replace with your training call")
-    return True
+    # --- ACTUAL TRAINING ENTRYPOINT ---
+    import os
+    from pathlib import Path
+    # Only require FRED API key if any fundamental CSV is missing or empty
+    required_fundamentals = [
+        'INDPRO','DGORDER','ECBDFR','CP0000EZ19M086NEST','LRHUTTTTDEM156S','DCOILWTICO','DCOILBRENTEU','VIXCLS','DGS10','DGS2','BOPGSTB','CPIAUCSL','CPALTT01USM661S','DFF','DEXCHUS','DEXJPUS','DEXUSEU','FEDFUNDS','PAYEMS','UNRATE'
+    ]
+    missing_or_empty = []
+    for fname in required_fundamentals:
+        fpath = Path('data') / f'{fname}.csv'
+        if not fpath.exists() or fpath.stat().st_size == 0:
+            missing_or_empty.append(fname)
+    if missing_or_empty:
+        fred_key = os.environ.get('FRED_API_KEY')
+        if not fred_key or fred_key.strip() == '':
+            logger.error(f"❌ FRED_API_KEY is missing and fundamental data missing/empty for: {missing_or_empty}. Fundamental data cannot be loaded.")
+            logger.error("To fix: Add your FRED API key to your .env file as FRED_API_KEY=your_key_here and restart your environment.")
+            logger.error("If you do not have a FRED key, sign up at https://fred.stlouisfed.org/docs/api/api_key.html")
+            return False
+    try:
+        from scripts.automated_training import AutomatedTrainer
+        trainer = AutomatedTrainer(target_accuracy=0.85, max_iterations=50)
+        results = trainer.run_automated_training(pairs=["EURUSD", "XAUUSD"], dry_run=False)
+        logger.info(f"Training results: {results}")
+        logger.info("✅ Full training completed for all pairs.")
+        return True
+    except Exception as e:
+        if 'FATAL: Fundamental data is missing or empty' in str(e):
+            logger.error("❌ Fundamental data is missing or empty during feature preparation.\n")
+            logger.error("How to fix:")
+            logger.error("1. Ensure your .env file contains a valid FRED_API_KEY and restart your environment.")
+            logger.error("2. If you have the key, but still see this error, check that your fundamental CSVs in the data/ folder are populated with real values (not just headers or placeholders).\n")
+            logger.error("3. If you need a FRED key, get one at https://fred.stlouisfed.org/docs/api/api_key.html\n")
+            logger.error("4. If you want to run without fundamentals, modify your pipeline to skip fundamental features.")
+        else:
+            logger.error(f"❌ Training failed: {e}")
+        return False
 
 
 if __name__ == '__main__':

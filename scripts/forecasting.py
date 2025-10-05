@@ -205,6 +205,55 @@ except ImportError:
     from robust_lightgbm_config import enhanced_lightgbm_training_pipeline
 
 class HybridPriceForecastingEnsemble:
+    def evaluate_signal_features(self, feature_df: pd.DataFrame, target_col: str = 'target_1d', output_csv: str = None):
+        """
+        Evaluate each signal/feature for predictive power against the target.
+        Outputs a summary table (printed and optionally saved as CSV) with:
+        - Feature name
+        - Accuracy (thresholded at 0.5 if numeric, or direct if binary)
+        - Hit rate (fraction of nonzero signals that are correct)
+        - Correlation with target
+        """
+        import pandas as pd
+        import numpy as np
+        results = []
+        if feature_df.empty or target_col not in feature_df.columns:
+            print("No features or target column for signal evaluation.")
+            return
+        y = feature_df[target_col]
+        for col in feature_df.columns:
+            if col == target_col or col.startswith('next_close_change') or col in ['Open','High','Low','Close','Volume','returns','log_returns']:
+                continue
+            x = feature_df[col]
+            # Only evaluate numeric or boolean features
+            if not np.issubdtype(x.dtype, np.number):
+                continue
+            # Accuracy: threshold at 0.5 if not binary
+            if set(x.dropna().unique()).issubset({0,1}):
+                pred = x
+            else:
+                pred = (x > 0.5).astype(int)
+            acc = (pred == y).mean()
+            # Hit rate: fraction of nonzero signals that are correct
+            nonzero = pred != 0
+            hit_rate = ((pred[nonzero] == y[nonzero]).mean() if nonzero.sum() > 0 else np.nan)
+            # Correlation
+            try:
+                corr = np.corrcoef(x.fillna(0), y.fillna(0))[0,1]
+            except Exception:
+                corr = np.nan
+            results.append({
+                'feature': col,
+                'accuracy': acc,
+                'hit_rate': hit_rate,
+                'correlation': corr
+            })
+        df_results = pd.DataFrame(results).sort_values('accuracy', ascending=False)
+        print("\n=== Per-Signal/Feature Evaluation ===")
+        print(df_results.to_string(index=False, float_format=lambda x: f"{x:.3f}"))
+        if output_csv:
+            df_results.to_csv(output_csv, index=False)
+            print(f"Signal evaluation results saved to {output_csv}")
     """
     Advanced hybrid ensemble forecasting system for forex price prediction.
 
@@ -1366,6 +1415,12 @@ class HybridPriceForecastingEnsemble:
                 logger.error(f"Error training {model_name} model: {e}")
 
         logger.info(f"Ensemble training completed for {self.pair}")
+
+        # === Per-signal/feature evaluation ===
+        try:
+            self.evaluate_signal_features(feature_df, target_col='target_1d', output_csv=f"{self.pair}_signal_evaluation.csv")
+        except Exception as e:
+            logger.error(f"Signal evaluation failed: {e}")
 
     def generate_forecast(self, days_ahead: int = 1) -> pd.DataFrame:
         """Generate forecast for the specified number of days ahead."""

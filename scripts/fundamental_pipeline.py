@@ -66,13 +66,24 @@ class FundamentalDataPipeline:
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(exist_ok=True)
 
-        # FRED API setup
+
+        # Only require FRED API key if local CSVs are missing or empty
         self.fred_api_key = fred_api_key or os.getenv('FRED_API_KEY')
-        if not self.fred_api_key:
-            logger.warning("FRED API key not found. Fundamental data will be unavailable.")
-            self.fred = None
+        self.fred = None
+        # Check if all required fundamental CSVs exist and are non-empty
+        required_series = [k for k in self._get_fred_series_config().keys()]
+        missing_or_empty = []
+        for series_id in required_series:
+            csv_file = self.data_dir / f"{series_id}.csv"
+            if not csv_file.exists() or csv_file.stat().st_size == 0:
+                missing_or_empty.append(series_id)
+        if missing_or_empty:
+            if not self.fred_api_key:
+                logger.warning(f"FRED API key not found and missing/empty fundamental data for: {missing_or_empty}. Fundamental data will be unavailable.")
+            else:
+                self.fred = Fred(api_key=self.fred_api_key)
         else:
-            self.fred = Fred(api_key=self.fred_api_key)
+            logger.info("All fundamental CSVs found and non-empty. Skipping FRED API key check.")
 
         # Metadata file for tracking updates
         self.metadata_file = self.data_dir / "update_metadata.json"
@@ -784,10 +795,7 @@ class FundamentalDataPipeline:
             A pandas DataFrame containing all fundamental data, or an empty
             DataFrame if no data is found.
         """
-        if not self.fred:
-            logger.warning("Cannot load fundamental data because FRED API key is not configured.")
-            return pd.DataFrame()
-
+        # Always attempt to load from CSVs, regardless of FRED API key
         all_dfs = []
         # Normalize series list: prefer fred_series keys, and try to extract a 'series_name' from cftc_reports entries
         all_series = list(self.fred_series.keys())
