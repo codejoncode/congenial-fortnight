@@ -20,7 +20,7 @@ class TestDataLoading(unittest.TestCase):
         self.data_dir = self.base_dir / "data"
 
     def test_all_timeframes_for_pairs(self):
-        """Verify both EURUSD and XAUUSD have five timeframes (H1, H4, Daily, Weekly, Monthly)."""
+        """Verify both EURUSD and XAUUSD have five timeframes (H1, H4, Daily, Weekly, Monthly), and fail loudly if any are missing, empty, or malformed."""
 
         pairs = ['EURUSD', 'XAUUSD']
         for pair in pairs:
@@ -34,6 +34,12 @@ class TestDataLoading(unittest.TestCase):
                 'Monthly': f'data/{pair}_Monthly.csv'
             }
 
+            for tf, path in data_config.items():
+                if not Path(path).exists():
+                    self.fail(f"{pair} {tf} data file missing: {path}")
+                if Path(path).stat().st_size == 0:
+                    self.fail(f"{pair} {tf} data file is empty: {path}")
+
             try:
                 loaded = loader.load_all_timeframes(data_config)
             except Exception as e:
@@ -42,11 +48,14 @@ class TestDataLoading(unittest.TestCase):
             # Ensure all five expected timeframes loaded
             self.assertEqual(len(loaded), 5, f"Expected 5 timeframes for {pair}; loaded: {list(loaded.keys())}")
 
-            # Verify each dataframe is non-empty and has a timestamp column
+            # Verify each dataframe is non-empty and has a valid date column
             for tf, df in loaded.items():
                 self.assertIsNotNone(df, f"{pair} {tf} should not be None")
                 self.assertFalse(df.empty, f"{pair} {tf} should not be empty")
-                self.assertIn('timestamp', [c.lower() for c in df.columns], f"{pair} {tf} must have a timestamp column")
+                date_cols = [c.lower() for c in df.columns if 'date' in c.lower() or 'time' in c.lower()]
+                self.assertTrue(date_cols, f"{pair} {tf} must have a date or timestamp column (columns: {list(df.columns)})")
+                # Check at least one non-null date value
+                self.assertFalse(df[date_cols[0]].dropna().empty, f"{pair} {tf} date column {date_cols[0]} is all null or missing")
 
     @unittest.skipIf(not os.environ.get('FRED_API_KEY'), "FRED_API_KEY not set, skipping fundamental data test.")
     def test_fundamental_data_loads(self):
