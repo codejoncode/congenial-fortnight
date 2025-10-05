@@ -77,4 +77,4 @@ def run(dry_run=False):
 
 
 if __name__ == '__main__':
-    run(dry_run=True)
+    run(dry_run=False)
