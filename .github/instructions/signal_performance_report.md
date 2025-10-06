@@ -372,8 +372,10 @@
 
 #### XAUUSD Fundamental Performance
 - **All Fundamental Features**: 47.63% accuracy
-- **Reason**: Insufficient historical data (2004-2025 vs 2000-2025 for EURUSD)
-- **Recommendation**: ❌ Remove or collect more historical data
+- **Reason**: Gold price data starts 2004 (fundamentals ARE available from 2000!)
+- **Update**: After API inventory, we have 23 FRED series from 2000, ECB data from 1999, Alpha Vantage from 2005
+- **Root Cause**: Shorter gold price history (5,476 obs vs 6,696 for EURUSD), not fundamental availability
+- **Recommendation**: ✅ Keep fundamentals, they're available! Issue is gold price training sample size
 
 ---
 
@@ -413,10 +415,10 @@
 14. [18+ more slump signals with <49.5% accuracy]
 
 **XAUUSD** (150+ signals):
-1. All monthly Holloway features (47.63%)
-2. All fundamental features (47.63%)
+1. All monthly Holloway features (47.63% - gold data starts 2004 vs 2000)
+2. ⚠️ **NOTE**: Fundamental features ARE available from 2000 (see DATA_INVENTORY_CORRECTED.md)
 3. All volatility/returns features (47.63%)
-4. [140+ more features with 47.63% accuracy]
+4. [140+ more features with 47.63% accuracy - issue is shorter gold price history, not fundamental availability]
 
 ### Manual Trading Rules Based on Signals
 
