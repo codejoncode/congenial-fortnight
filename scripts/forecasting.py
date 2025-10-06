@@ -60,6 +60,26 @@ try:
 except ImportError:  # pragma: no cover - support standalone execution
     from slump_signals import SlumpSignalEngine
 
+try:
+    from .harmonic_patterns import detect_harmonic_patterns
+except ImportError:  # pragma: no cover - support standalone execution
+    from harmonic_patterns import detect_harmonic_patterns
+
+try:
+    from .chart_patterns import detect_chart_patterns
+except ImportError:  # pragma: no cover - support standalone execution
+    from chart_patterns import detect_chart_patterns
+
+try:
+    from .elliott_wave import detect_elliott_waves
+except ImportError:  # pragma: no cover - support standalone execution
+    from elliott_wave import detect_elliott_waves
+
+try:
+    from .ultimate_signal_repository import UltimateSignalRepository, integrate_ultimate_signals
+except ImportError:  # pragma: no cover - support standalone execution
+    from ultimate_signal_repository import UltimateSignalRepository, integrate_ultimate_signals
+
 # ML and statistical libraries
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
@@ -868,6 +888,18 @@ class HybridPriceForecastingEnsemble:
         # Add candlestick pattern features
         df = self._add_candlestick_patterns(df)
 
+        # Add harmonic pattern features
+        df = self._add_harmonic_patterns(df)
+
+        # Add chart pattern features
+        df = self._add_chart_patterns(df)
+
+        # Add Elliott Wave signals
+        df = self._add_elliott_wave_signals(df)
+
+        # Add Ultimate Signal Repository (SMC, Order Flow, Session-based, etc.)
+        df = self._add_ultimate_signals(df)
+
         # Trend indicators (remove ADX as it uses TR which is candle size dependent)
         # df['adx_14'] = self._calculate_adx(df, 14)  # Removed: depends on candle ranges
 
@@ -986,6 +1018,17 @@ class HybridPriceForecastingEnsemble:
         df_clean = df_clean.replace([np.inf, -np.inf], np.nan)
 
         # Fill NaN values in technical indicators with forward/backward fill or zeros
+        # Handle categorical columns separately
+        for col in df_clean.columns:
+            if pd.api.types.is_categorical_dtype(df_clean[col]):
+                # Convert categorical to numeric if possible
+                try:
+                    df_clean[col] = pd.to_numeric(df_clean[col], errors='coerce')
+                except:
+                    # If conversion fails, keep as categorical
+                    pass
+        
+        # Now safely fill NaN values
         df_clean = df_clean.fillna(method='ffill').fillna(method='bfill').fillna(0)
 
         logger.info(f"Engineered {len(df_clean.columns)} features from {len(df_clean)} observations")
@@ -1145,16 +1188,18 @@ class HybridPriceForecastingEnsemble:
             # Generate all day trading signals
             signals_df = self._day_trading_signals.generate_all_signals(df.copy())
             
-            # Only select signal columns (those ending with '_signal')
-            signal_columns = [col for col in signals_df.columns if col.endswith('_signal')]
+            # Only select NEW signal columns (those ending with '_signal' AND not already in df)
+            existing_cols = set(df.columns)
+            signal_columns = [col for col in signals_df.columns 
+                            if col.endswith('_signal') and col not in existing_cols]
             
-            # Merge only the signal columns into main dataframe
+            # Merge only the NEW signal columns into main dataframe to avoid conflicts
             if signal_columns:
                 signals_only_df = signals_df[signal_columns]
                 df = df.join(signals_only_df, how='left')
                 logger.info(f"Successfully added {len(signal_columns)} day trading signals")
             else:
-                logger.warning("No signal columns found in day trading signals")
+                logger.warning("No new signal columns found in day trading signals (may already exist)")
             
         except Exception as e:
             logger.error(f"Error calculating day trading signals: {e}")
@@ -1183,6 +1228,55 @@ class HybridPriceForecastingEnsemble:
         except Exception as e:
             logger.error(f"Error calculating slump signals: {e}")
 
+        return df
+
+    def _add_harmonic_patterns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Add harmonic pattern signals to the dataframe.
+        """
+        try:
+            df = detect_harmonic_patterns(df)
+            logger.info("Successfully added harmonic pattern signals")
+        except Exception as e:
+            logger.error(f"Error calculating harmonic patterns: {e}")
+        
+        return df
+
+    def _add_chart_patterns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Add chart pattern signals to the dataframe.
+        """
+        try:
+            df = detect_chart_patterns(df)
+            logger.info("Successfully added chart pattern signals")
+        except Exception as e:
+            logger.error(f"Error calculating chart patterns: {e}")
+        
+        return df
+
+    def _add_elliott_wave_signals(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Add Elliott Wave pattern signals to the dataframe.
+        """
+        try:
+            df = detect_elliott_waves(df)
+            logger.info("Successfully added Elliott Wave signals")
+        except Exception as e:
+            logger.error(f"Error calculating Elliott Wave signals: {e}")
+        
+        return df
+
+    def _add_ultimate_signals(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Add Ultimate Signal Repository signals to the dataframe.
+        Includes: SMC, Order Flow, Multi-TF Confluence, Session-based trading, etc.
+        """
+        try:
+            df = integrate_ultimate_signals(df)
+            logger.info("Successfully added Ultimate Signal Repository features")
+        except Exception as e:
+            logger.error(f"Error calculating Ultimate Signal Repository: {e}")
+        
         return df
 
     def _calculate_holloway_for_timeframe(self, tf: str) -> Optional[pd.DataFrame]:
