@@ -1018,6 +1018,17 @@ class HybridPriceForecastingEnsemble:
         df_clean = df_clean.replace([np.inf, -np.inf], np.nan)
 
         # Fill NaN values in technical indicators with forward/backward fill or zeros
+        # Handle categorical columns separately
+        for col in df_clean.columns:
+            if pd.api.types.is_categorical_dtype(df_clean[col]):
+                # Convert categorical to numeric if possible
+                try:
+                    df_clean[col] = pd.to_numeric(df_clean[col], errors='coerce')
+                except:
+                    # If conversion fails, keep as categorical
+                    pass
+        
+        # Now safely fill NaN values
         df_clean = df_clean.fillna(method='ffill').fillna(method='bfill').fillna(0)
 
         logger.info(f"Engineered {len(df_clean.columns)} features from {len(df_clean)} observations")
@@ -1177,16 +1188,18 @@ class HybridPriceForecastingEnsemble:
             # Generate all day trading signals
             signals_df = self._day_trading_signals.generate_all_signals(df.copy())
             
-            # Only select signal columns (those ending with '_signal')
-            signal_columns = [col for col in signals_df.columns if col.endswith('_signal')]
+            # Only select NEW signal columns (those ending with '_signal' AND not already in df)
+            existing_cols = set(df.columns)
+            signal_columns = [col for col in signals_df.columns 
+                            if col.endswith('_signal') and col not in existing_cols]
             
-            # Merge only the signal columns into main dataframe
+            # Merge only the NEW signal columns into main dataframe to avoid conflicts
             if signal_columns:
                 signals_only_df = signals_df[signal_columns]
                 df = df.join(signals_only_df, how='left')
                 logger.info(f"Successfully added {len(signal_columns)} day trading signals")
             else:
-                logger.warning("No signal columns found in day trading signals")
+                logger.warning("No new signal columns found in day trading signals (may already exist)")
             
         except Exception as e:
             logger.error(f"Error calculating day trading signals: {e}")
