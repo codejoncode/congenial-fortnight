@@ -56,9 +56,9 @@ For comprehensive setup instructions, deployment options, and usage guides, see:
 
 
 
-**Performance**: EURUSD ensemble MAE 0.004973, 84%+ directional accuracy**Performance**: EURUSD ensemble MAE 0.004973, 84%+ directional accuracy
+**⚠️ Performance**: Current accuracy ~52% (BELOW TARGET - under active improvement)
 
-> **New (Oct 2025):** The Holloway Algorithm module is now a one-to-one PineScript translation with weighted historical scoring, smoothing stacks, and trend-failure diagnostics. Retrain the ensemble to capture the projected 75–85% directional accuracy uplift.
+> **Critical Update (Oct 2025):** System performing at random chance level. Root cause analysis completed. Fixes in progress to reach 75% target accuracy. See `CRITICAL_ACCURACY_ISSUES.md` for details. The Holloway Algorithm is integrated but signal quality needs improvement before deployment.
 
 
 

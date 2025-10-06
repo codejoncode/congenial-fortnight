@@ -18,13 +18,13 @@ For comprehensive setup instructions, deployment options, and usage guides, see:
 
 ## 🎯 Current Status
 
-✅ **Multi-timeframe ML models** with 251 features
+✅ **Multi-timeframe ML models** with 754 features
 ✅ **200+ candlestick patterns** integrated
 ✅ **Automated GitHub Actions** training pipeline
 ✅ **Realistic backtesting** with proper entry/exit logic
 ✅ **Cloud deployment** ready (GitHub Actions + Cloud Run)
 
-**Performance**: EURUSD ensemble MAE 0.004973, 84%+ directional accuracy
+**⚠️ Performance**: EURUSD current accuracy ~52% (CRITICAL ISSUE - see CRITICAL_ACCURACY_ISSUES.md for fixes)
 
 ### 🎨 **Latest Chart Improvements (October 2025)**
 

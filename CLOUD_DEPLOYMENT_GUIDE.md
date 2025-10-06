@@ -68,11 +68,12 @@ This system provides daily forex trading signals using ensemble machine learning
 
 ## 📊 Performance Metrics
 
-### Current Results (EURUSD)
-- **Training MAE**: 0.004973 (excellent prediction accuracy)
-- **Features**: 251 comprehensive indicators
-- **Backtest Accuracy**: 84%+ directional accuracy with realistic P&L simulation
-- **Multi-Timeframe**: Integrated H4 and weekly data for enhanced context
+### Current Results (EURUSD) - ⚠️ NEEDS IMPROVEMENT
+- **Current Accuracy**: ~52% (random chance level - CRITICAL ISSUE)
+- **Features**: 754 comprehensive indicators (being optimized)
+- **Status**: Under active development to reach 75% target accuracy
+- **Multi-Timeframe**: Integrated H4, Daily, Weekly, Monthly data
+- **See**: CRITICAL_ACCURACY_ISSUES.md for detailed analysis and fixes
 
 ## ✅ **Deployment Checklist**
 
@@ -92,7 +93,7 @@ This system provides daily forex trading signals using ensemble machine learning
 - [x] Multi-timeframe data integration working
 - [x] Model training pipeline executed
 - [x] Model files generated and saved to `models/` directory
-- [x] Model accuracy validated (84%+ directional accuracy)
+- [ ] Model accuracy validated (TARGET: 75%+ - Currently ~52%, needs fixes)
 - [x] Backtesting functionality tested
 - [x] CSV export capability verified
 

@@ -1002,6 +1002,9 @@ class HybridPriceForecastingEnsemble:
                 for col in aligned.columns:
                     aligned[col] = pd.to_numeric(aligned[col], errors='coerce')
 
+                # Forward-fill fundamental data (release schedules are infrequent)
+                aligned = aligned.fillna(method='ffill').fillna(0)
+
                 # Join into main feature df
                 df = df.join(aligned, how='left')
 
@@ -1077,6 +1080,29 @@ class HybridPriceForecastingEnsemble:
                 feature_df['target_1d'] = (feature_df['Close'].shift(-1) > feature_df['Open'].shift(-1)).astype(int)
             except Exception:
                 feature_df['target_1d'] = 0
+
+        # Remove duplicate columns (Holloway features appear multiple times)
+        feature_df = feature_df.loc[:, ~feature_df.columns.duplicated()]
+        self.logger.info(f"Removed duplicate columns, now have {len(feature_df.columns)} features")
+
+        # Feature selection - remove low variance features
+        feature_cols = [c for c in feature_df.columns if c not in ['target_1d', 'next_close_change']]
+        if len(feature_cols) > 0:
+            variance = feature_df[feature_cols].var()
+            low_variance_cols = variance[variance < 0.0001].index.tolist()
+            if low_variance_cols:
+                feature_df = feature_df.drop(columns=low_variance_cols)
+                self.logger.info(f"Removed {len(low_variance_cols)} low-variance features")
+
+        # Target quality validation
+        if 'target_1d' in feature_df.columns:
+            target_dist = feature_df['target_1d'].value_counts().to_dict()
+            target_mean = feature_df['target_1d'].mean()
+            target_nas = feature_df['target_1d'].isna().sum()
+            self.logger.info(f"Target distribution: {target_dist}, Balance: {target_mean:.3f}")
+            if target_nas > 0:
+                self.logger.warning(f"Target has {target_nas} NaN values - dropping them")
+                feature_df = feature_df.dropna(subset=['target_1d'])
 
         return feature_df
 
@@ -1193,10 +1219,10 @@ class HybridPriceForecastingEnsemble:
             signal_columns = [col for col in signals_df.columns 
                             if col.endswith('_signal') and col not in existing_cols]
             
-            # Merge only the NEW signal columns into main dataframe to avoid conflicts
+            # Merge only the NEW signal columns into main dataframe with suffix to avoid conflicts
             if signal_columns:
                 signals_only_df = signals_df[signal_columns]
-                df = df.join(signals_only_df, how='left')
+                df = df.join(signals_only_df, how='left', rsuffix='_day_trading')
                 logger.info(f"Successfully added {len(signal_columns)} day trading signals")
             else:
                 logger.warning("No new signal columns found in day trading signals (may already exist)")

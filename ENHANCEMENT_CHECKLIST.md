@@ -64,12 +64,13 @@
 
 ## 🔄 **CURRENT STATUS**
 
-### Performance Metrics
-- **Training MAE**: 0.004973 (excellent prediction accuracy)
-- **Directional Accuracy**: 84%+ on backtests
-- **Features**: 251 comprehensive indicators
+### Performance Metrics - ⚠️ CRITICAL STATUS
+- **Current Accuracy**: ~52% (random chance - NEEDS URGENT FIX)
+- **Target Accuracy**: 75%
+- **Gap**: -23% (under active investigation)
+- **Features**: 754 indicators (optimization in progress)
 - **Pairs Supported**: EURUSD, XAUUSD
-- **Chart Updates**: Current data through 2025-10-01
+- **Status**: See CRITICAL_ACCURACY_ISSUES.md for root cause analysis and fixes
 
 ### System Health
 - [x] All core functionality working
