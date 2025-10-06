@@ -45,17 +45,21 @@ def load_technical_features(pair: str) -> pd.DataFrame:
             df = pd.read_csv(filepath)
             logger.info(f"Loaded {len(df)} rows with columns: {list(df.columns)[:10]}...")
             
-            # Identify the time column
+            # Identify the time column - prioritize 'timestamp' over 'time' since 'time' is often just HH:MM:SS
             time_col = None
-            for col in ['time', 'timestamp', 'date', 'Time', 'Timestamp', 'Date']:
+            for col in ['timestamp', 'date', 'Timestamp', 'Date', 'time', 'Time']:
                 if col in df.columns:
-                    time_col = col
-                    break
+                    # Check if this column actually contains dates (not just times)
+                    sample_val = str(df[col].iloc[0])
+                    if '-' in sample_val or '/' in sample_val or len(sample_val) > 8:
+                        time_col = col
+                        break
             
             if time_col:
                 df['timestamp'] = pd.to_datetime(df[time_col])
                 df = df.set_index('timestamp').sort_index()
                 logger.info(f"Set index to timestamp from '{time_col}' column")
+                logger.info(f"Date range: {df.index.min()} to {df.index.max()}")
                 return df
             else:
                 logger.error(f"No time column found in {filepath}")

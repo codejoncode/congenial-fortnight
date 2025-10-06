@@ -80,6 +80,11 @@ try:
 except ImportError:  # pragma: no cover - support standalone execution
     from ultimate_signal_repository import UltimateSignalRepository, integrate_ultimate_signals
 
+try:
+    from .fundamental_signals import add_fundamental_signals
+except ImportError:  # pragma: no cover - support standalone execution
+    from fundamental_signals import add_fundamental_signals
+
 # ML and statistical libraries
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
@@ -1009,6 +1014,15 @@ class HybridPriceForecastingEnsemble:
                 df = df.join(aligned, how='left')
 
                 logger.info(f"Attached {len(aligned.columns)} fundamental features (prefixed) to {self.pair}")
+                
+                # Add derived fundamental signals (10 signal types from CFT_0000999_MORE_SIGNALS.md)
+                try:
+                    df = add_fundamental_signals(df, fund)
+                    fund_signal_cols = [c for c in df.columns if c.startswith('fund_') and c not in aligned.columns]
+                    logger.info(f"Added {len(fund_signal_cols)} derived fundamental signal features")
+                except Exception as sig_error:
+                    logger.warning(f"Failed to add derived fundamental signals: {sig_error}")
+                    
         except Exception as e:
             logger.warning(f"Failed to attach fundamental features: {e}")
 
