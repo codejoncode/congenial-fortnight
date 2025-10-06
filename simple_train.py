@@ -43,14 +43,14 @@ def train_eurusd():
         # Train with robust LightGBM config
         print(f"\n[{datetime.now().strftime('%H:%M:%S')}] Training LightGBM...")
         
-        from scripts.robust_lightgbm_config import enhanced_lightgbm_training_pipeline
+        from scripts.robust_lightgbm_config import enhanced_lightgbm_training_pipeline_arrays
         
-        results = enhanced_lightgbm_training_pipeline(
+        results = enhanced_lightgbm_training_pipeline_arrays(
             X_train=X_train,
             y_train=y_train,
             X_val=X_val,
             y_val=y_val,
-            pair='EURUSD'
+            pair_name='EURUSD'
         )
         
         elapsed = time.time() - start_time
@@ -96,14 +96,14 @@ def train_xauusd():
         # Train with robust LightGBM config
         print(f"\n[{datetime.now().strftime('%H:%M:%S')}] Training LightGBM...")
         
-        from scripts.robust_lightgbm_config import enhanced_lightgbm_training_pipeline
+        from scripts.robust_lightgbm_config import enhanced_lightgbm_training_pipeline_arrays
         
-        results = enhanced_lightgbm_training_pipeline(
+        results = enhanced_lightgbm_training_pipeline_arrays(
             X_train=X_train,
             y_train=y_train,
             X_val=X_val,
             y_val=y_val,
-            pair='XAUUSD'
+            pair_name='XAUUSD'
         )
         
         elapsed = time.time() - start_time
