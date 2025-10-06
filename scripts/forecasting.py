@@ -46,14 +46,19 @@ except ImportError:  # pragma: no cover - support standalone execution
     from fundamental_pipeline import FundamentalDataPipeline as FundamentalFeatureEngineer
 
 try:
-    import pywt
-except ImportError:
-    pywt = None
-
-try:
     from .holloway_algorithm import CompleteHollowayAlgorithm
 except ImportError:  # pragma: no cover - support standalone execution
     from holloway_algorithm import CompleteHollowayAlgorithm
+
+try:
+    from .day_trading_signals import DayTradingSignalGenerator
+except ImportError:  # pragma: no cover - support standalone execution
+    from day_trading_signals import DayTradingSignalGenerator
+
+try:
+    from .slump_signals import SlumpSignalEngine
+except ImportError:  # pragma: no cover - support standalone execution
+    from slump_signals import SlumpSignalEngine
 
 # ML and statistical libraries
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, RandomForestRegressor
@@ -93,6 +98,11 @@ try:
     from ta.pattern import *
 except ImportError:
     ta = None
+
+try:
+    import pywt
+except ImportError:
+    pywt = None
 
 # API clients
 try:
@@ -401,6 +411,8 @@ class HybridPriceForecastingEnsemble:
         # Feature engineering
         self.feature_columns = []
         self._holloway_algo = CompleteHollowayAlgorithm(str(self.data_dir))
+        self._day_trading_signals = DayTradingSignalGenerator()
+        self._slump_signals = SlumpSignalEngine()
 
     def _get_model_configs(self) -> Dict:
         """Get configuration for all base models."""
@@ -847,6 +859,12 @@ class HybridPriceForecastingEnsemble:
         # Add Holloway Algorithm features
         df = self._calculate_holloway_features(df)
 
+        # Add day trading signals
+        df = self._add_day_trading_signals(df)
+
+        # Add slump signals
+        df = self._add_slump_signals(df)
+
         # Add candlestick pattern features
         df = self._add_candlestick_patterns(df)
 
@@ -1116,6 +1134,54 @@ class HybridPriceForecastingEnsemble:
 
         except Exception as e:
             logger.error(f"Error calculating Holloway features: {e}")
+
+        return df
+
+    def _add_day_trading_signals(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Add day trading signals to the dataframe.
+        """
+        try:
+            # Generate all day trading signals
+            signals_df = self._day_trading_signals.generate_all_signals(df.copy())
+            
+            # Only select signal columns (those ending with '_signal')
+            signal_columns = [col for col in signals_df.columns if col.endswith('_signal')]
+            
+            # Merge only the signal columns into main dataframe
+            if signal_columns:
+                signals_only_df = signals_df[signal_columns]
+                df = df.join(signals_only_df, how='left')
+                logger.info(f"Successfully added {len(signal_columns)} day trading signals")
+            else:
+                logger.warning("No signal columns found in day trading signals")
+            
+        except Exception as e:
+            logger.error(f"Error calculating day trading signals: {e}")
+
+        return df
+
+    def _add_slump_signals(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Add slump signals to the dataframe.
+        """
+        try:
+            # Generate all slump signals
+            signals_df = self._slump_signals.generate_all_signals(df.copy())
+            
+            # Only select signal columns (those ending with '_signal')
+            signal_columns = [col for col in signals_df.columns if col.endswith('_signal')]
+            
+            # Merge only the signal columns into main dataframe with suffix to avoid conflicts
+            if signal_columns:
+                signals_only_df = signals_df[signal_columns]
+                df = df.join(signals_only_df, how='left', rsuffix='_slump')
+                logger.info(f"Successfully added {len(signal_columns)} slump signals")
+            else:
+                logger.warning("No signal columns found in slump signals")
+            
+        except Exception as e:
+            logger.error(f"Error calculating slump signals: {e}")
 
         return df
 
@@ -1417,8 +1483,11 @@ class HybridPriceForecastingEnsemble:
         logger.info(f"Ensemble training completed for {self.pair}")
 
         # === Per-signal/feature evaluation ===
+        # Always print and save per-signal evaluation after training
         try:
-            self.evaluate_signal_features(feature_df, target_col='target_1d', output_csv=f"{self.pair}_signal_evaluation.csv")
+            eval_csv = f"{self.pair}_signal_evaluation.csv"
+            self.evaluate_signal_features(feature_df, target_col='target_1d', output_csv=eval_csv)
+            logger.info(f"Per-signal evaluation printed and saved to {eval_csv}")
         except Exception as e:
             logger.error(f"Signal evaluation failed: {e}")
 

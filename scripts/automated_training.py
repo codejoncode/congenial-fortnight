@@ -189,11 +189,13 @@ class AutomatedTrainer:
         final_results = {}
         start_time = datetime.now()
 
+
         for pair in tqdm(pairs, desc="Processing pairs"):
             try:
                 logger.info(f"--- Processing {pair} ---")
                 forecasting_system = ForecastingSystem(pair=pair)
                 # --- Feature Engineering ---
+                feature_df = None
                 if hasattr(forecasting_system, 'load_and_prepare_datasets'):
                     loaded = forecasting_system.load_and_prepare_datasets()
                     # Handle (X, y) or (X_train, y_train, X_val, y_val, X_test, y_test)
@@ -201,7 +203,6 @@ class AutomatedTrainer:
                         X_train, y_train, X_val, y_val, X_test, y_test = loaded
                     elif isinstance(loaded, tuple) and len(loaded) == 4:
                         X_train, y_train, X_val_full, y_val_full = loaded
-                        # Split X_val_full/y_val_full 50/50 into val and test
                         n_val = len(X_val_full)
                         if n_val < 2:
                             raise ValueError("Not enough samples in validation set to split into val/test.")
@@ -217,6 +218,9 @@ class AutomatedTrainer:
                         y_train, y_val, y_test = y.iloc[:train_end], y.iloc[train_end:valid_end], y.iloc[valid_end:]
                     else:
                         raise ValueError("load_and_prepare_datasets() returned unexpected format.")
+                    # Try to get the feature_df for evaluation
+                    if hasattr(forecasting_system, '_prepare_features'):
+                        feature_df = forecasting_system._prepare_features()
                 else:
                     feature_df = forecasting_system._prepare_features()
                     if feature_df is None or feature_df.empty:
@@ -266,6 +270,15 @@ class AutomatedTrainer:
                 logger.info(f"📊 {pair} Test Accuracy: {test_acc:.4f} ({test_acc*100:.1f}%)")
                 print(f"▶️ Validation Accuracy: {val_acc:.2%}")
                 print(f"▶️ Test       Accuracy: {test_acc:.2%}")
+
+                # --- Per-signal/feature evaluation ---
+                try:
+                    if feature_df is not None and hasattr(forecasting_system, 'evaluate_signal_features'):
+                        eval_csv = f"{pair}_signal_evaluation.csv"
+                        forecasting_system.evaluate_signal_features(feature_df, target_col='target_1d', output_csv=eval_csv)
+                        logger.info(f"Per-signal evaluation printed and saved to {eval_csv}")
+                except Exception as e:
+                    logger.error(f"Signal evaluation failed for {pair}: {e}")
 
                 final_results[pair] = {
                     'status': 'success',
