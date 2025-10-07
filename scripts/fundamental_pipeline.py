@@ -828,8 +828,10 @@ class FundamentalDataPipeline:
         # Remove duplicate columns
         merged_df = merged_df.loc[:, ~merged_df.columns.str.endswith('_dup')]
 
-        # Sort by date
+        # Sort by date and SET AS INDEX (critical for time-series operations)
         merged_df = merged_df.sort_values('date')
+        merged_df['date'] = pd.to_datetime(merged_df['date'])
+        merged_df = merged_df.set_index('date')
 
         return merged_df
 

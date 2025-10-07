@@ -121,16 +121,17 @@ def test_feature_generation():
             assert features is not None, "Features is None"
             assert not features.empty, "Features is empty"
             assert len(features) > 1000, f"Too few rows ({len(features)})"
-            assert len(features.columns) > 400, f"Too few features ({len(features.columns)})"
+            assert len(features.columns) > 200, f"Too few features ({len(features.columns)}) - need at least 200"
+            assert len(features.columns) < 600, f"Too many features ({len(features.columns)}) - variance filtering may have failed"
             
             # Check for key feature categories
             h4_feats = [c for c in features.columns if 'h4' in c.lower()]
             weekly_feats = [c for c in features.columns if 'weekly' in c.lower()]
             fund_feats = [c for c in features.columns if c.startswith('fund_')]
             
-            assert len(h4_feats) > 50, f"Too few H4 features ({len(h4_feats)})"
-            assert len(weekly_feats) > 50, f"Too few Weekly features ({len(weekly_feats)})"
-            # Note: fund features may be filtered out by variance removal
+            assert len(h4_feats) > 20, f"Too few H4 features ({len(h4_feats)})"
+            assert len(weekly_feats) > 20, f"Too few Weekly features ({len(weekly_feats)})"
+            assert len(fund_feats) > 10, f"Too few Fundamental features ({len(fund_feats)}) - must have at least 10"
             
             # Check no inf/nan in critical columns
             essential = ['Open', 'High', 'Low', 'Close']

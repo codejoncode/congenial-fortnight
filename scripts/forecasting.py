@@ -1088,11 +1088,20 @@ class HybridPriceForecastingEnsemble:
         # Feature selection - remove low variance features
         feature_cols = [c for c in feature_df.columns if c not in ['target_1d', 'next_close_change']]
         if len(feature_cols) > 0:
-            variance = feature_df[feature_cols].var()
-            low_variance_cols = variance[variance < 0.0001].index.tolist()
-            if low_variance_cols:
-                feature_df = feature_df.drop(columns=low_variance_cols)
-                self.logger.info(f"Removed {len(low_variance_cols)} low-variance features")
+            # Only calculate variance on numeric columns
+            numeric_cols = feature_df[feature_cols].select_dtypes(include=[np.number]).columns.tolist()
+            if len(numeric_cols) > 0:
+                variance = feature_df[numeric_cols].var()
+                low_variance_cols = variance[variance < 0.0001].index.tolist()
+                if low_variance_cols:
+                    feature_df = feature_df.drop(columns=low_variance_cols)
+                    self.logger.info(f"Removed {len(low_variance_cols)} low-variance features")
+            
+            # Drop non-numeric feature columns (can't be used for ML)
+            non_numeric_cols = [c for c in feature_cols if c not in numeric_cols]
+            if non_numeric_cols:
+                feature_df = feature_df.drop(columns=non_numeric_cols)
+                self.logger.info(f"Removed {len(non_numeric_cols)} non-numeric features")
 
         # Target quality validation
         if 'target_1d' in feature_df.columns:
