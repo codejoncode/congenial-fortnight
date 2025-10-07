@@ -50,20 +50,20 @@ def create_robust_lgb_config_for_small_data():
         'objective': 'binary',
         'metric': 'binary_logloss',
         'boosting_type': 'gbdt',
-        'num_leaves': 8,
-        'max_depth': 4,
-        'min_data_in_leaf': 10,
-        'min_gain_to_split': 0.01,
-        'learning_rate': 0.05,
-        'num_iterations': 100,
-        'lambda_l1': 1.0,
-        'lambda_l2': 1.0,
-        'min_sum_hessian_in_leaf': 0.1,
-        'feature_fraction': 0.8,
+        'num_leaves': 31,  # Increased from 8 for 346 features
+        'max_depth': 8,     # Increased from 4 for better capacity
+        'min_data_in_leaf': 20,
+        'min_gain_to_split': 0.001,  # Lower threshold for more splits
+        'learning_rate': 0.03,  # Lower LR for more iterations
+        'num_iterations': 1000,  # Increased from 100 for thorough training
+        'lambda_l1': 0.5,    # Reduced regularization for 346 features
+        'lambda_l2': 0.5,
+        'min_sum_hessian_in_leaf': 0.05,
+        'feature_fraction': 0.7,  # Sample 70% of 346 features
         'bagging_fraction': 0.8,
         'bagging_freq': 5,
-        'max_bin': 64,
-        'early_stopping_round': 10,
+        'max_bin': 255,  # Increased from 64 for better precision
+        'early_stopping_round': 50,  # Increased from 10 to allow more training
         'verbosity': 1,
         'is_unbalance': True,
         'seed': 42,
