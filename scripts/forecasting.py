@@ -631,20 +631,6 @@ class HybridPriceForecastingEnsemble:
             }
         }
 
-    def _load_fundamental_data(self):
-        """Loads and merges fundamental economic data."""
-        try:
-            # The engineer is already initialized in __init__
-            fundamental_data = self.fundamental_engineer.load_all_series_as_df()
-            if fundamental_data.empty:
-                self.logger.critical("FATAL: Fundamental dataset is empty after processing. Halting pipeline.")
-                raise RuntimeError("FATAL: Fundamental dataset is empty after processing. Pipeline halted.")
-            self.logger.info(f"Successfully loaded fundamental data. Shape: {fundamental_data.shape}")
-            return fundamental_data
-        except Exception as e:
-            self.logger.critical(f"FATAL: Could not load fundamental data: {e}. Halting pipeline.")
-            raise RuntimeError(f"FATAL: Could not load fundamental data: {e}. Pipeline halted.")
-
     def _load_price_data(self):
         """
         Consolidates price data from different timeframes.

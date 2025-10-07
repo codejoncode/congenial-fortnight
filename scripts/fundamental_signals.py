@@ -107,10 +107,13 @@ def add_fundamental_signals(df: pd.DataFrame, fundamentals: pd.DataFrame) -> pd.
             oil_change = fundamentals['dcoilwtico'].pct_change()
             usd_change = fundamentals['dtwexbgs'].pct_change()
             oil_usd_corr = oil_change.rolling(20).corr(usd_change)
-            df['fund_oil_usd_correlation'] = oil_usd_corr
+            # Align with df's index before assignment
+            df['fund_oil_usd_correlation'] = oil_usd_corr.reindex(df.index)
+            oil_change_aligned = oil_change.reindex(df.index)
+            oil_usd_corr_aligned = oil_usd_corr.reindex(df.index)
             df['fund_oil_correlation_signal'] = np.where(
-                (oil_usd_corr < -0.3) & (oil_change > 0), 1,  # Negative corr + oil up = USD down
-                np.where((oil_usd_corr > 0.3) & (oil_change > 0), -1, 0)  # Positive corr + oil up = USD up
+                (oil_usd_corr_aligned < -0.3) & (oil_change_aligned > 0), 1,  # Negative corr + oil up = USD down
+                np.where((oil_usd_corr_aligned > 0.3) & (oil_change_aligned > 0), -1, 0)  # Positive corr + oil up = USD up
             )
         
         logger.info(f"Added {len([c for c in df.columns if c.startswith('fund_')])} fundamental signal features")
