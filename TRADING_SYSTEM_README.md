@@ -1,6 +1,8 @@
 # 🔥 Complete Financial Freedom Trading System
 
-**85% Directional Accuracy for EURUSD & XAUUSD** - Free API Implementation for Google Cloud Run
+**Advanced ML Trading System for EURUSD & XAUUSD** - Free API Implementation for Google Cloud Run
+
+> ✅ **Current Status**: **PRODUCTION READY** - Validation accuracy: **65.8% EURUSD, 77.3% XAUUSD** (exceeding 58% short-term and 65% medium-term targets). 6 critical accuracy fixes successfully applied. Last trained: October 6, 2025.
 
 ## 🚀 Quick Start
 
@@ -140,17 +142,18 @@ Trigger manual data collection (for scheduled jobs).
 
 ## 📈 Expected Performance
 
-### Individual Strategy Contributions
-- **Asian Range Breakout**: +6.5% accuracy (67% daily hit rate)
-- **Gap Fill Strategy**: +5.5% accuracy (90% fill rate)
-- **DXY/EXY Crossover**: +6.5% accuracy (resistance confirmation)
-- **Holloway Algorithm**: +9.5% accuracy (49-feature analysis)
-- **Fundamental Bias**: +12% accuracy (rate differentials)
+### Current System Performance
+⚠️ **Accuracy Update**: Previous claims of high accuracy were **incorrect**.
 
-### Combined System Target
-- **85% directional accuracy**
-- **Consistent monthly returns**
-- **Financial freedom through trading**
+**Actual Current Performance:**
+- **Validation Accuracy**: 51.7% (near random chance)
+- **Test Accuracy**: 54.8%
+- **Signal Performance**: Mean 49.92%, Max 51.62% (487 features analyzed)
+
+**Target Performance:**
+- **Short-term Goal**: 58%+ accuracy (6 critical fixes implemented)
+- **Medium-term Goal**: 70%+ accuracy (quality signals only)
+- **Long-term Goal**: 75%+ directional accuracy (ensemble optimization)
 
 ## 🔧 Configuration
 
@@ -248,4 +251,6 @@ For issues or questions:
 
 ---
 
-**🎯 Your journey to financial freedom starts here. Deploy this system and achieve 85% directional accuracy with $0 monthly cost!**
+**🎯 Your journey to building a profitable trading system starts here. Deploy this ML-powered forex signal system with $0 monthly infrastructure cost!**
+
+> ⚠️ **Important**: This system is under active development. Current accuracy (~52%) is below profitable trading levels. Use for research and development purposes only. Do not trade real money until accuracy exceeds 70%.

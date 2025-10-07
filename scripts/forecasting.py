@@ -80,6 +80,11 @@ try:
 except ImportError:  # pragma: no cover - support standalone execution
     from ultimate_signal_repository import UltimateSignalRepository, integrate_ultimate_signals
 
+try:
+    from .fundamental_signals import add_fundamental_signals
+except ImportError:  # pragma: no cover - support standalone execution
+    from fundamental_signals import add_fundamental_signals
+
 # ML and statistical libraries
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
@@ -626,20 +631,6 @@ class HybridPriceForecastingEnsemble:
             }
         }
 
-    def _load_fundamental_data(self):
-        """Loads and merges fundamental economic data."""
-        try:
-            # The engineer is already initialized in __init__
-            fundamental_data = self.fundamental_engineer.load_all_series_as_df()
-            if fundamental_data.empty:
-                self.logger.critical("FATAL: Fundamental dataset is empty after processing. Halting pipeline.")
-                raise RuntimeError("FATAL: Fundamental dataset is empty after processing. Pipeline halted.")
-            self.logger.info(f"Successfully loaded fundamental data. Shape: {fundamental_data.shape}")
-            return fundamental_data
-        except Exception as e:
-            self.logger.critical(f"FATAL: Could not load fundamental data: {e}. Halting pipeline.")
-            raise RuntimeError(f"FATAL: Could not load fundamental data: {e}. Pipeline halted.")
-
     def _load_price_data(self):
         """
         Consolidates price data from different timeframes.
@@ -1002,10 +993,22 @@ class HybridPriceForecastingEnsemble:
                 for col in aligned.columns:
                     aligned[col] = pd.to_numeric(aligned[col], errors='coerce')
 
+                # Forward-fill fundamental data (release schedules are infrequent)
+                aligned = aligned.fillna(method='ffill').fillna(0)
+
                 # Join into main feature df
                 df = df.join(aligned, how='left')
 
                 logger.info(f"Attached {len(aligned.columns)} fundamental features (prefixed) to {self.pair}")
+                
+                # Add derived fundamental signals (10 signal types from CFT_0000999_MORE_SIGNALS.md)
+                try:
+                    df = add_fundamental_signals(df, fund)
+                    fund_signal_cols = [c for c in df.columns if c.startswith('fund_') and c not in aligned.columns]
+                    logger.info(f"Added {len(fund_signal_cols)} derived fundamental signal features")
+                except Exception as sig_error:
+                    logger.warning(f"Failed to add derived fundamental signals: {sig_error}")
+                    
         except Exception as e:
             logger.warning(f"Failed to attach fundamental features: {e}")
 
@@ -1077,6 +1080,38 @@ class HybridPriceForecastingEnsemble:
                 feature_df['target_1d'] = (feature_df['Close'].shift(-1) > feature_df['Open'].shift(-1)).astype(int)
             except Exception:
                 feature_df['target_1d'] = 0
+
+        # Remove duplicate columns (Holloway features appear multiple times)
+        feature_df = feature_df.loc[:, ~feature_df.columns.duplicated()]
+        self.logger.info(f"Removed duplicate columns, now have {len(feature_df.columns)} features")
+
+        # Feature selection - remove low variance features
+        feature_cols = [c for c in feature_df.columns if c not in ['target_1d', 'next_close_change']]
+        if len(feature_cols) > 0:
+            # Only calculate variance on numeric columns
+            numeric_cols = feature_df[feature_cols].select_dtypes(include=[np.number]).columns.tolist()
+            if len(numeric_cols) > 0:
+                variance = feature_df[numeric_cols].var()
+                low_variance_cols = variance[variance < 0.0001].index.tolist()
+                if low_variance_cols:
+                    feature_df = feature_df.drop(columns=low_variance_cols)
+                    self.logger.info(f"Removed {len(low_variance_cols)} low-variance features")
+            
+            # Drop non-numeric feature columns (can't be used for ML)
+            non_numeric_cols = [c for c in feature_cols if c not in numeric_cols]
+            if non_numeric_cols:
+                feature_df = feature_df.drop(columns=non_numeric_cols)
+                self.logger.info(f"Removed {len(non_numeric_cols)} non-numeric features")
+
+        # Target quality validation
+        if 'target_1d' in feature_df.columns:
+            target_dist = feature_df['target_1d'].value_counts().to_dict()
+            target_mean = feature_df['target_1d'].mean()
+            target_nas = feature_df['target_1d'].isna().sum()
+            self.logger.info(f"Target distribution: {target_dist}, Balance: {target_mean:.3f}")
+            if target_nas > 0:
+                self.logger.warning(f"Target has {target_nas} NaN values - dropping them")
+                feature_df = feature_df.dropna(subset=['target_1d'])
 
         return feature_df
 
@@ -1193,10 +1228,10 @@ class HybridPriceForecastingEnsemble:
             signal_columns = [col for col in signals_df.columns 
                             if col.endswith('_signal') and col not in existing_cols]
             
-            # Merge only the NEW signal columns into main dataframe to avoid conflicts
+            # Merge only the NEW signal columns into main dataframe with suffix to avoid conflicts
             if signal_columns:
                 signals_only_df = signals_df[signal_columns]
-                df = df.join(signals_only_df, how='left')
+                df = df.join(signals_only_df, how='left', rsuffix='_day_trading')
                 logger.info(f"Successfully added {len(signal_columns)} day trading signals")
             else:
                 logger.warning("No new signal columns found in day trading signals (may already exist)")

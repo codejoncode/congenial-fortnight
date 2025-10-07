@@ -828,10 +828,127 @@ class FundamentalDataPipeline:
         # Remove duplicate columns
         merged_df = merged_df.loc[:, ~merged_df.columns.str.endswith('_dup')]
 
-        # Sort by date
+        # Sort by date and SET AS INDEX (critical for time-series operations)
         merged_df = merged_df.sort_values('date')
+        merged_df['date'] = pd.to_datetime(merged_df['date'])
+        merged_df = merged_df.set_index('date')
 
         return merged_df
+
+def load_all_fundamentals(data_dir: str = "data") -> pd.DataFrame:
+    """
+    Load all fundamental data from CSV files into a single DataFrame.
+    
+    This is a convenience function for model training. It loads all available
+    fundamental data series and merges them into a single time-indexed DataFrame.
+    
+    Args:
+        data_dir: Directory containing fundamental data CSV files
+        
+    Returns:
+        DataFrame with all fundamental series, indexed by date
+    """
+    data_path = Path(data_dir)
+    
+    # List of all fundamental data files to load
+    fundamental_files = {
+        # FRED Economic Indicators
+        'CPIAUCSL': 'cpiaucsl',
+        'GDPC1': 'gdpc1',
+        'FEDFUNDS': 'fedfunds',
+        'DFF': 'dff',
+        'UNRATE': 'unrate',
+        'INDPRO': 'indpro',
+        'PAYEMS': 'payems',
+        'DGORDER': 'dgorder',
+        'BOPGSTB': 'bopgstb',
+        'DTWEXBGS': 'dtwexbgs',
+        'DEXUSEU': 'dexuseu',
+        'DEXJPUS': 'dexjpus',
+        'DEXCHUS': 'dexchus',
+        'DCOILWTICO': 'dcoilwtico',
+        'DCOILBRENTEU': 'dcoilbrenteu',
+        'VIXCLS': 'vixcls',
+        'DGS10': 'dgs10',
+        'DGS2': 'dgs2',
+        'CPALTT01USM661S': 'cpaltt01usm661s',
+        'ECBDFR': 'ecbdfr',
+        'CP0000EZ19M086NEST': 'cp0000ez19m086nest',
+        'LRHUTTTTDEM156S': 'lrhuttttdem156s',
+        'GOLDAMGBD228NLBM': 'goldamgbd228nlbm',
+        # Additional sources
+        'ECB_EURUSD': 'ecb_eurusd',
+        'AV_EURUSD': 'av_eurusd',
+        'AV_USDJPY': 'av_usdjpy',
+        'AV_USDCHF': 'av_usdchf',
+        'DXY_EXY_CROSS': 'dxy_exy_cross',
+        'GOLD_PRICE_MT': 'gold_price_mt',
+    }
+    
+    all_data = []
+    loaded_count = 0
+    
+    for file_id, col_prefix in fundamental_files.items():
+        csv_file = data_path / f"{file_id}.csv"
+        
+        if not csv_file.exists():
+            logger.debug(f"Fundamental file not found: {csv_file}")
+            continue
+        
+        try:
+            df = pd.read_csv(csv_file)
+            
+            # Ensure date column exists
+            if 'date' not in df.columns:
+                logger.warning(f"No 'date' column in {csv_file}, skipping")
+                continue
+            
+            # Convert date to datetime
+            df['date'] = pd.to_datetime(df['date'], errors='coerce')
+            df = df.dropna(subset=['date'])
+            
+            # Set date as index
+            df = df.set_index('date')
+            
+            # Rename columns with prefix (except date)
+            rename_map = {}
+            for col in df.columns:
+                if col.lower() != 'date':
+                    rename_map[col] = f"{col_prefix}_{col}" if col != col_prefix else col_prefix
+            
+            if rename_map:
+                df = df.rename(columns=rename_map)
+            
+            all_data.append(df)
+            loaded_count += 1
+            logger.info(f"Loaded {file_id}: {len(df)} observations, {len(df.columns)} columns")
+            
+        except Exception as e:
+            logger.error(f"Error loading {csv_file}: {e}")
+    
+    if not all_data:
+        logger.warning("No fundamental data loaded")
+        return pd.DataFrame()
+    
+    # Merge all dataframes
+    logger.info(f"Merging {loaded_count} fundamental data sources...")
+    merged_df = all_data[0]
+    
+    for df in all_data[1:]:
+        merged_df = merged_df.join(df, how='outer')
+    
+    # Forward-fill missing values (fundamentals are lower frequency)
+    merged_df = merged_df.ffill()
+    
+    # Drop rows with all NaN values
+    merged_df = merged_df.dropna(how='all')
+    
+    logger.info(f"Fundamental data loaded: {len(merged_df)} rows, {len(merged_df.columns)} columns")
+    logger.info(f"Date range: {merged_df.index.min()} to {merged_df.index.max()}")
+    logger.info(f"Columns: {list(merged_df.columns)}")
+    
+    return merged_df
+
 
 def main():
     """Main function for command-line usage."""

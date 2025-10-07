@@ -46,28 +46,50 @@ def timeout(seconds):
 
 
 def create_robust_lgb_config_for_small_data():
+    """
+    Optimized LightGBM configuration for 346-feature financial model.
+    Uses higher-end recommended ranges for maximum stability and generalization.
+    
+    Key optimizations for 346 features:
+    - Balanced tree structure: num_leaves=127 (2^7-1) with max_depth=7
+    - Conservative learning: 0.01 LR (NOT 0.03 which is 30x too high)
+    - Strong regularization: L1=3.0, L2=5.0 for high-dimensional data
+    - Extended training: 2000 iterations with patient early stopping (150 rounds)
+    - Feature sampling: 60% to handle dimensionality and reduce overfitting
+    """
     return {
         'objective': 'binary',
         'metric': 'binary_logloss',
         'boosting_type': 'gbdt',
-        'num_leaves': 8,
-        'max_depth': 4,
-        'min_data_in_leaf': 10,
-        'min_gain_to_split': 0.01,
-        'learning_rate': 0.05,
-        'num_iterations': 100,
-        'lambda_l1': 1.0,
-        'lambda_l2': 1.0,
-        'min_sum_hessian_in_leaf': 0.1,
-        'feature_fraction': 0.8,
-        'bagging_fraction': 0.8,
-        'bagging_freq': 5,
-        'max_bin': 64,
-        'early_stopping_round': 10,
+        
+        # Tree Structure (balanced for complex feature interactions)
+        'num_leaves': 127,           # 2^7-1 for deeper trees, matches max_depth capacity
+        'max_depth': 7,              # Balanced with num_leaves (2^7 = 128)
+        'min_data_in_leaf': 150,     # Higher for stability with 346 features
+        'min_gain_to_split': 0.01,   # Conservative splitting threshold
+        
+        # Learning Parameters (conservative for financial data)
+        'learning_rate': 0.01,       # CRITICAL: 0.03 was 3x too high! Use 0.01 for stability
+        'num_iterations': 2000,      # Extended for thorough learning with lower LR
+        
+        # Regularization (strong for high-dimensional financial data)
+        'lambda_l1': 3.0,            # Strong L1 for automatic feature selection
+        'lambda_l2': 5.0,            # Strong L2 for generalization
+        'min_sum_hessian_in_leaf': 0.15,  # Higher for stability
+        
+        # Feature and Sampling (conservative for 346 features)
+        'feature_fraction': 0.6,     # Sample 60% of 346 features (208 per tree)
+        'bagging_fraction': 0.8,     # Keep 80% data sampling
+        'bagging_freq': 5,           # Every 5 iterations
+        
+        # Technical Parameters
+        'max_bin': 255,              # Maximum precision
+        'early_stopping_round': 150,  # Extended patience for 2000 iterations
         'verbosity': 1,
         'is_unbalance': True,
         'seed': 42,
         'deterministic': True,
+        'force_row_wise': True,      # Stability for many features
     }
 
 
@@ -163,7 +185,7 @@ def train_with_robust_error_handling(X: pd.DataFrame, y, params: dict, timeframe
             train_set=train_data,
             valid_sets=[valid_data],
             callbacks=[
-                lgb.early_stopping(stopping_rounds=params.get('early_stopping_round', 10), verbose=False),
+                lgb.early_stopping(stopping_rounds=params.get('early_stopping_round', 50), verbose=False),
                 lgb.log_evaluation(period=20),
                 stop_on_negative_gain,
             ],
