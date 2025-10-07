@@ -64,6 +64,7 @@ congenial-fortnight/
 │   ├── elliott_wave.py            # Elliott Wave analysis
 │   ├── ultimate_signal_repository.py  # SMC + Order Flow
 │   └── robust_lightgbm_config.py  # Training configuration
+    └── daily_forex_signal_system.py
 │
 ├── models/                         # Trained model artifacts
 │   ├── EURUSD_lightgbm_simple.joblib
