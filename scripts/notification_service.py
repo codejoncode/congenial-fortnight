@@ -38,6 +38,8 @@ class NotificationService:
     
     def __init__(self):
         self.email_user = os.getenv('EMAIL_USER', '1man2amazing@gmail.com')
+        # IMPORTANT: This must be a Gmail App Password, not your regular password
+        # To generate: Google Account → Security → 2-Step Verification → App Passwords
         self.email_password = os.getenv('EMAIL_PASSWORD', 'ajlkyonpbkljeqzc')
         self.notification_email = os.getenv('NOTIFICATION_EMAIL', 'mydecretor@protonmail.com')
         self.sms_number = os.getenv('SMS_NUMBER', '7084652230')
