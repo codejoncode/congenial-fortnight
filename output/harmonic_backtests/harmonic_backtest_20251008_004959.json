@@ -1,0 +1,5339 @@
+{
+  "summary": {
+    "total_trades": 193,
+    "wins": 167,
+    "losses": 26,
+    "win_rate": 86.52849740932642,
+    "total_pnl": 28791.491563879088,
+    "total_return_pct": 287.9149156387908,
+    "initial_balance": 10000,
+    "final_balance": 38791.49156387908,
+    "profit_factor": 8.400000481277587
+  },
+  "averages": {
+    "avg_win": 195.70199649138814,
+    "avg_loss": 149.64391731472054,
+    "avg_trade": 149.1787127662129,
+    "avg_quality_score": 0.7672170561990647
+  },
+  "targets": {
+    "target_1_hit_rate": 83.41968911917098,
+    "target_2_hit_rate": 83.41968911917098,
+    "target_3_hit_rate": 69.43005181347151
+  },
+  "patterns": {
+    "shark_bullish": {
+      "trades": 31,
+      "wins": 30,
+      "win_rate": 96.7741935483871,
+      "total_pnl": 6994.968900325727,
+      "avg_quality": 0.7594566201985314
+    },
+    "shark_bearish": {
+      "trades": 36,
+      "wins": 30,
+      "win_rate": 83.33333333333334,
+      "total_pnl": 6823.476697461156,
+      "avg_quality": 0.784650218649489
+    },
+    "gartley_bearish": {
+      "trades": 52,
+      "wins": 41,
+      "win_rate": 78.84615384615384,
+      "total_pnl": 6866.927471551301,
+      "avg_quality": 0.7684724824803266
+    },
+    "bat_bearish": {
+      "trades": 20,
+      "wins": 16,
+      "win_rate": 80.0,
+      "total_pnl": 408.5418182933034,
+      "avg_quality": 0.7460650269116921
+    },
+    "gartley_bullish": {
+      "trades": 27,
+      "wins": 27,
+      "win_rate": 100.0,
+      "total_pnl": 4346.548992420245,
+      "avg_quality": 0.7682383587203714
+    },
+    "butterfly_bullish": {
+      "trades": 14,
+      "wins": 13,
+      "win_rate": 92.85714285714286,
+      "total_pnl": 2716.332992473477,
+      "avg_quality": 0.7571446648915402
+    },
+    "bat_bullish": {
+      "trades": 9,
+      "wins": 6,
+      "win_rate": 66.66666666666666,
+      "total_pnl": 52.35387800219132,
+      "avg_quality": 0.7618547377239637
+    },
+    "butterfly_bearish": {
+      "trades": 4,
+      "wins": 4,
+      "win_rate": 100.0,
+      "total_pnl": 582.3408133516907,
+      "avg_quality": 0.800326372056324
+    }
+  },
+  "time": {
+    "start_date": "2024-02-26 00:00:00",
+    "end_date": "2025-10-03 00:00:00",
+    "days": 585,
+    "trades_per_month": 9.897435897435898
+  },
+  "trades": [
+    {
+      "trade_number": 1,
+      "entry_time": "2024-03-06 00:00:00",
+      "exit_time": "2024-03-06 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7723573875747397,
+      "entry": 1.08712,
+      "stop_loss": 1.0833599999999999,
+      "targets": [
+        1.08732246,
+        1.08744754,
+        1.09151
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.531914893616992,
+      "risk_amount": 200.0,
+      "pnl": 57.313404255312555,
+      "pnl_pct": 0.5731340425531256,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 10000,
+      "balance_after": 10057.313404255312
+    },
+    {
+      "trade_number": 2,
+      "entry_time": "2024-03-06 00:00:00",
+      "exit_time": "2024-03-07 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7723573875747397,
+      "entry": 1.08712,
+      "stop_loss": 1.0833599999999999,
+      "targets": [
+        1.08732246,
+        1.08744754,
+        1.09151
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5349634789497211,
+      "risk_amount": 201.14626808510624,
+      "pnl": 57.64188688604584,
+      "pnl_pct": 0.5731340425531256,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 10057.313404255312,
+      "balance_after": 10114.955291141358
+    },
+    {
+      "trade_number": 3,
+      "entry_time": "2024-03-12 00:00:00",
+      "exit_time": "2024-03-13 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.7593090281700067,
+      "entry": 1.09356,
+      "stop_loss": 1.094967,
+      "targets": [
+        1.0935218,
+        1.0934982000000002,
+        1.09022
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 1.43780459006991,
+      "risk_amount": 202.29910582282716,
+      "pnl": -79.04474514367365,
+      "pnl_pct": -0.7814641080312115,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 10114.955291141358,
+      "balance_after": 10035.910545997684
+    },
+    {
+      "trade_number": 4,
+      "entry_time": "2024-03-12 00:00:00",
+      "exit_time": "2024-03-13 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.7593090281700067,
+      "entry": 1.09356,
+      "stop_loss": 1.094967,
+      "targets": [
+        1.0935218,
+        1.0934982000000002,
+        1.09022
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 1.4265686632548882,
+      "risk_amount": 200.71821091995366,
+      "pnl": -78.42703883109111,
+      "pnl_pct": -0.7814641080312117,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 10035.910545997684,
+      "balance_after": 9957.483507166593
+    },
+    {
+      "trade_number": 5,
+      "entry_time": "2024-03-12 00:00:00",
+      "exit_time": "2024-03-13 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.7593090281700067,
+      "entry": 1.09356,
+      "stop_loss": 1.094967,
+      "targets": [
+        1.0935218,
+        1.0934982000000002,
+        1.09022
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 1.4154205411751306,
+      "risk_amount": 199.14967014333186,
+      "pnl": -77.81415967163443,
+      "pnl_pct": -0.7814641080312117,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 9957.483507166593,
+      "balance_after": 9879.669347494959
+    },
+    {
+      "trade_number": 6,
+      "entry_time": "2024-03-25 00:00:00",
+      "exit_time": "2024-03-28 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7689450710577831,
+      "entry": 1.08223,
+      "stop_loss": 1.0873879999999998,
+      "targets": [
+        1.08168756,
+        1.08135244,
+        1.08022
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.38308140160897214,
+      "risk_amount": 197.59338694989918,
+      "pnl": 35.87511356299881,
+      "pnl_pct": 0.36312058937574804,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 9879.669347494959,
+      "balance_after": 9915.544461057958
+    },
+    {
+      "trade_number": 7,
+      "entry_time": "2024-03-25 00:00:00",
+      "exit_time": "2024-03-28 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7834238692640121,
+      "entry": 1.08228,
+      "stop_loss": 1.0873879999999998,
+      "targets": [
+        1.08171846,
+        1.08137154,
+        1.08022
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.38823588336171383,
+      "risk_amount": 198.31088922115916,
+      "pnl": 37.47672040960984,
+      "pnl_pct": 0.3779592795614492,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 9915.544461057958,
+      "balance_after": 9953.021181467568
+    },
+    {
+      "trade_number": 8,
+      "entry_time": "2024-04-12 00:00:00",
+      "exit_time": "2024-04-15 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.6706938251438817,
+      "entry": 1.0728,
+      "stop_loss": 1.0882129999999999,
+      "targets": [
+        1.07169984,
+        1.07102016,
+        1.06225
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.12915099177924652,
+      "risk_amount": 199.06042362935136,
+      "pnl": 41.25124005746521,
+      "pnl_pct": 0.41445948225524354,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 9953.021181467568,
+      "balance_after": 9994.272421525033
+    },
+    {
+      "trade_number": 9,
+      "entry_time": "2024-04-12 00:00:00",
+      "exit_time": "2024-04-15 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.6836537455774048,
+      "entry": 1.07289,
+      "stop_loss": 1.0882129999999999,
+      "targets": [
+        1.0717554599999999,
+        1.07105454,
+        1.06225
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.13044798566240356,
+      "risk_amount": 199.88544843050067,
+      "pnl": 42.34221602454778,
+      "pnl_pct": 0.4236648175944633,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 9994.272421525033,
+      "balance_after": 10036.614637549581
+    },
+    {
+      "trade_number": 10,
+      "entry_time": "2024-04-12 00:00:00",
+      "exit_time": "2024-04-15 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.6836537455774048,
+      "entry": 1.07289,
+      "stop_loss": 1.0882129999999999,
+      "targets": [
+        1.0717554599999999,
+        1.07105454,
+        1.06225
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.13100064788291585,
+      "risk_amount": 200.73229275099163,
+      "pnl": 42.52160509683364,
+      "pnl_pct": 0.4236648175944633,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 10036.614637549581,
+      "balance_after": 10079.136242646415
+    },
+    {
+      "trade_number": 11,
+      "entry_time": "2024-04-12 00:00:00",
+      "exit_time": "2024-04-15 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.6836537455774048,
+      "entry": 1.07289,
+      "stop_loss": 1.0882129999999999,
+      "targets": [
+        1.0717554599999999,
+        1.07105454,
+        1.06225
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.13155565153881654,
+      "risk_amount": 201.5827248529283,
+      "pnl": 42.70175417750537,
+      "pnl_pct": 0.4236648175944633,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 10079.136242646415,
+      "balance_after": 10121.83799682392
+    },
+    {
+      "trade_number": 12,
+      "entry_time": "2024-04-16 00:00:00",
+      "exit_time": "2024-04-25 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.8054042064627962,
+      "entry": 1.06349,
+      "stop_loss": 1.0739599999999998,
+      "targets": [
+        1.0629934,
+        1.0626866,
+        1.06011
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.19334934091354644,
+      "risk_amount": 202.4367599364784,
+      "pnl": -53.068206901858176,
+      "pnl_pct": -0.5242941738299919,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 10121.83799682392,
+      "balance_after": 10068.769789922062
+    },
+    {
+      "trade_number": 13,
+      "entry_time": "2024-04-16 00:00:00",
+      "exit_time": "2024-04-25 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.8054042064627962,
+      "entry": 1.06349,
+      "stop_loss": 1.0739599999999998,
+      "targets": [
+        1.0629934,
+        1.0626866,
+        1.06011
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.19233562158399803,
+      "risk_amount": 201.37539579844125,
+      "pnl": -52.78997338491569,
+      "pnl_pct": -0.524294173829992,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 10068.769789922062,
+      "balance_after": 10015.979816537147
+    },
+    {
+      "trade_number": 14,
+      "entry_time": "2024-04-16 00:00:00",
+      "exit_time": "2024-04-25 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.8054042064627962,
+      "entry": 1.06349,
+      "stop_loss": 1.0739599999999998,
+      "targets": [
+        1.0629934,
+        1.0626866,
+        1.06011
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.19132721712583342,
+      "risk_amount": 200.31959633074294,
+      "pnl": -52.51319863009218,
+      "pnl_pct": -0.524294173829992,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 10015.979816537147,
+      "balance_after": 9963.466617907054
+    },
+    {
+      "trade_number": 15,
+      "entry_time": "2024-04-17 00:00:00",
+      "exit_time": "2024-04-18 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7758255741523152,
+      "entry": 1.06299,
+      "stop_loss": 1.0597720000000002,
+      "targets": [
+        1.0631810000000002,
+        1.063299,
+        1.06796
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.6192334753205239,
+      "risk_amount": 199.26933235814107,
+      "pnl": 73.20578145239095,
+      "pnl_pct": 0.7347420758234919,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 9963.466617907054,
+      "balance_after": 10036.672399359444
+    },
+    {
+      "trade_number": 16,
+      "entry_time": "2024-04-17 00:00:00",
+      "exit_time": "2024-04-18 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7758255741523152,
+      "entry": 1.06299,
+      "stop_loss": 1.0597720000000002,
+      "targets": [
+        1.0631810000000002,
+        1.063299,
+        1.06796
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.6237832442112878,
+      "risk_amount": 200.7334479871889,
+      "pnl": 73.74365513065706,
+      "pnl_pct": 0.7347420758234919,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 10036.672399359444,
+      "balance_after": 10110.4160544901
+    },
+    {
+      "trade_number": 17,
+      "entry_time": "2024-04-17 00:00:00",
+      "exit_time": "2024-04-18 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7758255741523152,
+      "entry": 1.06299,
+      "stop_loss": 1.0597720000000002,
+      "targets": [
+        1.0631810000000002,
+        1.063299,
+        1.06796
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.628366442168445,
+      "risk_amount": 202.208321089802,
+      "pnl": 74.28548079315216,
+      "pnl_pct": 0.7347420758234919,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 10110.4160544901,
+      "balance_after": 10184.701535283253
+    },
+    {
+      "trade_number": 18,
+      "entry_time": "2024-04-18 00:00:00",
+      "exit_time": "2024-04-23 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.8071603479436913,
+      "entry": 1.06642,
+      "stop_loss": 1.0605120000000001,
+      "targets": [
+        1.0670121,
+        1.0673779,
+        1.069
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.3447766261098035,
+      "risk_amount": 203.69403070566506,
+      "pnl": 37.90543182776577,
+      "pnl_pct": 0.37218009478675956,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 10184.701535283253,
+      "balance_after": 10222.606967111018
+    },
+    {
+      "trade_number": 19,
+      "entry_time": "2024-04-18 00:00:00",
+      "exit_time": "2024-04-23 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.8071603479436913,
+      "entry": 1.06642,
+      "stop_loss": 1.0605120000000001,
+      "targets": [
+        1.0670121,
+        1.0673779,
+        1.069
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.34605981608366154,
+      "risk_amount": 204.45213934222036,
+      "pnl": 38.046508299871675,
+      "pnl_pct": 0.37218009478675956,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 10222.606967111018,
+      "balance_after": 10260.65347541089
+    },
+    {
+      "trade_number": 20,
+      "entry_time": "2024-04-18 00:00:00",
+      "exit_time": "2024-04-23 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.8071603479436913,
+      "entry": 1.06642,
+      "stop_loss": 1.0605120000000001,
+      "targets": [
+        1.0670121,
+        1.0673779,
+        1.069
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.3473477818351806,
+      "risk_amount": 205.2130695082178,
+      "pnl": 38.1881098305252,
+      "pnl_pct": 0.3721800947867596,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 10260.65347541089,
+      "balance_after": 10298.841585241416
+    },
+    {
+      "trade_number": 21,
+      "entry_time": "2024-05-03 00:00:00",
+      "exit_time": "2024-05-03 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.7375306986856637,
+      "entry": 1.0812,
+      "stop_loss": 1.074103,
+      "targets": [
+        1.07498868,
+        1.07115132,
+        1.0693
+      ],
+      "targets_hit": [],
+      "position_size": 0.2902308464207848,
+      "risk_amount": 205.97683170482833,
+      "pnl": 310.7501672627285,
+      "pnl_pct": 3.0173312667324046,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 10298.841585241416,
+      "balance_after": 10609.591752504144
+    },
+    {
+      "trade_number": 22,
+      "entry_time": "2024-05-03 00:00:00",
+      "exit_time": "2024-05-03 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.7375306986856637,
+      "entry": 1.0812,
+      "stop_loss": 1.074103,
+      "targets": [
+        1.07498868,
+        1.07115132,
+        1.0693
+      ],
+      "targets_hit": [],
+      "position_size": 0.2989880724955412,
+      "risk_amount": 212.1918350500829,
+      "pnl": 340.7567062231647,
+      "pnl_pct": 3.211779625193751,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 10609.591752504144,
+      "balance_after": 10950.348458727309
+    },
+    {
+      "trade_number": 23,
+      "entry_time": "2024-05-03 00:00:00",
+      "exit_time": "2024-05-03 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.7375306986856637,
+      "entry": 1.0812,
+      "stop_loss": 1.074103,
+      "targets": [
+        1.07498868,
+        1.07115132,
+        1.0693
+      ],
+      "targets_hit": [],
+      "position_size": 0.30859091048971254,
+      "risk_amount": 219.00696917454619,
+      "pnl": 431.62610650195325,
+      "pnl_pct": 3.941665492461584,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 10950.348458727309,
+      "balance_after": 11381.974565229262
+    },
+    {
+      "trade_number": 24,
+      "entry_time": "2024-05-03 00:00:00",
+      "exit_time": "2024-05-14 00:00:00",
+      "pattern_type": "butterfly_bullish",
+      "direction": "long",
+      "quality_score": 0.7719113190048562,
+      "entry": 1.07387,
+      "stop_loss": 1.068168,
+      "targets": [
+        1.0742749200000001,
+        1.0745250800000001,
+        1.0812
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.39922744879793304,
+      "risk_amount": 227.63949130458525,
+      "pnl": 74.4552804368961,
+      "pnl_pct": 0.6541508242721713,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 11381.974565229262,
+      "balance_after": 11456.429845666158
+    },
+    {
+      "trade_number": 25,
+      "entry_time": "2024-05-03 00:00:00",
+      "exit_time": "2024-05-14 00:00:00",
+      "pattern_type": "butterfly_bullish",
+      "direction": "long",
+      "quality_score": 0.7719113190048562,
+      "entry": 1.07387,
+      "stop_loss": 1.068168,
+      "targets": [
+        1.0742749200000001,
+        1.0745250800000001,
+        1.0812
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.4018389984449655,
+      "risk_amount": 229.12859691332318,
+      "pnl": 74.94233026758823,
+      "pnl_pct": 0.6541508242721715,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 11456.429845666158,
+      "balance_after": 11531.372175933746
+    },
+    {
+      "trade_number": 26,
+      "entry_time": "2024-05-03 00:00:00",
+      "exit_time": "2024-05-14 00:00:00",
+      "pattern_type": "butterfly_bullish",
+      "direction": "long",
+      "quality_score": 0.7719113190048562,
+      "entry": 1.07387,
+      "stop_loss": 1.068168,
+      "targets": [
+        1.0742749200000001,
+        1.0745250800000001,
+        1.0812
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.4044676315655402,
+      "risk_amount": 230.6274435186749,
+      "pnl": 75.43256613876241,
+      "pnl_pct": 0.6541508242721713,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 11531.372175933746,
+      "balance_after": 11606.804742072509
+    },
+    {
+      "trade_number": 27,
+      "entry_time": "2024-05-10 00:00:00",
+      "exit_time": "2024-05-13 00:00:00",
+      "pattern_type": "bat_bullish",
+      "direction": "long",
+      "quality_score": 0.6791373996189287,
+      "entry": 1.07731,
+      "stop_loss": 1.073175,
+      "targets": [
+        1.07760032,
+        1.0777796800000001,
+        1.07901
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5613932160615482,
+      "risk_amount": 232.1360948414502,
+      "pnl": 35.14680824203718,
+      "pnl_pct": 0.3028120918984407,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 11606.804742072509,
+      "balance_after": 11641.951550314547
+    },
+    {
+      "trade_number": 28,
+      "entry_time": "2024-05-10 00:00:00",
+      "exit_time": "2024-05-13 00:00:00",
+      "pattern_type": "bat_bullish",
+      "direction": "long",
+      "quality_score": 0.6791373996189287,
+      "entry": 1.07731,
+      "stop_loss": 1.073175,
+      "targets": [
+        1.07760032,
+        1.0777796800000001,
+        1.07901
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5630931826028802,
+      "risk_amount": 232.83903100629095,
+      "pnl": 35.25323702731043,
+      "pnl_pct": 0.30281209189844077,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 11641.951550314547,
+      "balance_after": 11677.204787341858
+    },
+    {
+      "trade_number": 29,
+      "entry_time": "2024-05-10 00:00:00",
+      "exit_time": "2024-05-13 00:00:00",
+      "pattern_type": "bat_bullish",
+      "direction": "long",
+      "quality_score": 0.6791373996189287,
+      "entry": 1.07731,
+      "stop_loss": 1.073175,
+      "targets": [
+        1.07760032,
+        1.0777796800000001,
+        1.07901
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5647982968484576,
+      "risk_amount": 233.54409574683717,
+      "pnl": 35.359988091814756,
+      "pnl_pct": 0.3028120918984408,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 11677.204787341858,
+      "balance_after": 11712.564775433673
+    },
+    {
+      "trade_number": 30,
+      "entry_time": "2024-05-15 00:00:00",
+      "exit_time": "2024-05-15 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7981433125617257,
+      "entry": 1.08219,
+      "stop_loss": 1.0758720000000002,
+      "targets": [
+        1.08233134,
+        1.0824186599999999,
+        1.08828
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.3707681157149098,
+      "risk_amount": 234.25129550867348,
+      "pnl": 50.323169888014434,
+      "pnl_pct": 0.42965115542894533,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 11712.564775433673,
+      "balance_after": 11762.887945321687
+    },
+    {
+      "trade_number": 31,
+      "entry_time": "2024-05-15 00:00:00",
+      "exit_time": "2024-05-15 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7981433125617257,
+      "entry": 1.08219,
+      "stop_loss": 1.0758720000000002,
+      "targets": [
+        1.08233134,
+        1.0824186599999999,
+        1.08828
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.37236112520804104,
+      "risk_amount": 235.25775890643374,
+      "pnl": 50.53938396888675,
+      "pnl_pct": 0.42965115542894533,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 11762.887945321687,
+      "balance_after": 11813.427329290573
+    },
+    {
+      "trade_number": 32,
+      "entry_time": "2024-05-15 00:00:00",
+      "exit_time": "2024-05-16 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7981433125617257,
+      "entry": 1.08219,
+      "stop_loss": 1.0758720000000002,
+      "targets": [
+        1.08233134,
+        1.0824186599999999,
+        1.08828
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.3739609790848656,
+      "risk_amount": 236.26854658581146,
+      "pnl": 50.75652701605575,
+      "pnl_pct": 0.4296511554289454,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 11813.427329290573,
+      "balance_after": 11864.183856306629
+    },
+    {
+      "trade_number": 33,
+      "entry_time": "2024-05-15 00:00:00",
+      "exit_time": "2024-05-16 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7998158488772709,
+      "entry": 1.0815,
+      "stop_loss": 1.0758720000000002,
+      "targets": [
+        1.08190492,
+        1.08215508,
+        1.08828
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.42161278807061714,
+      "risk_amount": 237.28367712613257,
+      "pnl": 73.99236972593351,
+      "pnl_pct": 0.6236616915423263,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 11864.183856306629,
+      "balance_after": 11938.176226032561
+    },
+    {
+      "trade_number": 34,
+      "entry_time": "2024-05-28 00:00:00",
+      "exit_time": "2024-05-30 00:00:00",
+      "pattern_type": "bat_bullish",
+      "direction": "long",
+      "quality_score": 0.8547468065542945,
+      "entry": 1.08564,
+      "stop_loss": 1.07992,
+      "targets": [
+        1.0860602,
+        1.0863198,
+        1.0889
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.4174187491619815,
+      "risk_amount": 238.76352452065123,
+      "pnl": -85.73614140287157,
+      "pnl_pct": -0.7181678321678154,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 11938.176226032561,
+      "balance_after": 11852.44008462969
+    },
+    {
+      "trade_number": 35,
+      "entry_time": "2024-05-28 00:00:00",
+      "exit_time": "2024-05-30 00:00:00",
+      "pattern_type": "bat_bullish",
+      "direction": "long",
+      "quality_score": 0.8547468065542945,
+      "entry": 1.08564,
+      "stop_loss": 1.07992,
+      "targets": [
+        1.0860602,
+        1.0863198,
+        1.0889
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.4144209819800629,
+      "risk_amount": 237.0488016925938,
+      "pnl": -85.1204120147742,
+      "pnl_pct": -0.7181678321678151,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 11852.44008462969,
+      "balance_after": 11767.319672614916
+    },
+    {
+      "trade_number": 36,
+      "entry_time": "2024-05-28 00:00:00",
+      "exit_time": "2024-05-30 00:00:00",
+      "pattern_type": "bat_bullish",
+      "direction": "long",
+      "quality_score": 0.8547468065542945,
+      "entry": 1.08564,
+      "stop_loss": 1.07992,
+      "targets": [
+        1.0860602,
+        1.0863198,
+        1.0889
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.41144474379772816,
+      "risk_amount": 235.34639345229834,
+      "pnl": -84.5091045970754,
+      "pnl_pct": -0.7181678321678153,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 11767.319672614916,
+      "balance_after": 11682.810568017841
+    },
+    {
+      "trade_number": 37,
+      "entry_time": "2024-05-29 00:00:00",
+      "exit_time": "2024-05-29 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.6656474817390549,
+      "entry": 1.07994,
+      "stop_loss": 1.083686,
+      "targets": [
+        1.08336272,
+        1.0854772799999999,
+        1.08801
+      ],
+      "targets_hit": [],
+      "position_size": 0.6237485620938471,
+      "risk_amount": 233.65621136035682,
+      "pnl": 248.62617685061028,
+      "pnl_pct": 2.128136679124408,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 11682.810568017841,
+      "balance_after": 11931.436744868452
+    },
+    {
+      "trade_number": 38,
+      "entry_time": "2024-05-29 00:00:00",
+      "exit_time": "2024-05-29 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.6656474817390549,
+      "entry": 1.07994,
+      "stop_loss": 1.083686,
+      "targets": [
+        1.08336272,
+        1.0854772799999999,
+        1.08801
+      ],
+      "targets_hit": [],
+      "position_size": 0.6370227840292775,
+      "risk_amount": 238.62873489736904,
+      "pnl": 280.03521585927456,
+      "pnl_pct": 2.3470368392952667,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 11931.436744868452,
+      "balance_after": 12211.471960727726
+    },
+    {
+      "trade_number": 39,
+      "entry_time": "2024-05-29 00:00:00",
+      "exit_time": "2024-05-29 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.6656474817390549,
+      "entry": 1.07994,
+      "stop_loss": 1.083686,
+      "targets": [
+        1.08336272,
+        1.0854772799999999,
+        1.08801
+      ],
+      "targets_hit": [],
+      "position_size": 0.6519739434451489,
+      "risk_amount": 244.22943921455453,
+      "pnl": 336.15776524032924,
+      "pnl_pct": 2.7528029898559128,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 12211.471960727726,
+      "balance_after": 12547.629725968054
+    },
+    {
+      "trade_number": 40,
+      "entry_time": "2024-06-19 00:00:00",
+      "exit_time": "2024-06-20 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.8079374261008871,
+      "entry": 1.07353,
+      "stop_loss": 1.07068,
+      "targets": [
+        1.07374392,
+        1.07387608,
+        1.07533
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.8805354193661733,
+      "risk_amount": 250.9525945193611,
+      "pnl": -91.85886380495724,
+      "pnl_pct": -0.7320814035088232,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 12547.629725968054,
+      "balance_after": 12455.770862163097
+    },
+    {
+      "trade_number": 41,
+      "entry_time": "2024-06-20 00:00:00",
+      "exit_time": "2024-06-21 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.8051094003741357,
+      "entry": 1.07315,
+      "stop_loss": 1.075615,
+      "targets": [
+        1.07289406,
+        1.07273594,
+        1.07009
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.0106102119402356,
+      "risk_amount": 249.11541724326196,
+      "pnl": 87.33572178361962,
+      "pnl_pct": 0.7011667342799264,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 12455.770862163097,
+      "balance_after": 12543.106583946717
+    },
+    {
+      "trade_number": 42,
+      "entry_time": "2024-06-20 00:00:00",
+      "exit_time": "2024-06-21 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7831649338905503,
+      "entry": 1.07315,
+      "stop_loss": 1.075483,
+      "targets": [
+        1.07289406,
+        1.07273594,
+        1.07009
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.0752770324858256,
+      "risk_amount": 250.86213167893436,
+      "pnl": 92.92415081498478,
+      "pnl_pct": 0.7408384054865137,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 12543.106583946717,
+      "balance_after": 12636.030734761702
+    },
+    {
+      "trade_number": 43,
+      "entry_time": "2024-06-20 00:00:00",
+      "exit_time": "2024-06-21 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.8051094003741357,
+      "entry": 1.07315,
+      "stop_loss": 1.075615,
+      "targets": [
+        1.07289406,
+        1.07273594,
+        1.07009
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.0252357594127395,
+      "risk_amount": 252.72061469523405,
+      "pnl": 88.59964404553642,
+      "pnl_pct": 0.7011667342799265,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 12636.030734761702,
+      "balance_after": 12724.630378807238
+    },
+    {
+      "trade_number": 44,
+      "entry_time": "2024-06-20 00:00:00",
+      "exit_time": "2024-06-21 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7831649338905503,
+      "entry": 1.07315,
+      "stop_loss": 1.075483,
+      "targets": [
+        1.07289406,
+        1.07273594,
+        1.07009
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.090838437960367,
+      "risk_amount": 254.49260757614476,
+      "pnl": 94.26894880240806,
+      "pnl_pct": 0.7408384054865136,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 12724.630378807238,
+      "balance_after": 12818.899327609646
+    },
+    {
+      "trade_number": 45,
+      "entry_time": "2024-06-20 00:00:00",
+      "exit_time": "2024-06-21 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.8051094003741357,
+      "entry": 1.07315,
+      "stop_loss": 1.075615,
+      "targets": [
+        1.07289406,
+        1.07273594,
+        1.07009
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.0400729677574003,
+      "risk_amount": 256.3779865521929,
+      "pnl": 89.88185778603199,
+      "pnl_pct": 0.7011667342799263,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 12818.899327609646,
+      "balance_after": 12908.781185395677
+    },
+    {
+      "trade_number": 46,
+      "entry_time": "2024-06-20 00:00:00",
+      "exit_time": "2024-06-21 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7831649338905503,
+      "entry": 1.07315,
+      "stop_loss": 1.075483,
+      "targets": [
+        1.07289406,
+        1.07273594,
+        1.07009
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.1066250480408166,
+      "risk_amount": 258.17562370791353,
+      "pnl": 95.6332087016284,
+      "pnl_pct": 0.7408384054865136,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 12908.781185395677,
+      "balance_after": 13004.414394097306
+    },
+    {
+      "trade_number": 47,
+      "entry_time": "2024-07-08 00:00:00",
+      "exit_time": "2024-07-11 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.7560589034591693,
+      "entry": 1.08237,
+      "stop_loss": 1.077133,
+      "targets": [
+        1.08308816,
+        1.08353184,
+        1.08449
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.4966360280350168,
+      "risk_amount": 260.08828788194614,
+      "pnl": 56.20092216772858,
+      "pnl_pct": 0.43216803513457813,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 13004.414394097306,
+      "balance_after": 13060.615316265035
+    },
+    {
+      "trade_number": 48,
+      "entry_time": "2024-07-19 00:00:00",
+      "exit_time": "2024-07-22 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.8243403341747153,
+      "entry": 1.09017,
+      "stop_loss": 1.09486,
+      "targets": [
+        1.08986058,
+        1.08966942,
+        1.08754
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5569558770262439,
+      "risk_amount": 261.2123063253007,
+      "pnl": 46.27657269270851,
+      "pnl_pct": 0.35432153518125586,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 13060.615316265035,
+      "balance_after": 13106.891888957744
+    },
+    {
+      "trade_number": 49,
+      "entry_time": "2024-07-19 00:00:00",
+      "exit_time": "2024-07-22 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.8243403341747153,
+      "entry": 1.09017,
+      "stop_loss": 1.09486,
+      "targets": [
+        1.08986058,
+        1.08966942,
+        1.08754
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5589292916400056,
+      "risk_amount": 262.1378377791549,
+      "pnl": 46.440540555502594,
+      "pnl_pct": 0.3543215351812559,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 13106.891888957744,
+      "balance_after": 13153.332429513246
+    },
+    {
+      "trade_number": 50,
+      "entry_time": "2024-07-19 00:00:00",
+      "exit_time": "2024-07-22 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.8243403341747153,
+      "entry": 1.09017,
+      "stop_loss": 1.09486,
+      "targets": [
+        1.08986058,
+        1.08966942,
+        1.08754
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5609096984867222,
+      "risk_amount": 263.06664859026495,
+      "pnl": 46.605089391745324,
+      "pnl_pct": 0.3543215351812559,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 13153.332429513246,
+      "balance_after": 13199.937518904992
+    },
+    {
+      "trade_number": 51,
+      "entry_time": "2024-07-23 00:00:00",
+      "exit_time": "2024-07-23 00:00:00",
+      "pattern_type": "butterfly_bullish",
+      "direction": "long",
+      "quality_score": 0.725812492670385,
+      "entry": 1.08437,
+      "stop_loss": 1.087087,
+      "targets": [
+        1.08634494,
+        1.08756506,
+        1.09025
+      ],
+      "targets_hit": [],
+      "position_size": 0.9716553197575031,
+      "risk_amount": 263.9987503780998,
+      "pnl": 316.46813764500354,
+      "pnl_pct": 2.3974972396025125,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 13199.937518904992,
+      "balance_after": 13516.405656549996
+    },
+    {
+      "trade_number": 52,
+      "entry_time": "2024-07-23 00:00:00",
+      "exit_time": "2024-07-23 00:00:00",
+      "pattern_type": "butterfly_bullish",
+      "direction": "long",
+      "quality_score": 0.725812492670385,
+      "entry": 1.08437,
+      "stop_loss": 1.087087,
+      "targets": [
+        1.08634494,
+        1.08756506,
+        1.09025
+      ],
+      "targets_hit": [],
+      "position_size": 0.9949507292271402,
+      "risk_amount": 270.3281131309999,
+      "pnl": 391.71210209671085,
+      "pnl_pct": 2.8980493191019963,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 13516.405656549996,
+      "balance_after": 13908.117758646707
+    },
+    {
+      "trade_number": 53,
+      "entry_time": "2024-07-23 00:00:00",
+      "exit_time": "2024-07-23 00:00:00",
+      "pattern_type": "butterfly_bullish",
+      "direction": "long",
+      "quality_score": 0.725812492670385,
+      "entry": 1.08437,
+      "stop_loss": 1.087087,
+      "targets": [
+        1.08634494,
+        1.08756506,
+        1.09025
+      ],
+      "targets_hit": [],
+      "position_size": 1.0237848920609078,
+      "risk_amount": 278.16235517293416,
+      "pnl": 415.34953070908523,
+      "pnl_pct": 2.986382039013593,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 13908.117758646707,
+      "balance_after": 14323.467289355793
+    },
+    {
+      "trade_number": 54,
+      "entry_time": "2024-07-24 00:00:00",
+      "exit_time": "2024-07-24 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.837374820336031,
+      "entry": 1.08543,
+      "stop_loss": 1.090838,
+      "targets": [
+        1.0850250799999999,
+        1.08477492,
+        1.08386
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5297140269732095,
+      "risk_amount": 286.46934578711586,
+      "pnl": 37.76776258074285,
+      "pnl_pct": 0.26367751479286883,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 14323.467289355793,
+      "balance_after": 14361.235051936535
+    },
+    {
+      "trade_number": 55,
+      "entry_time": "2024-07-24 00:00:00",
+      "exit_time": "2024-07-24 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.837374820336031,
+      "entry": 1.08543,
+      "stop_loss": 1.090838,
+      "targets": [
+        1.0850250799999999,
+        1.08477492,
+        1.08386
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5311107637550416,
+      "risk_amount": 287.2247010387307,
+      "pnl": 37.86734767850862,
+      "pnl_pct": 0.26367751479286883,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 14361.235051936535,
+      "balance_after": 14399.102399615043
+    },
+    {
+      "trade_number": 56,
+      "entry_time": "2024-07-24 00:00:00",
+      "exit_time": "2024-07-24 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.837374820336031,
+      "entry": 1.08543,
+      "stop_loss": 1.090838,
+      "targets": [
+        1.0850250799999999,
+        1.08477492,
+        1.08386
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5325111834177083,
+      "risk_amount": 287.98204799230086,
+      "pnl": 37.96719535978528,
+      "pnl_pct": 0.2636775147928688,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 14399.102399615043,
+      "balance_after": 14437.069594974828
+    },
+    {
+      "trade_number": 57,
+      "entry_time": "2024-07-30 00:00:00",
+      "exit_time": "2024-07-30 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.762398854018534,
+      "entry": 1.0799,
+      "stop_loss": 1.08242,
+      "targets": [
+        1.08254344,
+        1.08417656,
+        1.08698
+      ],
+      "targets_hit": [],
+      "position_size": 1.1457991742044171,
+      "risk_amount": 288.7413918994966,
+      "pnl": 417.0708994103925,
+      "pnl_pct": 2.888888888888948,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 14437.069594974828,
+      "balance_after": 14854.140494385221
+    },
+    {
+      "trade_number": 58,
+      "entry_time": "2024-07-30 00:00:00",
+      "exit_time": "2024-07-30 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.7717718704046503,
+      "entry": 1.07984,
+      "stop_loss": 1.08242,
+      "targets": [
+        1.08250636,
+        1.0841536399999998,
+        1.08698
+      ],
+      "targets_hit": [],
+      "position_size": 1.1514837592546565,
+      "risk_amount": 297.08280988770446,
+      "pnl": 472.1083412944339,
+      "pnl_pct": 3.178294573643545,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 14854.140494385221,
+      "balance_after": 15326.248835679655
+    },
+    {
+      "trade_number": 59,
+      "entry_time": "2024-07-30 00:00:00",
+      "exit_time": "2024-07-30 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.7717718704046503,
+      "entry": 1.07984,
+      "stop_loss": 1.08242,
+      "targets": [
+        1.08250636,
+        1.0841536399999998,
+        1.08698
+      ],
+      "targets_hit": [],
+      "position_size": 1.1880813050914338,
+      "risk_amount": 306.5249767135931,
+      "pnl": 346.9197410867027,
+      "pnl_pct": 2.263565891472871,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 15326.248835679655,
+      "balance_after": 15673.168576766357
+    },
+    {
+      "trade_number": 60,
+      "entry_time": "2024-07-30 00:00:00",
+      "exit_time": "2024-07-30 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.7717718704046503,
+      "entry": 1.07984,
+      "stop_loss": 1.08242,
+      "targets": [
+        1.08250636,
+        1.0841536399999998,
+        1.08698
+      ],
+      "targets_hit": [],
+      "position_size": 1.2149743082764493,
+      "risk_amount": 313.46337153532716,
+      "pnl": 467.7651086864489,
+      "pnl_pct": 2.984496124031079,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 15673.168576766357,
+      "balance_after": 16140.933685452805
+    },
+    {
+      "trade_number": 61,
+      "entry_time": "2024-08-14 00:00:00",
+      "exit_time": "2024-08-19 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7559650642774182,
+      "entry": 1.09862,
+      "stop_loss": 1.0905,
+      "targets": [
+        1.09913188,
+        1.09944812,
+        1.10471
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.3975599429914531,
+      "risk_amount": 322.8186737090561,
+      "pnl": 68.47477043698836,
+      "pnl_pct": 0.42423054187194886,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 16140.933685452805,
+      "balance_after": 16209.408455889792
+    },
+    {
+      "trade_number": 62,
+      "entry_time": "2024-08-14 00:00:00",
+      "exit_time": "2024-08-19 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7559650642774182,
+      "entry": 1.09862,
+      "stop_loss": 1.0905,
+      "targets": [
+        1.09913188,
+        1.09944812,
+        1.10471
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.3992465136918715,
+      "risk_amount": 324.18816911779584,
+      "pnl": 68.76526132665876,
+      "pnl_pct": 0.4242305418719488,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 16209.408455889792,
+      "balance_after": 16278.17371721645
+    },
+    {
+      "trade_number": 63,
+      "entry_time": "2024-08-14 00:00:00",
+      "exit_time": "2024-08-19 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7559650642774182,
+      "entry": 1.09862,
+      "stop_loss": 1.0905,
+      "targets": [
+        1.09913188,
+        1.09944812,
+        1.10471
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.40094023934031137,
+      "risk_amount": 325.563474344329,
+      "pnl": 69.0569845674045,
+      "pnl_pct": 0.4242305418719488,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 16278.17371721645,
+      "balance_after": 16347.230701783856
+    },
+    {
+      "trade_number": 64,
+      "entry_time": "2024-08-28 00:00:00",
+      "exit_time": "2024-08-28 00:00:00",
+      "pattern_type": "butterfly_bearish",
+      "direction": "short",
+      "quality_score": 0.7325722801846526,
+      "entry": 1.11374,
+      "stop_loss": 1.1206509999999998,
+      "targets": [
+        1.1132472199999999,
+        1.11294278,
+        1.11595
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.47307859070421415,
+      "risk_amount": 326.94461403567715,
+      "pnl": 2.060541109671803,
+      "pnl_pct": 0.012604832875130043,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 16347.230701783856,
+      "balance_after": 16349.291242893527
+    },
+    {
+      "trade_number": 65,
+      "entry_time": "2024-09-05 00:00:00",
+      "exit_time": "2024-09-06 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.8003248344256473,
+      "entry": 1.10796,
+      "stop_loss": 1.103512,
+      "targets": [
+        1.1082274,
+        1.1083926,
+        1.11195
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.7351300019286646,
+      "risk_amount": 326.98582485787057,
+      "pnl": 78.0325794447217,
+      "pnl_pct": 0.4772841726618564,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 16349.291242893527,
+      "balance_after": 16427.32382233825
+    },
+    {
+      "trade_number": 66,
+      "entry_time": "2024-09-26 00:00:00",
+      "exit_time": "2024-09-26 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7222649632628458,
+      "entry": 1.11786,
+      "stop_loss": 1.119867,
+      "targets": [
+        1.1176308,
+        1.1174892,
+        1.11257
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.637002872181297,
+      "risk_amount": 328.54647644676504,
+      "pnl": 210.16497674213682,
+      "pnl_pct": 1.2793622321875076,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 16427.32382233825,
+      "balance_after": 16637.488799080387
+    },
+    {
+      "trade_number": 67,
+      "entry_time": "2024-09-26 00:00:00",
+      "exit_time": "2024-09-26 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7222649632628458,
+      "entry": 1.11786,
+      "stop_loss": 1.119867,
+      "targets": [
+        1.1176308,
+        1.1174892,
+        1.11257
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.6579460686678091,
+      "risk_amount": 332.74977598160774,
+      "pnl": 212.85374807986136,
+      "pnl_pct": 1.2793622321875076,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 16637.488799080387,
+      "balance_after": 16850.34254716025
+    },
+    {
+      "trade_number": 68,
+      "entry_time": "2024-09-26 00:00:00",
+      "exit_time": "2024-09-26 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7222649632628458,
+      "entry": 1.11786,
+      "stop_loss": 1.119867,
+      "targets": [
+        1.1176308,
+        1.1174892,
+        1.11257
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.6791572045003829,
+      "risk_amount": 337.006850943205,
+      "pnl": 215.57691854259068,
+      "pnl_pct": 1.2793622321875076,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 16850.34254716025,
+      "balance_after": 17065.919465702842
+    },
+    {
+      "trade_number": 69,
+      "entry_time": "2024-10-02 00:00:00",
+      "exit_time": "2024-10-03 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7938817650776657,
+      "entry": 1.1076,
+      "stop_loss": 1.1225,
+      "targets": [
+        1.10644254,
+        1.10572746,
+        1.10326
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.22907274450607631,
+      "risk_amount": 341.31838931405684,
+      "pnl": 46.0090774758487,
+      "pnl_pct": 0.2695962416107292,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 17065.919465702842,
+      "balance_after": 17111.928543178692
+    },
+    {
+      "trade_number": 70,
+      "entry_time": "2024-10-02 00:00:00",
+      "exit_time": "2024-10-03 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7938817650776657,
+      "entry": 1.1076,
+      "stop_loss": 1.1225,
+      "targets": [
+        1.10644254,
+        1.10572746,
+        1.10326
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.22969031601581927,
+      "risk_amount": 342.23857086357384,
+      "pnl": 46.13311621952336,
+      "pnl_pct": 0.2695962416107292,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 17111.928543178692,
+      "balance_after": 17158.061659398216
+    },
+    {
+      "trade_number": 71,
+      "entry_time": "2024-10-02 00:00:00",
+      "exit_time": "2024-10-03 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.8126522881636322,
+      "entry": 1.10827,
+      "stop_loss": 1.1225,
+      "targets": [
+        1.1068566,
+        1.1059834000000002,
+        1.10326
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.24115336134080478,
+      "risk_amount": 343.16123318796434,
+      "pnl": 57.74851313356156,
+      "pnl_pct": 0.33656781447646905,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 17158.061659398216,
+      "balance_after": 17215.810172531776
+    },
+    {
+      "trade_number": 72,
+      "entry_time": "2024-10-02 00:00:00",
+      "exit_time": "2024-10-03 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.8126522881636322,
+      "entry": 1.10827,
+      "stop_loss": 1.1225,
+      "targets": [
+        1.1068566,
+        1.1059834000000002,
+        1.10326
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.24196500593860604,
+      "risk_amount": 344.3162034506355,
+      "pnl": 57.94287604210784,
+      "pnl_pct": 0.3365678144764691,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 17215.810172531776,
+      "balance_after": 17273.753048573883
+    },
+    {
+      "trade_number": 73,
+      "entry_time": "2024-10-02 00:00:00",
+      "exit_time": "2024-10-03 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.8126522881636322,
+      "entry": 1.10827,
+      "stop_loss": 1.1225,
+      "targets": [
+        1.1068566,
+        1.1059834000000002,
+        1.10326
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.24277938227089146,
+      "risk_amount": 345.47506097147766,
+      "pnl": 58.137893113647564,
+      "pnl_pct": 0.33656781447646905,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 17273.753048573883,
+      "balance_after": 17331.89094168753
+    },
+    {
+      "trade_number": 74,
+      "entry_time": "2024-10-03 00:00:00",
+      "exit_time": "2024-10-04 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.7500854590653621,
+      "entry": 1.10438,
+      "stop_loss": 1.115503,
+      "targets": [
+        1.10395216,
+        1.1036878399999999,
+        1.1008
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.3116405815281406,
+      "risk_amount": 346.6378188337506,
+      "pnl": 35.451235304779686,
+      "pnl_pct": 0.20454337858491026,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 17331.89094168753,
+      "balance_after": 17367.342176992308
+    },
+    {
+      "trade_number": 75,
+      "entry_time": "2024-10-03 00:00:00",
+      "exit_time": "2024-10-04 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.7612515718773895,
+      "entry": 1.10465,
+      "stop_loss": 1.115503,
+      "targets": [
+        1.10411902,
+        1.1037909799999999,
+        1.1008
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.32004684745217554,
+      "risk_amount": 347.3468435398462,
+      "pnl": 41.38833029377553,
+      "pnl_pct": 0.23831125034552178,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 17367.342176992308,
+      "balance_after": 17408.730507286084
+    },
+    {
+      "trade_number": 76,
+      "entry_time": "2024-10-03 00:00:00",
+      "exit_time": "2024-10-04 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.7612515718773895,
+      "entry": 1.10465,
+      "stop_loss": 1.115503,
+      "targets": [
+        1.10411902,
+        1.1037909799999999,
+        1.1008
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.3208095550960302,
+      "risk_amount": 348.17461014572166,
+      "pnl": 41.48696334119576,
+      "pnl_pct": 0.23831125034552178,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 17408.730507286084,
+      "balance_after": 17450.217470627278
+    },
+    {
+      "trade_number": 77,
+      "entry_time": "2024-10-03 00:00:00",
+      "exit_time": "2024-10-04 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.7679089917994555,
+      "entry": 1.10491,
+      "stop_loss": 1.115503,
+      "targets": [
+        1.1042797,
+        1.1038903,
+        1.1008
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.3294669587581898,
+      "risk_amount": 349.0043494125456,
+      "pnl": 47.54405895056176,
+      "pnl_pct": 0.2724553950722352,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 17450.217470627278,
+      "balance_after": 17497.76152957784
+    },
+    {
+      "trade_number": 78,
+      "entry_time": "2024-10-03 00:00:00",
+      "exit_time": "2024-10-04 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.7679089917994555,
+      "entry": 1.10491,
+      "stop_loss": 1.115503,
+      "targets": [
+        1.1042797,
+        1.1038903,
+        1.1008
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.33036460926230693,
+      "risk_amount": 349.9552305915568,
+      "pnl": 47.6735953042089,
+      "pnl_pct": 0.27245539507223526,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 17497.76152957784,
+      "balance_after": 17545.43512488205
+    },
+    {
+      "trade_number": 79,
+      "entry_time": "2024-10-03 00:00:00",
+      "exit_time": "2024-10-04 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.7679089917994555,
+      "entry": 1.10491,
+      "stop_loss": 1.115503,
+      "targets": [
+        1.1042797,
+        1.1038903,
+        1.1008
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.3312647054636514,
+      "risk_amount": 350.908702497641,
+      "pnl": 47.803484586640124,
+      "pnl_pct": 0.27245539507223526,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 17545.43512488205,
+      "balance_after": 17593.238609468688
+    },
+    {
+      "trade_number": 80,
+      "entry_time": "2024-10-10 00:00:00",
+      "exit_time": "2024-10-14 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.7812180704061159,
+      "entry": 1.09396,
+      "stop_loss": 1.0994080000000002,
+      "targets": [
+        1.09382248,
+        1.09373752,
+        1.09
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.6458604482183664,
+      "risk_amount": 351.86477218937375,
+      "pnl": 59.903814916435,
+      "pnl_pct": 0.3404933920704898,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 17593.238609468688,
+      "balance_after": 17653.14242438512
+    },
+    {
+      "trade_number": 81,
+      "entry_time": "2024-10-10 00:00:00",
+      "exit_time": "2024-10-14 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.7812180704061159,
+      "entry": 1.09396,
+      "stop_loss": 1.0994080000000002,
+      "targets": [
+        1.09382248,
+        1.09373752,
+        1.09
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.6480595603665467,
+      "risk_amount": 353.0628484877024,
+      "pnl": 60.107783447823586,
+      "pnl_pct": 0.34049339207048973,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 17653.14242438512,
+      "balance_after": 17713.250207832945
+    },
+    {
+      "trade_number": 82,
+      "entry_time": "2024-10-10 00:00:00",
+      "exit_time": "2024-10-14 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.8158808311740992,
+      "entry": 1.09458,
+      "stop_loss": 1.0994080000000002,
+      "targets": [
+        1.09420564,
+        1.09397436,
+        1.09
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.7337717567453499,
+      "risk_amount": 354.2650041566589,
+      "pnl": 94.28027846329789,
+      "pnl_pct": 0.5322584921292783,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 17713.250207832945,
+      "balance_after": 17807.530486296244
+    },
+    {
+      "trade_number": 83,
+      "entry_time": "2024-10-10 00:00:00",
+      "exit_time": "2024-10-14 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.8158862271854472,
+      "entry": 1.09459,
+      "stop_loss": 1.0994080000000002,
+      "targets": [
+        1.09421182,
+        1.09397818,
+        1.09
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.739208405408695,
+      "risk_amount": 356.1506097259249,
+      "pnl": 95.40489795230486,
+      "pnl_pct": 0.5357559153175312,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 17807.530486296244,
+      "balance_after": 17902.935384248547
+    },
+    {
+      "trade_number": 84,
+      "entry_time": "2024-10-10 00:00:00",
+      "exit_time": "2024-10-14 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.8158862271854472,
+      "entry": 1.09459,
+      "stop_loss": 1.0994080000000002,
+      "targets": [
+        1.09421182,
+        1.09397818,
+        1.09
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.7431687581671965,
+      "risk_amount": 358.05870768497095,
+      "pnl": 95.91603533658702,
+      "pnl_pct": 0.5357559153175314,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 17902.935384248547,
+      "balance_after": 17998.851419585135
+    },
+    {
+      "trade_number": 85,
+      "entry_time": "2024-10-10 00:00:00",
+      "exit_time": "2024-10-14 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.8158862271854472,
+      "entry": 1.09459,
+      "stop_loss": 1.0994080000000002,
+      "targets": [
+        1.09421182,
+        1.09397818,
+        1.09
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.7471503287498692,
+      "risk_amount": 359.97702839170273,
+      "pnl": 96.42991116964083,
+      "pnl_pct": 0.5357559153175314,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 17998.851419585135,
+      "balance_after": 18095.281330754777
+    },
+    {
+      "trade_number": 86,
+      "entry_time": "2024-10-15 00:00:00",
+      "exit_time": "2024-10-16 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.77863630171733,
+      "entry": 1.09165,
+      "stop_loss": 1.093863,
+      "targets": [
+        1.09160034,
+        1.09156966,
+        1.08817
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.635362072368243,
+      "risk_amount": 361.9056266150955,
+      "pnl": 121.82335392933626,
+      "pnl_pct": 0.6732327157704094,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 18095.281330754777,
+      "balance_after": 18217.104684684113
+    },
+    {
+      "trade_number": 87,
+      "entry_time": "2024-10-15 00:00:00",
+      "exit_time": "2024-10-16 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.77863630171733,
+      "entry": 1.09165,
+      "stop_loss": 1.093863,
+      "targets": [
+        1.09160034,
+        1.09156966,
+        1.08817
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.646371864860727,
+      "risk_amount": 364.3420936936823,
+      "pnl": 122.64350860343734,
+      "pnl_pct": 0.6732327157704094,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 18217.104684684113,
+      "balance_after": 18339.74819328755
+    },
+    {
+      "trade_number": 88,
+      "entry_time": "2024-10-15 00:00:00",
+      "exit_time": "2024-10-16 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.77863630171733,
+      "entry": 1.09165,
+      "stop_loss": 1.093863,
+      "targets": [
+        1.09160034,
+        1.09156966,
+        1.08817
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.6574557788782085,
+      "risk_amount": 366.79496386575096,
+      "pnl": 123.46918482712432,
+      "pnl_pct": 0.6732327157704092,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 18339.74819328755,
+      "balance_after": 18463.217378114674
+    },
+    {
+      "trade_number": 89,
+      "entry_time": "2024-10-16 00:00:00",
+      "exit_time": "2024-10-17 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7052608216870977,
+      "entry": 1.08953,
+      "stop_loss": 1.0939780000000001,
+      "targets": [
+        1.08901048,
+        1.0886895200000002,
+        1.08533
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.8301806375051548,
+      "risk_amount": 369.2643475622935,
+      "pnl": 112.23245245658273,
+      "pnl_pct": 0.607870503597153,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 18463.217378114674,
+      "balance_after": 18575.449830571255
+    },
+    {
+      "trade_number": 90,
+      "entry_time": "2024-10-16 00:00:00",
+      "exit_time": "2024-10-17 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7052608216870977,
+      "entry": 1.08953,
+      "stop_loss": 1.0939780000000001,
+      "targets": [
+        1.08901048,
+        1.0886895200000002,
+        1.08533
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.8352270607271234,
+      "risk_amount": 371.5089966114251,
+      "pnl": 112.91468043052997,
+      "pnl_pct": 0.6078705035971529,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 18575.449830571255,
+      "balance_after": 18688.364511001786
+    },
+    {
+      "trade_number": 91,
+      "entry_time": "2024-10-16 00:00:00",
+      "exit_time": "2024-10-17 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7052608216870977,
+      "entry": 1.08953,
+      "stop_loss": 1.0939780000000001,
+      "targets": [
+        1.08901048,
+        1.0886895200000002,
+        1.08533
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.8403041596673451,
+      "risk_amount": 373.7672902200357,
+      "pnl": 113.60105546709815,
+      "pnl_pct": 0.6078705035971529,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 18688.364511001786,
+      "balance_after": 18801.965566468883
+    },
+    {
+      "trade_number": 92,
+      "entry_time": "2024-10-17 00:00:00",
+      "exit_time": "2024-10-21 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7407983913444555,
+      "entry": 1.0864,
+      "stop_loss": 1.092282,
+      "targets": [
+        1.08599126,
+        1.08573874,
+        1.08109
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.6393051875712026,
+      "risk_amount": 376.03931132937765,
+      "pnl": 93.64209948845752,
+      "pnl_pct": 0.49804420265218075,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 18801.965566468883,
+      "balance_after": 18895.60766595734
+    },
+    {
+      "trade_number": 93,
+      "entry_time": "2024-10-17 00:00:00",
+      "exit_time": "2024-10-21 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7499859748688008,
+      "entry": 1.0864,
+      "stop_loss": 1.092216,
+      "targets": [
+        1.08599126,
+        1.08573874,
+        1.08109
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.6497801810851858,
+      "risk_amount": 377.91215331914685,
+      "pnl": 95.17642206841955,
+      "pnl_pct": 0.5036960110041397,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 18895.60766595734,
+      "balance_after": 18990.78408802576
+    },
+    {
+      "trade_number": 94,
+      "entry_time": "2024-10-17 00:00:00",
+      "exit_time": "2024-10-21 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7407983913444555,
+      "entry": 1.0864,
+      "stop_loss": 1.092282,
+      "targets": [
+        1.08599126,
+        1.08573874,
+        1.08109
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.6457254025170333,
+      "risk_amount": 379.81568176051525,
+      "pnl": 94.5824991886051,
+      "pnl_pct": 0.49804420265218063,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 18990.78408802576,
+      "balance_after": 19085.366587214365
+    },
+    {
+      "trade_number": 95,
+      "entry_time": "2024-10-17 00:00:00",
+      "exit_time": "2024-10-21 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7499859748688008,
+      "entry": 1.0864,
+      "stop_loss": 1.092216,
+      "targets": [
+        1.08599126,
+        1.08573874,
+        1.08109
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.6563055910321259,
+      "risk_amount": 381.7073317442873,
+      "pnl": 96.13223018531565,
+      "pnl_pct": 0.5036960110041396,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 19085.366587214365,
+      "balance_after": 19181.49881739968
+    },
+    {
+      "trade_number": 96,
+      "entry_time": "2024-11-22 00:00:00",
+      "exit_time": "2024-11-22 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7747620377784804,
+      "entry": 1.04979,
+      "stop_loss": 1.062355,
+      "targets": [
+        1.04877006,
+        1.04813994,
+        1.03848
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.3053163361305177,
+      "risk_amount": 383.6299763479936,
+      "pnl": 99.74648063423552,
+      "pnl_pct": 0.5200140071627497,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 19181.49881739968,
+      "balance_after": 19281.245298033915
+    },
+    {
+      "trade_number": 97,
+      "entry_time": "2024-11-22 00:00:00",
+      "exit_time": "2024-11-22 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7747620377784804,
+      "entry": 1.04979,
+      "stop_loss": 1.062355,
+      "targets": [
+        1.04877006,
+        1.04813994,
+        1.03848
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.30690402384455245,
+      "risk_amount": 385.6249059606783,
+      "pnl": 100.26517630518543,
+      "pnl_pct": 0.5200140071627498,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 19281.245298033915,
+      "balance_after": 19381.510474339102
+    },
+    {
+      "trade_number": 98,
+      "entry_time": "2024-11-22 00:00:00",
+      "exit_time": "2024-11-22 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7747620377784804,
+      "entry": 1.04979,
+      "stop_loss": 1.062355,
+      "targets": [
+        1.04877006,
+        1.04813994,
+        1.03848
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.3084999677570903,
+      "risk_amount": 387.63020948678206,
+      "pnl": 100.78656926627886,
+      "pnl_pct": 0.5200140071627499,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 19381.510474339102,
+      "balance_after": 19482.29704360538
+    },
+    {
+      "trade_number": 99,
+      "entry_time": "2024-12-05 00:00:00",
+      "exit_time": "2024-12-06 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.8286706302799409,
+      "entry": 1.05051,
+      "stop_loss": 1.046794,
+      "targets": [
+        1.05088054,
+        1.05110946,
+        1.05895
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.048562811819435,
+      "risk_amount": 389.6459408721076,
+      "pnl": 215.28126974489572,
+      "pnl_pct": 1.1050096878363576,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 19482.29704360538,
+      "balance_after": 19697.578313350277
+    },
+    {
+      "trade_number": 100,
+      "entry_time": "2024-12-05 00:00:00",
+      "exit_time": "2024-12-06 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.8286706302799409,
+      "entry": 1.05051,
+      "stop_loss": 1.046794,
+      "targets": [
+        1.05088054,
+        1.05110946,
+        1.05895
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.0601495324730892,
+      "risk_amount": 393.95156626700555,
+      "pnl": 217.66014863167393,
+      "pnl_pct": 1.1050096878363573,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 19697.578313350277,
+      "balance_after": 19915.23846198195
+    },
+    {
+      "trade_number": 101,
+      "entry_time": "2024-12-05 00:00:00",
+      "exit_time": "2024-12-06 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.8286706302799409,
+      "entry": 1.05051,
+      "stop_loss": 1.046794,
+      "targets": [
+        1.05088054,
+        1.05110946,
+        1.05895
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.0718642875124686,
+      "risk_amount": 398.304769239639,
+      "pnl": 220.06531436061294,
+      "pnl_pct": 1.1050096878363576,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 19915.23846198195,
+      "balance_after": 20135.303776342564
+    },
+    {
+      "trade_number": 102,
+      "entry_time": "2024-12-09 00:00:00",
+      "exit_time": "2024-12-09 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.7646536823003597,
+      "entry": 1.05748,
+      "stop_loss": 1.0635979999999998,
+      "targets": [
+        1.0571362,
+        1.0569238,
+        1.05491
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.6582315716359292,
+      "risk_amount": 402.7060755268513,
+      "pnl": 56.1313555028231,
+      "pnl_pct": 0.27877084014383297,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 20135.303776342564,
+      "balance_after": 20191.43513184539
+    },
+    {
+      "trade_number": 103,
+      "entry_time": "2024-12-09 00:00:00",
+      "exit_time": "2024-12-09 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.7646536823003597,
+      "entry": 1.05748,
+      "stop_loss": 1.0635979999999998,
+      "targets": [
+        1.0571362,
+        1.0569238,
+        1.05491
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.6600665293182706,
+      "risk_amount": 403.8287026369078,
+      "pnl": 56.287833354142435,
+      "pnl_pct": 0.27877084014383297,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 20191.43513184539,
+      "balance_after": 20247.72296519953
+    },
+    {
+      "trade_number": 104,
+      "entry_time": "2024-12-09 00:00:00",
+      "exit_time": "2024-12-09 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.7646536823003597,
+      "entry": 1.05748,
+      "stop_loss": 1.0635979999999998,
+      "targets": [
+        1.0571362,
+        1.0569238,
+        1.05491
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.6619066023275593,
+      "risk_amount": 404.9544593039906,
+      "pnl": 56.44474742008253,
+      "pnl_pct": 0.27877084014383297,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 20247.72296519953,
+      "balance_after": 20304.167712619612
+    },
+    {
+      "trade_number": 105,
+      "entry_time": "2024-12-10 00:00:00",
+      "exit_time": "2024-12-11 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.8077076274551759,
+      "entry": 1.0557,
+      "stop_loss": 1.059882,
+      "targets": [
+        1.05539822,
+        1.05521178,
+        1.04985
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.9710266720526092,
+      "risk_amount": 406.08335425239227,
+      "pnl": 142.484181339648,
+      "pnl_pct": 0.7017484457197921,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 20304.167712619612,
+      "balance_after": 20446.65189395926
+    },
+    {
+      "trade_number": 106,
+      "entry_time": "2024-12-10 00:00:00",
+      "exit_time": "2024-12-11 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.8077076274551759,
+      "entry": 1.0557,
+      "stop_loss": 1.059882,
+      "targets": [
+        1.05539822,
+        1.05521178,
+        1.04985
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.977840836631263,
+      "risk_amount": 408.93303787918524,
+      "pnl": 143.48406186759553,
+      "pnl_pct": 0.701748445719792,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 20446.65189395926,
+      "balance_after": 20590.135955826856
+    },
+    {
+      "trade_number": 107,
+      "entry_time": "2024-12-10 00:00:00",
+      "exit_time": "2024-12-11 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.8071518367397019,
+      "entry": 1.05613,
+      "stop_loss": 1.059882,
+      "targets": [
+        1.05566396,
+        1.05537604,
+        1.04985
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.0975552215259583,
+      "risk_amount": 411.8027191165371,
+      "pnl": 188.2535496403122,
+      "pnl_pct": 0.9142899786780565,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 20590.135955826856,
+      "balance_after": 20778.389505467167
+    },
+    {
+      "trade_number": 108,
+      "entry_time": "2024-12-10 00:00:00",
+      "exit_time": "2024-12-11 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.8071518367397019,
+      "entry": 1.05613,
+      "stop_loss": 1.059882,
+      "targets": [
+        1.05566396,
+        1.05537604,
+        1.04985
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.1075900589268277,
+      "risk_amount": 415.5677901093433,
+      "pnl": 189.97473297917927,
+      "pnl_pct": 0.9142899786780564,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 20778.389505467167,
+      "balance_after": 20968.364238446346
+    },
+    {
+      "trade_number": 109,
+      "entry_time": "2024-12-23 00:00:00",
+      "exit_time": "2024-12-23 00:00:00",
+      "pattern_type": "bat_bullish",
+      "direction": "long",
+      "quality_score": 0.751680006998668,
+      "entry": 1.04072,
+      "stop_loss": 1.033552,
+      "targets": [
+        1.0411249200000001,
+        1.04137508,
+        1.04446
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5850548057602166,
+      "risk_amount": 419.36728476892694,
+      "pnl": 67.10485013300347,
+      "pnl_pct": 0.32002901785712023,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 20968.364238446346,
+      "balance_after": 21035.46908857935
+    },
+    {
+      "trade_number": 110,
+      "entry_time": "2024-12-23 00:00:00",
+      "exit_time": "2024-12-30 00:00:00",
+      "pattern_type": "bat_bullish",
+      "direction": "long",
+      "quality_score": 0.751680006998668,
+      "entry": 1.04072,
+      "stop_loss": 1.033552,
+      "targets": [
+        1.0411249200000001,
+        1.04137508,
+        1.04446
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5869271509090169,
+      "risk_amount": 420.709381771587,
+      "pnl": 67.31960512581861,
+      "pnl_pct": 0.32002901785712023,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 21035.46908857935,
+      "balance_after": 21102.78869370517
+    },
+    {
+      "trade_number": 111,
+      "entry_time": "2024-12-23 00:00:00",
+      "exit_time": "2024-12-30 00:00:00",
+      "pattern_type": "bat_bullish",
+      "direction": "long",
+      "quality_score": 0.751680006998668,
+      "entry": 1.04072,
+      "stop_loss": 1.033552,
+      "targets": [
+        1.0411249200000001,
+        1.04137508,
+        1.04446
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5888054881056078,
+      "risk_amount": 422.0557738741034,
+      "pnl": 67.53504739692805,
+      "pnl_pct": 0.3200290178571201,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 21102.78869370517,
+      "balance_after": 21170.323741102096
+    },
+    {
+      "trade_number": 112,
+      "entry_time": "2025-01-02 00:00:00",
+      "exit_time": "2025-01-10 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.7218230092709903,
+      "entry": 1.03567,
+      "stop_loss": 1.044016,
+      "targets": [
+        1.03517722,
+        1.0348727800000002,
+        1.02239
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5073166484807617,
+      "risk_amount": 423.40647482204196,
+      "pnl": 159.37636609346566,
+      "pnl_pct": 0.7528291397076612,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 21170.323741102096,
+      "balance_after": 21329.700107195564
+    },
+    {
+      "trade_number": 113,
+      "entry_time": "2025-01-15 00:00:00",
+      "exit_time": "2025-01-20 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.7616780581753466,
+      "entry": 1.02808,
+      "stop_loss": 1.016408,
+      "targets": [
+        1.02913432,
+        1.02978568,
+        1.03543
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.36548492301568425,
+      "risk_amount": 426.59400214391127,
+      "pnl": 91.69519658968012,
+      "pnl_pct": 0.42989444825221335,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 21329.700107195564,
+      "balance_after": 21421.395303785244
+    },
+    {
+      "trade_number": 114,
+      "entry_time": "2025-01-15 00:00:00",
+      "exit_time": "2025-01-20 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.7616780581753466,
+      "entry": 1.02808,
+      "stop_loss": 1.016408,
+      "targets": [
+        1.02913432,
+        1.02978568,
+        1.03543
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.3670561224089276,
+      "risk_amount": 428.42790607570487,
+      "pnl": 92.08938914913313,
+      "pnl_pct": 0.4298944482522134,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 21421.395303785244,
+      "balance_after": 21513.484692934377
+    },
+    {
+      "trade_number": 115,
+      "entry_time": "2025-01-15 00:00:00",
+      "exit_time": "2025-01-20 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.7616780581753466,
+      "entry": 1.02808,
+      "stop_loss": 1.016408,
+      "targets": [
+        1.02913432,
+        1.02978568,
+        1.03543
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.36863407630113343,
+      "risk_amount": 430.26969385868756,
+      "pnl": 92.48527632051463,
+      "pnl_pct": 0.4298944482522134,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 21513.484692934377,
+      "balance_after": 21605.969969254893
+    },
+    {
+      "trade_number": 116,
+      "entry_time": "2025-02-03 00:00:00",
+      "exit_time": "2025-02-03 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7600367196288529,
+      "entry": 1.02688,
+      "stop_loss": 1.034118,
+      "targets": [
+        1.033183,
+        1.037077,
+        1.04126
+      ],
+      "targets_hit": [],
+      "position_size": 0.5970149203994104,
+      "risk_amount": 432.1193993850979,
+      "pnl": 496.59701078823235,
+      "pnl_pct": 2.2984249792760316,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 21605.969969254893,
+      "balance_after": 22102.566980043124
+    },
+    {
+      "trade_number": 117,
+      "entry_time": "2025-02-03 00:00:00",
+      "exit_time": "2025-02-03 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7600367196288529,
+      "entry": 1.02688,
+      "stop_loss": 1.034118,
+      "targets": [
+        1.033183,
+        1.037077,
+        1.04126
+      ],
+      "targets_hit": [],
+      "position_size": 0.6107368604598753,
+      "risk_amount": 442.0513396008625,
+      "pnl": 486.6351304144271,
+      "pnl_pct": 2.2017131804365544,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 22102.566980043124,
+      "balance_after": 22589.20211045755
+    },
+    {
+      "trade_number": 118,
+      "entry_time": "2025-02-03 00:00:00",
+      "exit_time": "2025-02-03 00:00:00",
+      "pattern_type": "butterfly_bullish",
+      "direction": "long",
+      "quality_score": 0.7915162422288886,
+      "entry": 1.02416,
+      "stop_loss": 1.034118,
+      "targets": [
+        1.03150204,
+        1.03603796,
+        1.04126
+      ],
+      "targets_hit": [],
+      "position_size": 0.45368953826987846,
+      "risk_amount": 451.78404220915104,
+      "pnl": 485.8107575793932,
+      "pnl_pct": 2.1506326571600765,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 22589.20211045755,
+      "balance_after": 23075.012868036945
+    },
+    {
+      "trade_number": 119,
+      "entry_time": "2025-02-03 00:00:00",
+      "exit_time": "2025-02-03 00:00:00",
+      "pattern_type": "butterfly_bullish",
+      "direction": "long",
+      "quality_score": 0.7915162422288886,
+      "entry": 1.02416,
+      "stop_loss": 1.034118,
+      "targets": [
+        1.03150204,
+        1.03603796,
+        1.04126
+      ],
+      "targets_hit": [],
+      "position_size": 0.46344673364202926,
+      "risk_amount": 461.50025736073894,
+      "pnl": 535.6517347434656,
+      "pnl_pct": 2.3213496686081583,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 23075.012868036945,
+      "balance_after": 23610.66460278041
+    },
+    {
+      "trade_number": 120,
+      "entry_time": "2025-02-10 00:00:00",
+      "exit_time": "2025-02-10 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7443611162215308,
+      "entry": 1.03044,
+      "stop_loss": 1.034811,
+      "targets": [
+        1.03433258,
+        1.03673742,
+        1.04123
+      ],
+      "targets_hit": [],
+      "position_size": 1.0803324000357326,
+      "risk_amount": 472.2132920556082,
+      "pnl": 655.8698000616865,
+      "pnl_pct": 2.777854037977613,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 23610.66460278041,
+      "balance_after": 24266.534402842095
+    },
+    {
+      "trade_number": 121,
+      "entry_time": "2025-02-10 00:00:00",
+      "exit_time": "2025-02-10 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7443611162215308,
+      "entry": 1.03044,
+      "stop_loss": 1.034811,
+      "targets": [
+        1.03433258,
+        1.03673742,
+        1.04123
+      ],
+      "targets_hit": [],
+      "position_size": 1.1103424572337055,
+      "risk_amount": 485.3306880568419,
+      "pnl": 603.0269885236214,
+      "pnl_pct": 2.485014870739,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 24266.534402842095,
+      "balance_after": 24869.561391365718
+    },
+    {
+      "trade_number": 122,
+      "entry_time": "2025-02-10 00:00:00",
+      "exit_time": "2025-02-10 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7443611162215308,
+      "entry": 1.03044,
+      "stop_loss": 1.034811,
+      "targets": [
+        1.03433258,
+        1.03673742,
+        1.04123
+      ],
+      "targets_hit": [],
+      "position_size": 1.137934632412092,
+      "risk_amount": 497.39122782731437,
+      "pnl": 587.2880637878775,
+      "pnl_pct": 2.361473347060209,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 24869.561391365718,
+      "balance_after": 25456.849455153595
+    },
+    {
+      "trade_number": 123,
+      "entry_time": "2025-02-10 00:00:00",
+      "exit_time": "2025-02-10 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7316361623065539,
+      "entry": 1.03043,
+      "stop_loss": 1.034811,
+      "targets": [
+        1.0343263999999999,
+        1.0367336,
+        1.04123
+      ],
+      "targets_hit": [],
+      "position_size": 1.1621478865626012,
+      "risk_amount": 509.1369891030719,
+      "pnl": 537.0285383805764,
+      "pnl_pct": 2.109564026477982,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 25456.849455153595,
+      "balance_after": 25993.87799353417
+    },
+    {
+      "trade_number": 124,
+      "entry_time": "2025-02-10 00:00:00",
+      "exit_time": "2025-02-10 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7316361623065539,
+      "entry": 1.03043,
+      "stop_loss": 1.034811,
+      "targets": [
+        1.0343263999999999,
+        1.0367336,
+        1.04123
+      ],
+      "targets_hit": [],
+      "position_size": 1.186664140312,
+      "risk_amount": 519.8775598706834,
+      "pnl": 548.3574992381735,
+      "pnl_pct": 2.1095640264779822,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 25993.87799353417,
+      "balance_after": 26542.235492772343
+    },
+    {
+      "trade_number": 125,
+      "entry_time": "2025-02-10 00:00:00",
+      "exit_time": "2025-02-10 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7316361623065539,
+      "entry": 1.03043,
+      "stop_loss": 1.034811,
+      "targets": [
+        1.0343263999999999,
+        1.0367336,
+        1.04123
+      ],
+      "targets_hit": [],
+      "position_size": 1.2116975801311358,
+      "risk_amount": 530.8447098554468,
+      "pnl": 551.4435687176765,
+      "pnl_pct": 2.077607852088566,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 26542.235492772343,
+      "balance_after": 27093.67906149002
+    },
+    {
+      "trade_number": 126,
+      "entry_time": "2025-02-10 00:00:00",
+      "exit_time": "2025-02-12 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.7245589934793281,
+      "entry": 1.03214,
+      "stop_loss": 1.040869,
+      "targets": [
+        1.03148678,
+        1.03108322,
+        1.02779
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.6207739503148141,
+      "risk_amount": 541.8735812298004,
+      "pnl": -198.28488380417332,
+      "pnl_pct": -0.7318492381716012,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 27093.67906149002,
+      "balance_after": 26895.39417768585
+    },
+    {
+      "trade_number": 127,
+      "entry_time": "2025-02-28 00:00:00",
+      "exit_time": "2025-03-04 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.7233167338313823,
+      "entry": 1.04098,
+      "stop_loss": 1.052759,
+      "targets": [
+        1.04044138,
+        1.04010862,
+        1.03597
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.4566668507969418,
+      "risk_amount": 537.9078835537169,
+      "pnl": -214.2258903769127,
+      "pnl_pct": -0.7965151540877892,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 26895.39417768585,
+      "balance_after": 26681.168287308934
+    },
+    {
+      "trade_number": 128,
+      "entry_time": "2025-02-28 00:00:00",
+      "exit_time": "2025-03-04 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.7233167338313823,
+      "entry": 1.04098,
+      "stop_loss": 1.052759,
+      "targets": [
+        1.04044138,
+        1.04010862,
+        1.03597
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.4530294301266487,
+      "risk_amount": 533.6233657461787,
+      "pnl": -212.51954869608113,
+      "pnl_pct": -0.7965151540877893,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 26681.168287308934,
+      "balance_after": 26468.648738612854
+    },
+    {
+      "trade_number": 129,
+      "entry_time": "2025-02-28 00:00:00",
+      "exit_time": "2025-03-04 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.7233167338313823,
+      "entry": 1.04098,
+      "stop_loss": 1.052759,
+      "targets": [
+        1.04044138,
+        1.04010862,
+        1.03597
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.44942098206321235,
+      "risk_amount": 529.3729747722571,
+      "pnl": -210.82679828531786,
+      "pnl_pct": -0.7965151540877893,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 26468.648738612854,
+      "balance_after": 26257.821940327536
+    },
+    {
+      "trade_number": 130,
+      "entry_time": "2025-03-04 00:00:00",
+      "exit_time": "2025-03-05 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.8217523378279883,
+      "entry": 1.04963,
+      "stop_loss": 1.036791,
+      "targets": [
+        1.04993178,
+        1.0501182199999999,
+        1.06269
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.4090321978398231,
+      "risk_amount": 525.1564388065507,
+      "pnl": 119.00202789784477,
+      "pnl_pct": 0.45320601292934337,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 26257.821940327536,
+      "balance_after": 26376.82396822538
+    },
+    {
+      "trade_number": 131,
+      "entry_time": "2025-03-04 00:00:00",
+      "exit_time": "2025-03-05 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.8217523378279883,
+      "entry": 1.04963,
+      "stop_loss": 1.036791,
+      "targets": [
+        1.04993178,
+        1.0501182199999999,
+        1.06269
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.41088595635525027,
+      "risk_amount": 527.5364793645076,
+      "pnl": 119.54135224378565,
+      "pnl_pct": 0.45320601292934337,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 26376.82396822538,
+      "balance_after": 26496.365320469165
+    },
+    {
+      "trade_number": 132,
+      "entry_time": "2025-03-04 00:00:00",
+      "exit_time": "2025-03-05 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.8217523378279883,
+      "entry": 1.04963,
+      "stop_loss": 1.036791,
+      "targets": [
+        1.04993178,
+        1.0501182199999999,
+        1.06269
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.41274811621573443,
+      "risk_amount": 529.9273064093833,
+      "pnl": 120.08312084009154,
+      "pnl_pct": 0.45320601292934337,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 26496.365320469165,
+      "balance_after": 26616.448441309258
+    },
+    {
+      "trade_number": 133,
+      "entry_time": "2025-03-11 00:00:00",
+      "exit_time": "2025-03-18 00:00:00",
+      "pattern_type": "butterfly_bullish",
+      "direction": "long",
+      "quality_score": 0.7583178751935256,
+      "entry": 1.08811,
+      "stop_loss": 1.0772789999999999,
+      "targets": [
+        1.08875558,
+        1.0891544199999998,
+        1.09472
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.4914864452277568,
+      "risk_amount": 532.3289688261851,
+      "pnl": 96.23874721835935,
+      "pnl_pct": 0.3615762164158419,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 26616.448441309258,
+      "balance_after": 26712.687188527616
+    },
+    {
+      "trade_number": 134,
+      "entry_time": "2025-03-11 00:00:00",
+      "exit_time": "2025-03-18 00:00:00",
+      "pattern_type": "butterfly_bullish",
+      "direction": "long",
+      "quality_score": 0.7583178751935256,
+      "entry": 1.08811,
+      "stop_loss": 1.0772789999999999,
+      "targets": [
+        1.08875558,
+        1.0891544199999998,
+        1.09472
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.49326354332060807,
+      "risk_amount": 534.2537437705523,
+      "pnl": 96.58672363927752,
+      "pnl_pct": 0.36157621641584203,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 26712.687188527616,
+      "balance_after": 26809.273912166893
+    },
+    {
+      "trade_number": 135,
+      "entry_time": "2025-03-11 00:00:00",
+      "exit_time": "2025-03-18 00:00:00",
+      "pattern_type": "butterfly_bullish",
+      "direction": "long",
+      "quality_score": 0.7583178751935256,
+      "entry": 1.08811,
+      "stop_loss": 1.0772789999999999,
+      "targets": [
+        1.08875558,
+        1.0891544199999998,
+        1.09472
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.49504706697750545,
+      "risk_amount": 536.1854782433379,
+      "pnl": 96.93595826017244,
+      "pnl_pct": 0.36157621641584203,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 26809.273912166893,
+      "balance_after": 26906.209870427065
+    },
+    {
+      "trade_number": 136,
+      "entry_time": "2025-03-25 00:00:00",
+      "exit_time": "2025-03-26 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7284304460521928,
+      "entry": 1.08084,
+      "stop_loss": 1.0865479999999998,
+      "targets": [
+        1.08004544,
+        1.07955456,
+        1.07765
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.9427543752777817,
+      "risk_amount": 538.1241974085412,
+      "pnl": 133.95710048847525,
+      "pnl_pct": 0.4978668535389263,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 26906.209870427065,
+      "balance_after": 27040.16697091554
+    },
+    {
+      "trade_number": 137,
+      "entry_time": "2025-03-25 00:00:00",
+      "exit_time": "2025-03-26 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7284304460521928,
+      "entry": 1.08084,
+      "stop_loss": 1.0865479999999998,
+      "targets": [
+        1.08004544,
+        1.07955456,
+        1.07765
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.9474480368225778,
+      "risk_amount": 540.8033394183108,
+      "pnl": 134.62402848976922,
+      "pnl_pct": 0.49786685353892635,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 27040.16697091554,
+      "balance_after": 27174.790999405308
+    },
+    {
+      "trade_number": 138,
+      "entry_time": "2025-03-25 00:00:00",
+      "exit_time": "2025-03-26 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7284304460521928,
+      "entry": 1.08084,
+      "stop_loss": 1.0865479999999998,
+      "targets": [
+        1.08004544,
+        1.07955456,
+        1.07765
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.9521650665524227,
+      "risk_amount": 543.4958199881062,
+      "pnl": 135.29427690451854,
+      "pnl_pct": 0.4978668535389263,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 27174.790999405308,
+      "balance_after": 27310.085276309826
+    },
+    {
+      "trade_number": 139,
+      "entry_time": "2025-04-23 00:00:00",
+      "exit_time": "2025-04-23 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.7738670362655006,
+      "entry": 1.14394,
+      "stop_loss": 1.157889,
+      "targets": [
+        1.14305376,
+        1.1425062400000001,
+        1.13149
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.3915705108080844,
+      "risk_amount": 546.2017055261965,
+      "pnl": 131.69487373342452,
+      "pnl_pct": 0.4822206609792735,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 27310.085276309826,
+      "balance_after": 27441.78015004325
+    },
+    {
+      "trade_number": 140,
+      "entry_time": "2025-04-23 00:00:00",
+      "exit_time": "2025-04-23 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.7738670362655006,
+      "entry": 1.14394,
+      "stop_loss": 1.157889,
+      "targets": [
+        1.14305376,
+        1.1425062400000001,
+        1.13149
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.39345874471350306,
+      "risk_amount": 548.835603000865,
+      "pnl": 132.32993362401766,
+      "pnl_pct": 0.48222066097927363,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 27441.78015004325,
+      "balance_after": 27574.110083667267
+    },
+    {
+      "trade_number": 141,
+      "entry_time": "2025-04-23 00:00:00",
+      "exit_time": "2025-04-23 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.7738670362655006,
+      "entry": 1.14394,
+      "stop_loss": 1.157889,
+      "targets": [
+        1.14305376,
+        1.1425062400000001,
+        1.13149
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.39535608407294126,
+      "risk_amount": 551.4822016733453,
+      "pnl": 132.9680559046128,
+      "pnl_pct": 0.4822206609792735,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 27574.110083667267,
+      "balance_after": 27707.07813957188
+    },
+    {
+      "trade_number": 142,
+      "entry_time": "2025-05-06 00:00:00",
+      "exit_time": "2025-05-08 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7728247426438515,
+      "entry": 1.13269,
+      "stop_loss": 1.138806,
+      "targets": [
+        1.1318496,
+        1.1313304,
+        1.12795
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.906052260940871,
+      "risk_amount": 554.1415627914377,
+      "pnl": 160.9221299611844,
+      "pnl_pct": 0.580797907128835,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 27707.07813957188,
+      "balance_after": 27868.000269533066
+    },
+    {
+      "trade_number": 143,
+      "entry_time": "2025-05-13 00:00:00",
+      "exit_time": "2025-05-14 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.8238220145910344,
+      "entry": 1.11173,
+      "stop_loss": 1.125688,
+      "targets": [
+        1.11093544,
+        1.1104445600000001,
+        1.10802
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.39931222624349094,
+      "risk_amount": 557.3600053906613,
+      "pnl": -187.54449412510553,
+      "pnl_pct": -0.6729743516262994,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 27868.000269533066,
+      "balance_after": 27680.45577540796
+    },
+    {
+      "trade_number": 144,
+      "entry_time": "2025-05-13 00:00:00",
+      "exit_time": "2025-05-14 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7452222282321719,
+      "entry": 1.11173,
+      "stop_loss": 1.125138,
+      "targets": [
+        1.11093544,
+        1.1104445600000001,
+        1.10802
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.4128946267214833,
+      "risk_amount": 553.6091155081592,
+      "pnl": -171.7925718664519,
+      "pnl_pct": -0.6206276849641937,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 27680.45577540796,
+      "balance_after": 27508.66320354151
+    },
+    {
+      "trade_number": 145,
+      "entry_time": "2025-05-13 00:00:00",
+      "exit_time": "2025-05-14 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.8238220145910344,
+      "entry": 1.11173,
+      "stop_loss": 1.125688,
+      "targets": [
+        1.11093544,
+        1.1104445600000001,
+        1.10802
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.39416339308699927,
+      "risk_amount": 550.1732640708302,
+      "pnl": -185.12624783509594,
+      "pnl_pct": -0.6729743516262997,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 27508.66320354151,
+      "balance_after": 27323.536955706415
+    },
+    {
+      "trade_number": 146,
+      "entry_time": "2025-05-13 00:00:00",
+      "exit_time": "2025-05-14 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7452222282321719,
+      "entry": 1.11173,
+      "stop_loss": 1.125138,
+      "targets": [
+        1.11093544,
+        1.1104445600000001,
+        1.10802
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.4075706586471761,
+      "risk_amount": 546.4707391141283,
+      "pnl": -169.57743485853663,
+      "pnl_pct": -0.6206276849641936,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 27323.536955706415,
+      "balance_after": 27153.95952084788
+    },
+    {
+      "trade_number": 147,
+      "entry_time": "2025-05-13 00:00:00",
+      "exit_time": "2025-05-14 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.8303841338532967,
+      "entry": 1.1119,
+      "stop_loss": 1.125688,
+      "targets": [
+        1.1110405,
+        1.1105095,
+        1.10802
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.39387814796704457,
+      "risk_amount": 543.0791904169575,
+      "pnl": -179.7935582025142,
+      "pnl_pct": -0.6621264868001105,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 27153.95952084788,
+      "balance_after": 26974.165962645366
+    },
+    {
+      "trade_number": 148,
+      "entry_time": "2025-05-13 00:00:00",
+      "exit_time": "2025-05-14 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7454967648459844,
+      "entry": 1.1119,
+      "stop_loss": 1.125138,
+      "targets": [
+        1.1110405,
+        1.1105095,
+        1.10802
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.4075263025025782,
+      "risk_amount": 539.4833192529073,
+      "pnl": -164.18012148921082,
+      "pnl_pct": -0.6086568968122031,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 26974.165962645366,
+      "balance_after": 26809.985841156154
+    },
+    {
+      "trade_number": 149,
+      "entry_time": "2025-05-13 00:00:00",
+      "exit_time": "2025-05-14 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.8303841338532967,
+      "entry": 1.1119,
+      "stop_loss": 1.125688,
+      "targets": [
+        1.1110405,
+        1.1105095,
+        1.10802
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.3888886835096654,
+      "risk_amount": 536.1997168231231,
+      "pnl": -177.51601736165435,
+      "pnl_pct": -0.6621264868001107,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 26809.985841156154,
+      "balance_after": 26632.4698237945
+    },
+    {
+      "trade_number": 150,
+      "entry_time": "2025-05-13 00:00:00",
+      "exit_time": "2025-05-14 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7454967648459844,
+      "entry": 1.1119,
+      "stop_loss": 1.125138,
+      "targets": [
+        1.1110405,
+        1.1105095,
+        1.10802
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.402363949596537,
+      "risk_amount": 532.6493964758901,
+      "pnl": -162.100364373954,
+      "pnl_pct": -0.608656896812203,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 26632.4698237945,
+      "balance_after": 26470.369459420548
+    },
+    {
+      "trade_number": 151,
+      "entry_time": "2025-05-19 00:00:00",
+      "exit_time": "2025-05-19 00:00:00",
+      "pattern_type": "butterfly_bullish",
+      "direction": "long",
+      "quality_score": 0.7100222686015583,
+      "entry": 1.12329,
+      "stop_loss": 1.116511,
+      "targets": [
+        1.12390884,
+        1.1242911599999998,
+        1.12876
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 0.7809520418770043,
+      "risk_amount": 529.407389188411,
+      "pnl": -158.0671923224369,
+      "pnl_pct": -0.597147661897036,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 26470.369459420548,
+      "balance_after": 26312.30226709811
+    },
+    {
+      "trade_number": 152,
+      "entry_time": "2025-05-19 00:00:00",
+      "exit_time": "2025-05-21 00:00:00",
+      "pattern_type": "butterfly_bullish",
+      "direction": "long",
+      "quality_score": 0.737239858291017,
+      "entry": 1.12329,
+      "stop_loss": 1.115752,
+      "targets": [
+        1.12390884,
+        1.1242911599999998,
+        1.12876
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.6981242310188042,
+      "risk_amount": 526.2460453419623,
+      "pnl": 118.94417248344496,
+      "pnl_pct": 0.4520477580260136,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 26312.30226709811,
+      "balance_after": 26431.246439581555
+    },
+    {
+      "trade_number": 153,
+      "entry_time": "2025-05-20 00:00:00",
+      "exit_time": "2025-05-21 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7565669410601601,
+      "entry": 1.12468,
+      "stop_loss": 1.115234,
+      "targets": [
+        1.12513076,
+        1.12540924,
+        1.12854
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5596283387588818,
+      "risk_amount": 528.6249287916311,
+      "pnl": 68.05931234383559,
+      "pnl_pct": 0.2574956595384575,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 26431.246439581555,
+      "balance_after": 26499.30575192539
+    },
+    {
+      "trade_number": 154,
+      "entry_time": "2025-05-28 00:00:00",
+      "exit_time": "2025-05-29 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.8336902335163978,
+      "entry": 1.13402,
+      "stop_loss": 1.142764,
+      "targets": [
+        1.1333515,
+        1.1329385,
+        1.12833
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.6061140382416699,
+      "risk_amount": 529.9861150385078,
+      "pnl": 108.90050925087854,
+      "pnl_pct": 0.41095608417200147,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 26499.30575192539,
+      "balance_after": 26608.206261176267
+    },
+    {
+      "trade_number": 155,
+      "entry_time": "2025-05-28 00:00:00",
+      "exit_time": "2025-05-29 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.8336902335163978,
+      "entry": 1.13402,
+      "stop_loss": 1.142764,
+      "targets": [
+        1.1333515,
+        1.1329385,
+        1.12833
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.6086049007588445,
+      "risk_amount": 532.1641252235254,
+      "pnl": 109.34804251933932,
+      "pnl_pct": 0.41095608417200147,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 26608.206261176267,
+      "balance_after": 26717.554303695608
+    },
+    {
+      "trade_number": 156,
+      "entry_time": "2025-05-28 00:00:00",
+      "exit_time": "2025-05-29 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.8336902335163978,
+      "entry": 1.13402,
+      "stop_loss": 1.142764,
+      "targets": [
+        1.1333515,
+        1.1329385,
+        1.12833
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.611105999627082,
+      "risk_amount": 534.3510860739121,
+      "pnl": 109.79741495299552,
+      "pnl_pct": 0.41095608417200147,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 26717.554303695608,
+      "balance_after": 26827.351718648602
+    },
+    {
+      "trade_number": 157,
+      "entry_time": "2025-06-11 00:00:00",
+      "exit_time": "2025-06-11 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7916322261272777,
+      "entry": 1.14989,
+      "stop_loss": 1.146206,
+      "targets": [
+        1.14631448,
+        1.14410552,
+        1.14108
+      ],
+      "targets_hit": [],
+      "position_size": 1.4564251747366153,
+      "risk_amount": 536.547034372972,
+      "pnl": 782.6828889034555,
+      "pnl_pct": 2.917480998914202,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 26827.351718648602,
+      "balance_after": 27610.034607552057
+    },
+    {
+      "trade_number": 158,
+      "entry_time": "2025-06-11 00:00:00",
+      "exit_time": "2025-06-11 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7916322261272777,
+      "entry": 1.14989,
+      "stop_loss": 1.146206,
+      "targets": [
+        1.14631448,
+        1.14410552,
+        1.14108
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 1.4989161024729591,
+      "risk_amount": 552.2006921510412,
+      "pnl": 667.6028424468802,
+      "pnl_pct": 2.4179717698154337,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 27610.034607552057,
+      "balance_after": 28277.637449998936
+    },
+    {
+      "trade_number": 159,
+      "entry_time": "2025-06-11 00:00:00",
+      "exit_time": "2025-06-11 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7916322261272777,
+      "entry": 1.14989,
+      "stop_loss": 1.146206,
+      "targets": [
+        1.14631448,
+        1.14410552,
+        1.14108
+      ],
+      "targets_hit": [],
+      "position_size": 1.5351594706839728,
+      "risk_amount": 565.5527489999787,
+      "pnl": 714.4632176563451,
+      "pnl_pct": 2.526601520086934,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 28277.637449998936,
+      "balance_after": 28992.100667655282
+    },
+    {
+      "trade_number": 160,
+      "entry_time": "2025-06-11 00:00:00",
+      "exit_time": "2025-06-12 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.7532388451850924,
+      "entry": 1.14328,
+      "stop_loss": 1.140195,
+      "targets": [
+        1.1435092,
+        1.1436508,
+        1.14989
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.8795527175141162,
+      "risk_amount": 579.8420133531057,
+      "pnl": 290.9246878276988,
+      "pnl_pct": 1.003461912479718,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 28992.100667655282,
+      "balance_after": 29283.02535548298
+    },
+    {
+      "trade_number": 161,
+      "entry_time": "2025-06-12 00:00:00",
+      "exit_time": "2025-06-13 00:00:00",
+      "pattern_type": "butterfly_bullish",
+      "direction": "long",
+      "quality_score": 0.8016056365249101,
+      "entry": 1.15399,
+      "stop_loss": 1.1359860000000002,
+      "targets": [
+        1.1555562000000001,
+        1.1565238,
+        1.16101
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.32529466069188107,
+      "risk_amount": 585.6605071096596,
+      "pnl": 95.87214357775451,
+      "pnl_pct": 0.3273983559209101,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 29283.02535548298,
+      "balance_after": 29378.897499060735
+    },
+    {
+      "trade_number": 162,
+      "entry_time": "2025-06-19 00:00:00",
+      "exit_time": "2025-06-19 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.7295324127901481,
+      "entry": 1.14885,
+      "stop_loss": 1.158061,
+      "targets": [
+        1.1486666399999999,
+        1.14855336,
+        1.14542
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.6379089675184123,
+      "risk_amount": 587.5779499812147,
+      "pnl": 55.285784069711134,
+      "pnl_pct": 0.18818195635652651,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 29378.897499060735,
+      "balance_after": 29434.183283130445
+    },
+    {
+      "trade_number": 163,
+      "entry_time": "2025-06-19 00:00:00",
+      "exit_time": "2025-06-19 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.7295324127901481,
+      "entry": 1.14885,
+      "stop_loss": 1.158061,
+      "targets": [
+        1.1486666399999999,
+        1.14855336,
+        1.14542
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.6391093970932622,
+      "risk_amount": 588.683665662609,
+      "pnl": 55.38982193976058,
+      "pnl_pct": 0.1881819563565266,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 29434.183283130445,
+      "balance_after": 29489.573105070205
+    },
+    {
+      "trade_number": 164,
+      "entry_time": "2025-06-19 00:00:00",
+      "exit_time": "2025-06-19 00:00:00",
+      "pattern_type": "bat_bearish",
+      "direction": "short",
+      "quality_score": 0.7295324127901481,
+      "entry": 1.14885,
+      "stop_loss": 1.158061,
+      "targets": [
+        1.1486666399999999,
+        1.14855336,
+        1.14542
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.6403120856599707,
+      "risk_amount": 589.7914621014041,
+      "pnl": 55.49405559030921,
+      "pnl_pct": 0.18818195635652657,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 29489.573105070205,
+      "balance_after": 29545.067160660514
+    },
+    {
+      "trade_number": 165,
+      "entry_time": "2025-07-21 00:00:00",
+      "exit_time": "2025-07-21 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7286970241187953,
+      "entry": 1.17162,
+      "stop_loss": 1.1676989999999998,
+      "targets": [
+        1.1678152800000001,
+        1.16546472,
+        1.16115
+      ],
+      "targets_hit": [],
+      "position_size": 1.507016942650261,
+      "risk_amount": 590.9013432132103,
+      "pnl": 1027.9362565818049,
+      "pnl_pct": 3.479214486100441,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 29545.067160660514,
+      "balance_after": 30573.00341724232
+    },
+    {
+      "trade_number": 166,
+      "entry_time": "2025-07-21 00:00:00",
+      "exit_time": "2025-07-21 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7286970241187953,
+      "entry": 1.17162,
+      "stop_loss": 1.1676989999999998,
+      "targets": [
+        1.1678152800000001,
+        1.16546472,
+        1.16115
+      ],
+      "targets_hit": [],
+      "position_size": 1.559449294426937,
+      "risk_amount": 611.4600683448464,
+      "pnl": 1016.9168848958747,
+      "pnl_pct": 3.326192297883177,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 30573.00341724232,
+      "balance_after": 31589.920302138195
+    },
+    {
+      "trade_number": 167,
+      "entry_time": "2025-07-21 00:00:00",
+      "exit_time": "2025-07-21 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7286970241187953,
+      "entry": 1.17162,
+      "stop_loss": 1.1676989999999998,
+      "targets": [
+        1.1678152800000001,
+        1.16546472,
+        1.16115
+      ],
+      "targets_hit": [],
+      "position_size": 1.6113195767475592,
+      "risk_amount": 631.7984060427639,
+      "pnl": 1000.7905891179751,
+      "pnl_pct": 3.168069370058637,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 31589.920302138195,
+      "balance_after": 32590.71089125617
+    },
+    {
+      "trade_number": 168,
+      "entry_time": "2025-07-23 00:00:00",
+      "exit_time": "2025-07-24 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.6974999189257921,
+      "entry": 1.17268,
+      "stop_loss": 1.1600720000000002,
+      "targets": [
+        1.1739482399999999,
+        1.17473176,
+        1.17747
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5169846270821203,
+      "risk_amount": 651.8142178251235,
+      "pnl": 114.13200780085864,
+      "pnl_pct": 0.35019796954315396,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 32590.71089125617,
+      "balance_after": 32704.84289905703
+    },
+    {
+      "trade_number": 169,
+      "entry_time": "2025-07-23 00:00:00",
+      "exit_time": "2025-07-24 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.6639956306314405,
+      "entry": 1.17268,
+      "stop_loss": 1.159951,
+      "targets": [
+        1.1739482399999999,
+        1.17473176,
+        1.17747
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5138635069378121,
+      "risk_amount": 654.0968579811406,
+      "pnl": 113.4429743364245,
+      "pnl_pct": 0.34686903920182227,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 32704.84289905703,
+      "balance_after": 32818.285873393455
+    },
+    {
+      "trade_number": 170,
+      "entry_time": "2025-07-23 00:00:00",
+      "exit_time": "2025-07-24 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.6974999189257921,
+      "entry": 1.17268,
+      "stop_loss": 1.1600720000000002,
+      "targets": [
+        1.1739482399999999,
+        1.17473176,
+        1.17747
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5205946363165317,
+      "risk_amount": 656.3657174678691,
+      "pnl": 114.92897076749162,
+      "pnl_pct": 0.35019796954315396,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 32818.285873393455,
+      "balance_after": 32933.214844160946
+    },
+    {
+      "trade_number": 171,
+      "entry_time": "2025-07-23 00:00:00",
+      "exit_time": "2025-07-24 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.6639956306314405,
+      "entry": 1.17268,
+      "stop_loss": 1.159951,
+      "targets": [
+        1.1739482399999999,
+        1.17473176,
+        1.17747
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5174517219602635,
+      "risk_amount": 658.664296883219,
+      "pnl": 114.23512590821292,
+      "pnl_pct": 0.3468690392018221,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 32933.214844160946,
+      "balance_after": 33047.44997006916
+    },
+    {
+      "trade_number": 172,
+      "entry_time": "2025-07-23 00:00:00",
+      "exit_time": "2025-07-24 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.6974999189257921,
+      "entry": 1.17268,
+      "stop_loss": 1.1600720000000002,
+      "targets": [
+        1.1739482399999999,
+        1.17473176,
+        1.17747
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5242298535861336,
+      "risk_amount": 660.9489994013832,
+      "pnl": 115.73149878097183,
+      "pnl_pct": 0.3501979695431539,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 33047.44997006916,
+      "balance_after": 33163.18146885013
+    },
+    {
+      "trade_number": 173,
+      "entry_time": "2025-07-23 00:00:00",
+      "exit_time": "2025-07-24 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.6639956306314405,
+      "entry": 1.17268,
+      "stop_loss": 1.159951,
+      "targets": [
+        1.1739482399999999,
+        1.17473176,
+        1.17747
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.5210649928329036,
+      "risk_amount": 663.2636293770026,
+      "pnl": 115.03280892975715,
+      "pnl_pct": 0.34686903920182205,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 33163.18146885013,
+      "balance_after": 33278.21427777989
+    },
+    {
+      "trade_number": 174,
+      "entry_time": "2025-08-06 00:00:00",
+      "exit_time": "2025-08-06 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.7651635471985826,
+      "entry": 1.16596,
+      "stop_loss": 1.160295,
+      "targets": [
+        1.1609176,
+        1.1578024,
+        1.15298
+      ],
+      "targets_hit": [],
+      "position_size": 1.1748707600275272,
+      "risk_amount": 665.5642855555977,
+      "pnl": 797.1498106786819,
+      "pnl_pct": 2.3954104148278916,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 33278.21427777989,
+      "balance_after": 34075.36408845857
+    },
+    {
+      "trade_number": 175,
+      "entry_time": "2025-08-06 00:00:00",
+      "exit_time": "2025-08-07 00:00:00",
+      "pattern_type": "shark_bullish",
+      "direction": "long",
+      "quality_score": 0.6804899688384769,
+      "entry": 1.15841,
+      "stop_loss": 1.152174,
+      "targets": [
+        1.15849022,
+        1.15853978,
+        1.1668
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.0928596564611632,
+      "risk_amount": 681.5072817691714,
+      "pnl": 192.02025022272048,
+      "pnl_pct": 0.563516356638896,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 34075.36408845857,
+      "balance_after": 34267.38433868129
+    },
+    {
+      "trade_number": 176,
+      "entry_time": "2025-08-07 00:00:00",
+      "exit_time": "2025-08-07 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.7767142611698135,
+      "entry": 1.16527,
+      "stop_loss": 1.155277,
+      "targets": [
+        1.16617152,
+        1.16672848,
+        1.16907
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.6858277662099784,
+      "risk_amount": 685.3476867736258,
+      "pnl": 113.04526503549573,
+      "pnl_pct": 0.32989172420694324,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 34267.38433868129,
+      "balance_after": 34380.42960371678
+    },
+    {
+      "trade_number": 177,
+      "entry_time": "2025-08-07 00:00:00",
+      "exit_time": "2025-08-07 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.7964766914776655,
+      "entry": 1.1649,
+      "stop_loss": 1.155277,
+      "targets": [
+        1.16594286,
+        1.16658714,
+        1.16907
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.7145470145218126,
+      "risk_amount": 687.6085920743357,
+      "pnl": 133.018071491736,
+      "pnl_pct": 0.38690055076378616,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 34380.42960371678,
+      "balance_after": 34513.44767520852
+    },
+    {
+      "trade_number": 178,
+      "entry_time": "2025-08-07 00:00:00",
+      "exit_time": "2025-08-07 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.7964766914776655,
+      "entry": 1.1649,
+      "stop_loss": 1.155277,
+      "targets": [
+        1.16594286,
+        1.16658714,
+        1.16907
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.7173116008564636,
+      "risk_amount": 690.2689535041703,
+      "pnl": 133.5327191429529,
+      "pnl_pct": 0.3869005507637862,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 34513.44767520852,
+      "balance_after": 34646.98039435147
+    },
+    {
+      "trade_number": 179,
+      "entry_time": "2025-08-07 00:00:00",
+      "exit_time": "2025-08-07 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.7964766914776655,
+      "entry": 1.1649,
+      "stop_loss": 1.155277,
+      "targets": [
+        1.16594286,
+        1.16658714,
+        1.16907
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.7200868833908698,
+      "risk_amount": 692.9396078870294,
+      "pnl": 134.04935796876686,
+      "pnl_pct": 0.3869005507637862,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 34646.98039435147,
+      "balance_after": 34781.02975232024
+    },
+    {
+      "trade_number": 180,
+      "entry_time": "2025-08-22 00:00:00",
+      "exit_time": "2025-08-22 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.7719493207750596,
+      "entry": 1.17316,
+      "stop_loss": 1.168034,
+      "targets": [
+        1.16815962,
+        1.16507038,
+        1.15944
+      ],
+      "targets_hit": [],
+      "position_size": 1.3570436891268234,
+      "risk_amount": 695.6205950464048,
+      "pnl": 842.1813134720976,
+      "pnl_pct": 2.4213811939133736,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 34781.02975232024,
+      "balance_after": 35623.21106579233
+    },
+    {
+      "trade_number": 181,
+      "entry_time": "2025-08-22 00:00:00",
+      "exit_time": "2025-08-22 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.786100260167739,
+      "entry": 1.1742,
+      "stop_loss": 1.168034,
+      "targets": [
+        1.1688023399999998,
+        1.16546766,
+        1.15944
+      ],
+      "targets_hit": [],
+      "position_size": 1.1554723018421327,
+      "risk_amount": 712.4642213158467,
+      "pnl": 958.579821608217,
+      "pnl_pct": 2.690885501135259,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 35623.21106579233,
+      "balance_after": 36581.79088740055
+    },
+    {
+      "trade_number": 182,
+      "entry_time": "2025-08-22 00:00:00",
+      "exit_time": "2025-08-22 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.786100260167739,
+      "entry": 1.1742,
+      "stop_loss": 1.168034,
+      "targets": [
+        1.1688023399999998,
+        1.16546766,
+        1.15944
+      ],
+      "targets_hit": [],
+      "position_size": 1.1865647384820366,
+      "risk_amount": 731.635817748011,
+      "pnl": 999.799448644943,
+      "pnl_pct": 2.733052221861813,
+      "result": "win",
+      "exit_reason": "timeout",
+      "balance_before": 36581.79088740055,
+      "balance_after": 37581.5903360455
+    },
+    {
+      "trade_number": 183,
+      "entry_time": "2025-08-22 00:00:00",
+      "exit_time": "2025-08-22 00:00:00",
+      "pattern_type": "shark_bearish",
+      "direction": "short",
+      "quality_score": 0.786100260167739,
+      "entry": 1.1742,
+      "stop_loss": 1.168034,
+      "targets": [
+        1.1688023399999998,
+        1.16546766,
+        1.15944
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.2189941724309485,
+      "risk_amount": 751.6318067209099,
+      "pnl": 1008.1730310903661,
+      "pnl_pct": 2.6826247161855754,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 37581.5903360455,
+      "balance_after": 38589.76336713586
+    },
+    {
+      "trade_number": 184,
+      "entry_time": "2025-09-01 00:00:00",
+      "exit_time": "2025-09-01 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.8218347410956434,
+      "entry": 1.16961,
+      "stop_loss": 1.162063,
+      "targets": [
+        1.17007604,
+        1.17036396,
+        1.17287
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.0226517388932295,
+      "risk_amount": 771.7952673427172,
+      "pnl": 113.63787934720872,
+      "pnl_pct": 0.29447674572678506,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 38589.76336713586,
+      "balance_after": 38703.401246483074
+    },
+    {
+      "trade_number": 185,
+      "entry_time": "2025-09-01 00:00:00",
+      "exit_time": "2025-09-01 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.8218347410956434,
+      "entry": 1.16961,
+      "stop_loss": 1.162063,
+      "targets": [
+        1.17007604,
+        1.17036396,
+        1.17287
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.0256632104540409,
+      "risk_amount": 774.0680249296615,
+      "pnl": 113.97251647622335,
+      "pnl_pct": 0.2944767457267851,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 38703.401246483074,
+      "balance_after": 38817.373762959294
+    },
+    {
+      "trade_number": 186,
+      "entry_time": "2025-09-01 00:00:00",
+      "exit_time": "2025-09-01 00:00:00",
+      "pattern_type": "gartley_bullish",
+      "direction": "long",
+      "quality_score": 0.8218347410956434,
+      "entry": 1.16961,
+      "stop_loss": 1.162063,
+      "targets": [
+        1.17007604,
+        1.17036396,
+        1.17287
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.0286835500983027,
+      "risk_amount": 776.3474752591859,
+      "pnl": 114.30813903376543,
+      "pnl_pct": 0.29447674572678506,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 38817.373762959294,
+      "balance_after": 38931.68190199306
+    },
+    {
+      "trade_number": 187,
+      "entry_time": "2025-09-04 00:00:00",
+      "exit_time": "2025-09-05 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7357609265091818,
+      "entry": 1.16584,
+      "stop_loss": 1.1725539999999999,
+      "targets": [
+        1.16511038,
+        1.16465962,
+        1.16077
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 1.1597164701219458,
+      "risk_amount": 778.6336380398612,
+      "pnl": -254.42741306051835,
+      "pnl_pct": -0.6535227882037463,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 38931.68190199306,
+      "balance_after": 38677.25448893254
+    },
+    {
+      "trade_number": 188,
+      "entry_time": "2025-09-04 00:00:00",
+      "exit_time": "2025-09-05 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7357609265091818,
+      "entry": 1.16584,
+      "stop_loss": 1.1725539999999999,
+      "targets": [
+        1.16511038,
+        1.16465962,
+        1.16077
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 1.1521374587111468,
+      "risk_amount": 773.5450897786509,
+      "pnl": -252.7646719367306,
+      "pnl_pct": -0.6535227882037463,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 38677.25448893254,
+      "balance_after": 38424.48981699581
+    },
+    {
+      "trade_number": 189,
+      "entry_time": "2025-09-04 00:00:00",
+      "exit_time": "2025-09-05 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7357609265091818,
+      "entry": 1.16584,
+      "stop_loss": 1.1725539999999999,
+      "targets": [
+        1.16511038,
+        1.16465962,
+        1.16077
+      ],
+      "targets_hit": [
+        "T1",
+        "T2"
+      ],
+      "position_size": 1.144607977867038,
+      "risk_amount": 768.4897963399162,
+      "pnl": -251.11279720509566,
+      "pnl_pct": -0.6535227882037465,
+      "result": "loss",
+      "exit_reason": "timeout",
+      "balance_before": 38424.48981699581,
+      "balance_after": 38173.377019790714
+    },
+    {
+      "trade_number": 190,
+      "entry_time": "2025-09-19 00:00:00",
+      "exit_time": "2025-09-22 00:00:00",
+      "pattern_type": "butterfly_bearish",
+      "direction": "short",
+      "quality_score": 0.822911069346881,
+      "entry": 1.17927,
+      "stop_loss": 1.186476,
+      "targets": [
+        1.17872756,
+        1.17839244,
+        1.17286
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.0594886766525249,
+      "risk_amount": 763.4675403958144,
+      "pnl": 192.4548467275197,
+      "pnl_pct": 0.5041598667776835,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 38173.377019790714,
+      "balance_after": 38365.83186651823
+    },
+    {
+      "trade_number": 191,
+      "entry_time": "2025-09-19 00:00:00",
+      "exit_time": "2025-09-22 00:00:00",
+      "pattern_type": "butterfly_bearish",
+      "direction": "short",
+      "quality_score": 0.822911069346881,
+      "entry": 1.17927,
+      "stop_loss": 1.186476,
+      "targets": [
+        1.17872756,
+        1.17839244,
+        1.17286
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.064830193353261,
+      "risk_amount": 767.3166373303646,
+      "pnl": 193.42512682638835,
+      "pnl_pct": 0.5041598667776835,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 38365.83186651823,
+      "balance_after": 38559.25699334462
+    },
+    {
+      "trade_number": 192,
+      "entry_time": "2025-09-19 00:00:00",
+      "exit_time": "2025-09-22 00:00:00",
+      "pattern_type": "butterfly_bearish",
+      "direction": "short",
+      "quality_score": 0.822911069346881,
+      "entry": 1.17927,
+      "stop_loss": 1.186476,
+      "targets": [
+        1.17872756,
+        1.17839244,
+        1.17286
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 1.0701986398374792,
+      "risk_amount": 771.1851398668924,
+      "pnl": 194.4002986881108,
+      "pnl_pct": 0.5041598667776834,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 38559.25699334462,
+      "balance_after": 38753.65729203273
+    },
+    {
+      "trade_number": 193,
+      "entry_time": "2025-09-22 00:00:00",
+      "exit_time": "2025-09-22 00:00:00",
+      "pattern_type": "gartley_bearish",
+      "direction": "short",
+      "quality_score": 0.7832687281021955,
+      "entry": 1.17489,
+      "stop_loss": 1.184971,
+      "targets": [
+        1.17411454,
+        1.17363546,
+        1.17625
+      ],
+      "targets_hit": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "position_size": 0.7688454973124236,
+      "risk_amount": 775.0731458406547,
+      "pnl": 37.83427184634647,
+      "pnl_pct": 0.0976276163079058,
+      "result": "win",
+      "exit_reason": "all_targets_hit",
+      "balance_before": 38753.65729203273,
+      "balance_after": 38791.49156387908
+    }
+  ]
+}

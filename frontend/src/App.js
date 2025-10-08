@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import CandlestickChart from './CandlestickChart';
 import TradingViewChart from './TradingViewChart2';
+import UnifiedSignals from './components/UnifiedSignals';
 import './App.css';
 
 // API configuration
@@ -289,6 +290,27 @@ function App() {
       <div style={{ marginTop: '20px' }}>
         {!showBacktest && !showChart ? (
           <>
+            {/* Unified Signals Component */}
+            <UnifiedSignals 
+              pair={chartPair}
+              mode="parallel"
+              onSignalUpdate={(signals) => {
+                // Handle new signal updates for notifications
+                if (signals.recommendation && signals.recommendation.action !== 'WAIT') {
+                  const newNotification = {
+                    id: Date.now(),
+                    message: `${signals.recommendation.action} signal for ${chartPair}`,
+                    timestamp: new Date(),
+                    type: 'unified-signal',
+                    signal: signals.recommendation.action.toLowerCase(),
+                    pair: chartPair,
+                    probability: signals.recommendation.confidence || 0.5
+                  };
+                  setNotifications(prev => [newNotification, ...prev.slice(0, 9)]);
+                }
+              }}
+            />
+
             {/* Portfolio Section */}
             {showPortfolio && (
               <div style={{
