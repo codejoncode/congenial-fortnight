@@ -187,6 +187,66 @@ def health_check(request):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
+def unified_signals(request):
+    """
+    Get unified signals from both ML Pip-Based and Harmonic Pattern systems
+    
+    Query params:
+        pair: Currency pair (default: EURUSD)
+        mode: parallel|confluence|weighted (default: parallel)
+    """
+    pair = request.GET.get('pair', 'EURUSD')
+    mode = request.GET.get('mode', 'parallel')
+    
+    try:
+        import sys
+        import os
+        from pathlib import Path
+        
+        # Add scripts to path
+        sys.path.insert(0, os.path.join(os.getcwd(), 'scripts'))
+        
+        from unified_signal_service import UnifiedSignalService
+        import joblib
+        
+        # Load historical data
+        data_file = f'data/{pair}_H1.csv'
+        if not os.path.exists(data_file):
+            return Response({
+                'error': f'Data file not found: {data_file}',
+                'pair': pair
+            }, status=404)
+        
+        df = pd.read_csv(data_file)
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        df = df.sort_values('timestamp').tail(5000)  # Last 5000 bars
+        
+        # Load ML model
+        model_file = f'models/{pair}_pip_based_model.joblib'
+        if not os.path.exists(model_file):
+            return Response({
+                'error': f'Model file not found: {model_file}',
+                'pair': pair
+            }, status=404)
+        
+        ml_model = joblib.load(model_file)
+        
+        # Generate unified signals
+        service = UnifiedSignalService(mode=mode)
+        signals = service.generate_unified_signals(pair, df, ml_model)
+        
+        return Response(signals)
+        
+    except Exception as e:
+        logger.error(f"Error generating unified signals: {e}", exc_info=True)
+        return Response({
+            'error': str(e),
+            'pair': pair,
+            'mode': mode
+        }, status=500)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
 def get_signals(request, pair):
     """Get trading signals for a specific currency pair"""
     try:
