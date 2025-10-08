@@ -14,6 +14,7 @@ prophet==1.1.5
 statsforecast==1.7.6
 darts==0.30.0
 ta==0.11.0
+TA-Lib==0.4.28
 matplotlib==3.9.0
 seaborn==0.13.2
 plotly==5.22.0
