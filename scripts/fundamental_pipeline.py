@@ -441,7 +441,14 @@ class FundamentalDataPipeline:
 
         try:
             df = pd.read_csv(csv_file)
-            df['date'] = pd.to_datetime(df['date'])
+            
+            # Check if 'date' column exists
+            if 'date' not in df.columns:
+                logger.error(f"Error loading {csv_file}: Missing 'date' column. Found columns: {list(df.columns)}")
+                return pd.DataFrame()
+            
+            df['date'] = pd.to_datetime(df['date'], errors='coerce')
+            df = df.dropna(subset=['date'])  # Remove rows with invalid dates
             return df
         except Exception as e:
             logger.error(f"Error loading {csv_file}: {e}")
@@ -697,10 +704,17 @@ class FundamentalDataPipeline:
         # FRED series summary
         for series_id, config in self.fred_series.items():
             df = self.load_series_from_csv(series_id)
+            last_date = None
+            if not df.empty and 'date' in df.columns:
+                try:
+                    last_date = df['date'].max().isoformat()
+                except Exception as e:
+                    logger.warning(f"Could not get last_date for {series_id}: {e}")
+            
             summary['fred_series'][series_id] = {
                 'name': config['name'],
                 'observations': len(df),
-                'last_date': df['date'].max().isoformat() if not df.empty else None,
+                'last_date': last_date,
                 'metadata': self.metadata.get(series_id, {})
             }
             summary['total_observations'] += len(df)
@@ -757,26 +771,36 @@ class FundamentalDataPipeline:
             if df.empty:
                 series_issues.append("No data available")
             else:
-                # Check for missing values
-                missing_pct = df['value'].isnull().mean() * 100
-                if missing_pct > 5:
-                    series_issues.append(f"High missing values: {missing_pct:.1f}%")
+                # Find the value column (should be series_id.lower() or the second column)
+                value_col = None
+                if series_id.lower() in df.columns:
+                    value_col = series_id.lower()
+                elif len(df.columns) >= 2:
+                    # Assume second column is the value column (first is 'date')
+                    value_col = df.columns[1]
+                
+                if value_col and value_col in df.columns:
+                    # Check for missing values
+                    missing_pct = df[value_col].isnull().mean() * 100
+                    if missing_pct > 5:
+                        series_issues.append(f"High missing values: {missing_pct:.1f}%")
+
+                    # Check for outliers (values more than 5 std dev from mean)
+                    if not df[value_col].isnull().all():
+                        mean_val = df[value_col].mean()
+                        std_val = df[value_col].std()
+                        if std_val > 0:  # Avoid division by zero
+                            outliers = ((df[value_col] - mean_val).abs() > 5 * std_val).sum()
+                            if outliers > 0:
+                                series_issues.append(f"Potential outliers: {outliers} observations")
 
                 # Check date continuity (for daily series)
-                if not df.empty and len(df) > 1:
+                if 'date' in df.columns and not df.empty and len(df) > 1:
                     df = df.sort_values('date')
                     date_diffs = df['date'].diff().dt.days
                     gaps = (date_diffs > 1).sum()
                     if gaps > 0:
                         series_issues.append(f"Date gaps detected: {gaps} missing days")
-
-                # Check for outliers (values more than 5 std dev from mean)
-                if not df['value'].isnull().all():
-                    mean_val = df['value'].mean()
-                    std_val = df['value'].std()
-                    outliers = ((df['value'] - mean_val).abs() > 5 * std_val).sum()
-                    if outliers > 0:
-                        series_issues.append(f"Potential outliers: {outliers} observations")
 
             if series_issues:
                 issues[series_id] = series_issues
