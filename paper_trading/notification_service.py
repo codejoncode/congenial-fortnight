@@ -430,19 +430,31 @@ class NotificationManager:
                 return
             
             if prefs.enable_email and prefs.email_addresses:
-                self.email_service.send_trade_notification(
-                    prefs.email_addresses,
-                    trade,
-                    'opened'
-                )
+                for email in prefs.email_addresses:
+                    success = self.email_service.send_trade_notification(
+                        email,
+                        trade,
+                        'opened'
+                    )
+                    self._log_notification(
+                        user, 'trade_opened', 'email', email,
+                        trade, 'sent' if success else 'failed'
+                    )
             
             if prefs.enable_sms and prefs.phone_numbers:
-                self.sms_service.send_trade_notification(
-                    prefs.phone_numbers,
-                    trade,
-                    'opened'
-                )
+                for phone in prefs.phone_numbers:
+                    success = self.sms_service.send_trade_notification(
+                        phone,
+                        trade,
+                        'opened'
+                    )
+                    self._log_notification(
+                        user, 'trade_opened', 'sms', phone,
+                        trade, 'sent' if success else 'failed'
+                    )
         
+        except NotificationPreferences.DoesNotExist:
+            logger.warning(f"No notification preferences for user {user.username}")
         except Exception as e:
             logger.error(f"Trade notification error: {e}")
     
@@ -457,19 +469,31 @@ class NotificationManager:
                 return
             
             if prefs.enable_email and prefs.email_addresses:
-                self.email_service.send_trade_notification(
-                    prefs.email_addresses,
-                    trade,
-                    'closed'
-                )
+                for email in prefs.email_addresses:
+                    success = self.email_service.send_trade_notification(
+                        email,
+                        trade,
+                        'closed'
+                    )
+                    self._log_notification(
+                        user, 'trade_closed', 'email', email,
+                        trade, 'sent' if success else 'failed'
+                    )
             
             if prefs.enable_sms and prefs.phone_numbers:
-                self.sms_service.send_trade_notification(
-                    prefs.phone_numbers,
-                    trade,
-                    'closed'
-                )
+                for phone in prefs.phone_numbers:
+                    success = self.sms_service.send_trade_notification(
+                        phone,
+                        trade,
+                        'closed'
+                    )
+                    self._log_notification(
+                        user, 'trade_closed', 'sms', phone,
+                        trade, 'sent' if success else 'failed'
+                    )
         
+        except NotificationPreferences.DoesNotExist:
+            logger.warning(f"No notification preferences for user {user.username}")
         except Exception as e:
             logger.error(f"Trade notification error: {e}")
     
@@ -484,11 +508,17 @@ class NotificationManager:
                 return
             
             if prefs.enable_email and prefs.email_addresses:
-                self.email_service.send_system_notification(
-                    prefs.email_addresses,
-                    status,
-                    message
-                )
+                for email in prefs.email_addresses:
+                    success = self.email_service.send_system_notification(
+                        email,
+                        status,
+                        message
+                    )
+                    self._log_notification(
+                        user, 'system_status', 'email', email,
+                        {'status': status, 'message': message},
+                        'sent' if success else 'failed'
+                    )
         
         except Exception as e:
             logger.error(f"System notification error: {e}")
