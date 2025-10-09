@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.db.models import Sum, Avg, Q
 
 from .models import PaperTrade, PerformanceMetrics
+from .us_forex_rules import USForexRules
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +22,11 @@ class PaperTradingEngine:
     Manages positions, risk, and performance tracking
     """
     
-    def __init__(self, initial_balance: float = 10000.0):
+    def __init__(self, initial_balance: float = 10000.0, user=None):
         self.initial_balance = Decimal(str(initial_balance))
         self.current_balance = self.initial_balance
+        self.user = user
+        self.us_rules = USForexRules(self)
         
     def execute_order(
         self,
@@ -370,3 +373,46 @@ class PaperTradingEngine:
         )
         
         metrics.update_metrics()
+    
+    # ========== US Forex Rules Delegation Methods ==========
+    # These methods delegate to the USForexRules class for NFA compliance
+    
+    def check_hedging_violation(self, symbol: str, signal_type: str) -> bool:
+        """Check if opening position would violate no-hedging rule"""
+        return self.us_rules.check_hedging_violation(symbol, signal_type)
+    
+    def close_position_with_fifo(self, symbol: str, exit_price: Decimal, exit_reason: str = 'fifo') -> Dict:
+        """Close oldest position on symbol (FIFO compliance)"""
+        return self.us_rules.close_position_with_fifo(symbol, exit_price, exit_reason)
+    
+    def close_position_fifo_compliant(self, symbol: str, exit_price: Decimal) -> Dict:
+        """Alias for close_position_with_fifo"""
+        return self.us_rules.close_position_fifo_compliant(symbol, exit_price)
+    
+    def close_all_positions(self, symbol: str, exit_price: Decimal) -> Dict:
+        """Close all positions on a symbol (FIFO order)"""
+        return self.us_rules.close_all_positions(symbol, exit_price)
+    
+    def close_partial_position(self, symbol: str, lot_size: Decimal, exit_price: Decimal) -> Dict:
+        """Partially close position (FIFO compliant)"""
+        return self.us_rules.close_partial_position(symbol, lot_size, exit_price)
+    
+    def calculate_max_position_size(self, symbol: str, account_balance: Decimal, leverage: Optional[int] = None) -> Dict:
+        """Calculate maximum position size based on leverage limits"""
+        return self.us_rules.calculate_max_position_size(symbol, account_balance, leverage)
+    
+    def calculate_position_size(self, account_balance: Decimal, risk_percent: Decimal, stop_loss_pips: int, symbol: str = 'EURUSD') -> Dict:
+        """Calculate optimal position size based on risk management"""
+        return self.us_rules.calculate_position_size(account_balance, risk_percent, stop_loss_pips, symbol)
+    
+    def calculate_margin_requirement(self, symbol: str, lot_size: Decimal, entry_price: Decimal, leverage: Optional[int] = None) -> Dict:
+        """Calculate margin requirement for a position"""
+        return self.us_rules.calculate_margin_requirement(symbol, lot_size, entry_price, leverage)
+    
+    def calculate_margin_level(self, account_equity: Decimal, used_margin: Decimal) -> Decimal:
+        """Calculate margin level percentage"""
+        return self.us_rules.calculate_margin_level(account_equity, used_margin)
+    
+    def calculate_pip_value(self, symbol: str, lot_size: Decimal) -> Decimal:
+        """Calculate pip value for a position"""
+        return self.us_rules.calculate_pip_value(symbol, lot_size)
