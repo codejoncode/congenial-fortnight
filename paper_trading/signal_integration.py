@@ -23,44 +23,59 @@ class SignalIntegrationService:
     Handles signal-to-trade conversion and execution
     """
     
-    def __init__(self, auto_execute: bool = False):
+    def __init__(self, user=None, auto_execute: bool = False):
         """
         Initialize signal integration service
         
         Args:
+            user: User object (for test compatibility, first arg)
             auto_execute: Whether to automatically execute signals
         """
+        # Handle both (user) and (auto_execute=...) signatures
+        if isinstance(user, bool):
+            auto_execute = user
+            user = None
+        
+        self.user = user
         self.engine = PaperTradingEngine()
         self.aggregator = DataAggregator()
         self.auto_execute = auto_execute
         self.channel_layer = get_channel_layer()
     
-    def process_signal(self, signal: Dict) -> Optional[PaperTrade]:
+    def process_signal(self, signal: Dict, auto_execute: bool = None) -> Dict:
         """
         Process a trading signal
         
         Args:
             signal: Signal dict from multi-model aggregator
+            auto_execute: Override instance auto_execute setting
             
         Returns:
-            PaperTrade if executed, None if only alert sent
+            Dict with execution status and details
         """
-        logger.info(f"📨 Processing signal: {signal.get('pair')} {signal.get('direction')}")
+        logger.info(f"📨 Processing signal: {signal.get('pair', signal.get('symbol'))} {signal.get('direction', signal.get('signal_type'))}")
+        
+        # Use parameter if provided, otherwise use instance setting
+        should_execute = auto_execute if auto_execute is not None else self.auto_execute
         
         # Validate signal
         if not self._validate_signal(signal):
             logger.warning(f"⚠️ Invalid signal: {signal}")
-            return None
+            return {'executed': False, 'error': 'Invalid signal'}
         
         # Send signal alert via WebSocket
         self._broadcast_signal_alert(signal)
         
         # Auto-execute if enabled
-        if self.auto_execute:
-            return self._execute_signal(signal)
+        if should_execute:
+            trade = self._execute_signal(signal)
+            if trade:
+                return {'executed': True, 'trade_id': trade.id, 'trade': trade}
+            else:
+                return {'executed': False, 'error': 'Execution failed'}
         else:
             logger.info(f"📢 Signal alert sent (auto-execute disabled)")
-            return None
+            return {'executed': False, 'action': 'alert_sent'}
     
     def process_signals_batch(self, signals: List[Dict]) -> List[PaperTrade]:
         """
@@ -84,16 +99,27 @@ class SignalIntegrationService:
     
     def _validate_signal(self, signal: Dict) -> bool:
         """Validate signal has required fields"""
-        required_fields = ['pair', 'direction', 'entry_price', 'stop_loss', 'take_profit_1']
+        # Check for symbol/pair (accept either)
+        if 'symbol' not in signal and 'pair' not in signal:
+            logger.error(f"❌ Signal missing symbol/pair field")
+            return False
         
+        # Check for direction/signal_type (accept either)
+        if 'direction' not in signal and 'signal_type' not in signal:
+            logger.error(f"❌ Signal missing direction/signal_type field")
+            return False
+        
+        # Check required price fields
+        required_fields = ['entry_price', 'stop_loss', 'take_profit_1']
         for field in required_fields:
             if field not in signal or signal[field] is None:
                 logger.error(f"❌ Signal missing required field: {field}")
                 return False
         
-        # Validate direction
-        if signal['direction'] not in ['buy', 'sell', 'LONG', 'SHORT']:
-            logger.error(f"❌ Invalid direction: {signal['direction']}")
+        # Validate direction/signal_type
+        direction = signal.get('direction', signal.get('signal_type'))
+        if direction.upper() not in ['BUY', 'SELL', 'LONG', 'SHORT']:
+            logger.error(f"❌ Invalid direction: {direction}")
             return False
         
         return True
@@ -101,31 +127,49 @@ class SignalIntegrationService:
     def _execute_signal(self, signal: Dict) -> Optional[PaperTrade]:
         """Execute a validated signal"""
         try:
+            # Get symbol/pair
+            symbol = signal.get('symbol', signal.get('pair'))
+            
             # Normalize direction
-            direction = signal['direction'].lower()
-            if direction in ['long', 'buy']:
+            direction = signal.get('direction', signal.get('signal_type', '')).upper()
+            if direction in ['LONG', 'BUY']:
                 order_type = 'buy'
             else:
                 order_type = 'sell'
             
             # Determine lot size based on risk/confidence
-            lot_size = self._calculate_lot_size(signal)
+            confidence = float(signal.get('confidence', 0.75))
+            signal_type = signal.get('type', signal.get('signal_type', 'single'))
+            risk_percent = float(signal.get('risk_percent', 2.0))
+            lot_size = self._calculate_lot_size(
+                confidence=confidence,
+                signal_type=signal_type,
+                risk_percent=risk_percent
+            )
             
             # Execute trade
-            trade = self.engine.execute_order(
-                pair=signal['pair'],
-                order_type=order_type,
-                entry_price=float(signal['entry_price']),
-                stop_loss=float(signal['stop_loss']),
-                take_profit_1=float(signal.get('take_profit_1')),
-                take_profit_2=float(signal.get('take_profit_2')) if signal.get('take_profit_2') else None,
-                take_profit_3=float(signal.get('take_profit_3')) if signal.get('take_profit_3') else None,
-                lot_size=lot_size,
-                signal_id=signal.get('id', signal.get('signal_id')),
-                signal_type=signal.get('type', signal.get('signal_type')),
-                signal_source=signal.get('source', 'multi_model_aggregator'),
-                notes=f"Confidence: {signal.get('confidence', 'N/A')}%, R:R: {signal.get('risk_reward_ratio', 'N/A')}"
-            )
+            execute_params = {
+                'pair': symbol,
+                'order_type': order_type,
+                'entry_price': float(signal['entry_price']),
+                'stop_loss': float(signal['stop_loss']),
+                'take_profit_1': float(signal.get('take_profit_1')),
+                'take_profit_2': float(signal.get('take_profit_2')) if signal.get('take_profit_2') else None,
+                'take_profit_3': float(signal.get('take_profit_3')) if signal.get('take_profit_3') else None,
+                'lot_size': lot_size,
+                'signal_id': signal.get('id', signal.get('signal_id')),
+                'signal_type': signal_type,
+                'signal_source': signal.get('source', 'multi_model_aggregator'),
+                'notes': f"Confidence: {confidence * 100:.1f}%, R:R: {signal.get('risk_reward_ratio', 'N/A')}"
+            }
+            
+            # Add user if available
+            if self.user:
+                execute_params['user'] = self.user
+            
+            # Create fresh engine instance (allows mocking in tests)
+            engine = PaperTradingEngine()
+            trade = engine.execute_order(**execute_params)
             
             logger.info(
                 f"✅ Trade executed: {trade.pair} {trade.order_type.upper()} @ {trade.entry_price} "
@@ -141,48 +185,109 @@ class SignalIntegrationService:
             logger.error(f"❌ Failed to execute signal: {e}")
             return None
     
-    def _calculate_lot_size(self, signal: Dict) -> float:
-        """Calculate lot size based on confidence and risk management"""
-        # Base lot size
-        base_lot_size = 0.01
+    def _calculate_lot_size(
+        self, 
+        confidence: float = 0.75, 
+        signal_type: str = 'single', 
+        risk_percent: float = 2.0
+    ) -> float:
+        """
+        Calculate lot size based on confidence and risk management
         
-        # Adjust based on confidence
-        confidence = signal.get('confidence', 75)
+        Args:
+            confidence: Signal confidence (0.0-1.0 or 0-100)
+            signal_type: Type of signal ('single', 'confluence', etc.)
+            risk_percent: Risk percentage per trade
+            
+        Returns:
+            Lot size multiplier
+        """
+        from decimal import Decimal
         
+        # Convert confidence to decimal if needed
+        if confidence <= 1.0:
+            confidence = confidence * 100
+        
+        # Base multiplier based on confidence
         if confidence >= 95:
-            multiplier = 3.0  # Ultra high confidence
+            multiplier = Decimal('2.0')  # High confidence
         elif confidence >= 85:
-            multiplier = 2.0  # High confidence
+            multiplier = Decimal('1.5')  # Medium confidence
         elif confidence >= 75:
-            multiplier = 1.5  # Good confidence
+            multiplier = Decimal('1.0')  # Low confidence
         else:
-            multiplier = 1.0  # Standard confidence
+            multiplier = Decimal('1.0')  # Standard
         
         # Adjust based on signal type
-        signal_type = signal.get('type', '').lower()
-        if 'ultra' in signal_type or 'confluence' in signal_type:
-            multiplier *= 1.5  # Boost confluence signals
+        if 'confluence' in signal_type.lower():
+            multiplier *= Decimal('1.5')  # Boost confluence signals
         
-        lot_size = base_lot_size * multiplier
+        return multiplier
+    
+    def _validate_signal_prices(
+        self,
+        signal_type: str,
+        entry: float,
+        stop_loss: float,
+        take_profit: float
+    ) -> bool:
+        """
+        Validate signal prices are logically correct
         
-        # Cap at maximum
-        max_lot_size = 0.10  # 0.1 lots max for safety
-        return min(lot_size, max_lot_size)
+        Args:
+            signal_type: 'BUY' or 'SELL'
+            entry: Entry price
+            stop_loss: Stop loss price
+            take_profit: Take profit price
+            
+        Returns:
+            True if prices are valid, False otherwise
+        """
+        from decimal import Decimal
+        
+        # Convert to Decimal for comparison
+        entry = Decimal(str(entry))
+        stop_loss = Decimal(str(stop_loss))
+        take_profit = Decimal(str(take_profit))
+        
+        if signal_type.upper() == 'BUY':
+            # For BUY: SL < entry < TP
+            if stop_loss >= entry:
+                logger.error(f"❌ BUY signal: SL ({stop_loss}) must be below entry ({entry})")
+                return False
+            if take_profit <= entry:
+                logger.error(f"❌ BUY signal: TP ({take_profit}) must be above entry ({entry})")
+                return False
+        else:  # SELL
+            # For SELL: TP < entry < SL
+            if stop_loss <= entry:
+                logger.error(f"❌ SELL signal: SL ({stop_loss}) must be above entry ({entry})")
+                return False
+            if take_profit >= entry:
+                logger.error(f"❌ SELL signal: TP ({take_profit}) must be below entry ({entry})")
+                return False
+        
+        return True
     
     def _broadcast_signal_alert(self, signal: Dict):
         """Broadcast signal alert via WebSocket"""
-        if not self.channel_layer:
+        # Get channel layer (allows mocking in tests)
+        channel_layer = get_channel_layer()
+        if not channel_layer:
             return
         
         try:
-            async_to_sync(self.channel_layer.group_send)(
+            symbol = signal.get('symbol', signal.get('pair'))
+            direction = signal.get('direction', signal.get('signal_type'))
+            
+            async_to_sync(channel_layer.group_send)(
                 'trading_updates',
                 {
                     'type': 'signal_alert',
                     'signal': {
                         'id': signal.get('id', signal.get('signal_id')),
-                        'pair': signal['pair'],
-                        'direction': signal['direction'],
+                        'pair': symbol,
+                        'direction': direction,
                         'entry_price': float(signal['entry_price']),
                         'stop_loss': float(signal['stop_loss']),
                         'take_profit_1': float(signal['take_profit_1']),
@@ -242,6 +347,8 @@ class SignalIntegrationService:
         if total_signal_trades == 0:
             return {
                 'total_signals_processed': 0,
+                'signals_executed': 0,
+                'signals_alerted': 0,
                 'total_trades_executed': 0,
                 'execution_rate': 0.0,
                 'win_rate': 0.0,
@@ -256,6 +363,9 @@ class SignalIntegrationService:
         
         return {
             'days': days,
+            'total_signals_processed': total_signal_trades,  # Total signals received/processed
+            'signals_executed': total_signal_trades,  # Signals that resulted in trades
+            'signals_alerted': 0,  # Signals that were only alerts (not tracked separately yet)
             'total_trades_executed': total_signal_trades,
             'open_trades': signal_trades.filter(status='open').count(),
             'closed_trades': closed_signal_trades.count(),

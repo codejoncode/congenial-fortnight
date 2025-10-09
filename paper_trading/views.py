@@ -6,7 +6,7 @@ import logging
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.utils import timezone
 from datetime import timedelta
 
@@ -30,11 +30,22 @@ class PaperTradeViewSet(viewsets.ModelViewSet):
     """
     queryset = PaperTrade.objects.all().order_by('-entry_time')
     serializer_class = PaperTradeSerializer
-    permission_classes = [AllowAny]  # Change to IsAuthenticated in production
+    permission_classes = [IsAuthenticated]
+    
+    def create(self, request, *args, **kwargs):
+        """Disable direct trade creation - use execute action instead"""
+        return Response(
+            {'error': 'Direct trade creation not allowed. Use /execute/ endpoint.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
     
     def get_queryset(self):
-        """Filter trades by query parameters"""
+        """Filter trades by query parameters and user"""
         queryset = super().get_queryset()
+        
+        # Filter by current user
+        if self.request.user.is_authenticated:
+            queryset = queryset.filter(user=self.request.user)
         
         pair = self.request.query_params.get('pair', None)
         status_filter = self.request.query_params.get('status', None)
@@ -73,7 +84,7 @@ class PaperTradeViewSet(viewsets.ModelViewSet):
         data = serializer.validated_data
         
         try:
-            engine = PaperTradingEngine()
+            engine = PaperTradingEngine(user=request.user)
             trade = engine.execute_order(
                 pair=data['pair'],
                 order_type=data['order_type'],
@@ -124,8 +135,8 @@ class PaperTradeViewSet(viewsets.ModelViewSet):
             )
         
         try:
-            engine = PaperTradingEngine()
-            engine.close_position(trade.id, float(exit_price))
+            engine = PaperTradingEngine(user=request.user)
+            engine.close_position(trade.id, float(exit_price), 'manual')
             
             trade.refresh_from_db()
             
@@ -147,7 +158,7 @@ class PaperTradeViewSet(viewsets.ModelViewSet):
         Get all open positions
         GET /api/paper-trades/open_positions/
         """
-        engine = PaperTradingEngine()
+        engine = PaperTradingEngine(user=request.user)
         positions = engine.get_open_positions()
         
         return Response(
@@ -163,7 +174,7 @@ class PaperTradeViewSet(viewsets.ModelViewSet):
         """
         days = int(request.query_params.get('days', 30))
         
-        engine = PaperTradingEngine()
+        engine = PaperTradingEngine(user=request.user)
         summary = engine.get_performance_summary(days=days)
         
         return Response(summary, status=status.HTTP_200_OK)
@@ -176,10 +187,45 @@ class PaperTradeViewSet(viewsets.ModelViewSet):
         """
         days = int(request.query_params.get('days', 30))
         
-        engine = PaperTradingEngine()
+        engine = PaperTradingEngine(user=request.user)
         curve = engine.get_equity_curve(days=days)
         
         return Response(curve, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['post'])
+    def update_positions(self, request):
+        """
+        Update all open positions with current prices
+        POST /api/paper-trades/update_positions/
+        """
+        prices = request.data.get('prices', {})
+        
+        if not prices:
+            # If no prices provided, return success with no updates
+            return Response({
+                'success': True,
+                'updated': 0,
+                'closed_trades': [],
+                'message': 'No prices provided'
+            }, status=status.HTTP_200_OK)
+        
+        try:
+            engine = PaperTradingEngine(user=request.user)
+            closed_trades = engine.update_positions(prices)
+            
+            return Response({
+                'success': True,
+                'updated': len(closed_trades),
+                'closed_trades': closed_trades,
+                'message': f'Updated positions, closed {len(closed_trades)} trades'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Position update error: {e}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 @api_view(['GET'])

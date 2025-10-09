@@ -7,8 +7,8 @@ from . import views
 
 # Create router for ViewSets
 router = DefaultRouter()
-router.register(r'trades', views.PaperTradeViewSet, basename='paper-trade')
-router.register(r'metrics', views.PerformanceMetricsViewSet, basename='performance-metrics')
+router.register(r'trades', views.PaperTradeViewSet, basename='papertrade')
+router.register(r'metrics', views.PerformanceMetricsViewSet, basename='performancemetrics')
 
 # URL patterns
 urlpatterns = [
