@@ -2,7 +2,10 @@
 Django Admin configuration for paper trading
 """
 from django.contrib import admin
-from .models import PaperTrade, PriceCache, PerformanceMetrics, APIUsageTracker
+from .models import (
+    PaperTrade, PriceCache, PerformanceMetrics, APIUsageTracker,
+    NotificationPreferences, NotificationLog
+)
 
 
 @admin.register(PaperTrade)
@@ -114,3 +117,95 @@ class APIUsageTrackerAdmin(admin.ModelAdmin):
         return f'{percentage:.1f}%'
     
     usage_percentage.short_description = 'Usage %'
+
+
+@admin.register(NotificationPreferences)
+class NotificationPreferencesAdmin(admin.ModelAdmin):
+    """Admin interface for notification preferences"""
+    
+    list_display = [
+        'user', 'active', 'enable_email', 'enable_sms',
+        'signal_filter', 'min_confidence', 'updated_at'
+    ]
+    list_filter = ['active', 'enable_email', 'enable_sms', 'signal_filter']
+    search_fields = ['user__username', 'user__email']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        ('User', {
+            'fields': ('user', 'active')
+        }),
+        ('Contact Methods', {
+            'fields': ('email_addresses', 'phone_numbers')
+        }),
+        ('Notification Channels', {
+            'fields': ('enable_email', 'enable_sms', 'enable_push')
+        }),
+        ('Filters', {
+            'fields': ('signal_filter', 'pair_filter', 'min_confidence')
+        }),
+        ('Triggers', {
+            'fields': (
+                'notify_new_signal', 'notify_trade_opened', 'notify_trade_closed',
+                'notify_tp_hit', 'notify_sl_hit', 'notify_system_status',
+                'notify_candle_prediction', 'notify_high_confidence'
+            )
+        }),
+        ('Quiet Hours', {
+            'fields': ('quiet_hours_start', 'quiet_hours_end'),
+            'classes': ('collapse',)
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(NotificationLog)
+class NotificationLogAdmin(admin.ModelAdmin):
+    """Admin interface for notification logs"""
+    
+    list_display = [
+        'id', 'user', 'notification_type', 'method', 'recipient',
+        'status', 'retry_count', 'created_at'
+    ]
+    list_filter = ['status', 'notification_type', 'method', 'created_at']
+    search_fields = ['user__username', 'recipient', 'subject']
+    readonly_fields = ['created_at', 'sent_at']
+    
+    fieldsets = (
+        ('Notification Details', {
+            'fields': ('user', 'notification_type', 'method', 'recipient')
+        }),
+        ('Content', {
+            'fields': ('subject', 'message', 'metadata')
+        }),
+        ('Delivery Status', {
+            'fields': ('status', 'sent_at', 'retry_count', 'error_message')
+        }),
+        ('Metadata', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    date_hierarchy = 'created_at'
+    
+    actions = ['retry_failed_notifications']
+    
+    def retry_failed_notifications(self, request, queryset):
+        """Admin action to retry failed notifications"""
+        from .notification_service import NotificationManager
+        
+        manager = NotificationManager()
+        retry_count = 0
+        
+        for log in queryset.filter(status='failed'):
+            # Retry logic would go here
+            log.increment_retry()
+            retry_count += 1
+        
+        self.message_user(request, f'{retry_count} notifications marked for retry.')
+    
+    retry_failed_notifications.short_description = 'Retry failed notifications'

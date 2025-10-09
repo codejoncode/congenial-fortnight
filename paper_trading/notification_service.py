@@ -376,7 +376,7 @@ class NotificationManager:
     
     def notify_signal(self, user, signal: Dict):
         """Send signal notification based on user preferences"""
-        from .notification_models import NotificationPreferences, NotificationLog
+        from .models import NotificationPreferences, NotificationLog
         
         try:
             prefs = NotificationPreferences.objects.get(user=user)
@@ -421,7 +421,7 @@ class NotificationManager:
     
     def notify_trade_opened(self, user, trade: Dict):
         """Send trade opened notification"""
-        from .notification_models import NotificationPreferences, NotificationLog
+        from .models import NotificationPreferences, NotificationLog
         
         try:
             prefs = NotificationPreferences.objects.get(user=user)
@@ -448,7 +448,7 @@ class NotificationManager:
     
     def notify_trade_closed(self, user, trade: Dict):
         """Send trade closed notification"""
-        from .notification_models import NotificationPreferences, NotificationLog
+        from .models import NotificationPreferences, NotificationLog
         
         try:
             prefs = NotificationPreferences.objects.get(user=user)
@@ -475,7 +475,7 @@ class NotificationManager:
     
     def notify_system_status(self, user, status: str, message: str):
         """Send system status notification"""
-        from .notification_models import NotificationPreferences
+        from .models import NotificationPreferences
         
         try:
             prefs = NotificationPreferences.objects.get(user=user)
@@ -503,7 +503,7 @@ class NotificationManager:
         status: str
     ):
         """Log notification delivery"""
-        from .notification_models import NotificationLog
+        from .models import NotificationLog
         
         try:
             NotificationLog.objects.create(
