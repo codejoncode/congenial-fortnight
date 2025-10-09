@@ -1,0 +1,217 @@
+/* Paper Trading App Styles */
+
+.paper-trading-app {
+  min-height: 100vh;
+  background: #1a1a1a;
+  color: #d9d9d9;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', sans-serif;
+}
+
+/* Header */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 30px;
+  background: #2b2b2b;
+  border-bottom: 2px solid #333;
+}
+
+.header-left h1 {
+  margin: 0;
+  font-size: 28px;
+  color: #1976d2;
+}
+
+.subtitle {
+  margin: 5px 0 0 0;
+  color: #999;
+  font-size: 14px;
+}
+
+.header-right {
+  display: flex;
+  gap: 10px;
+}
+
+.view-btn {
+  padding: 10px 20px;
+  background: #333;
+  color: #d9d9d9;
+  border: 2px solid #444;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.3s;
+}
+
+.view-btn:hover {
+  background: #444;
+  border-color: #1976d2;
+}
+
+.view-btn.active {
+  background: #1976d2;
+  border-color: #1976d2;
+  color: white;
+}
+
+/* Controls Bar */
+.controls-bar {
+  display: flex;
+  gap: 20px;
+  padding: 15px 30px;
+  background: #222;
+  border-bottom: 1px solid #333;
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.control-group label {
+  color: #999;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.control-group select {
+  padding: 8px 15px;
+  background: #333;
+  color: #d9d9d9;
+  border: 1px solid #444;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.control-group select:hover {
+  border-color: #1976d2;
+}
+
+/* Trading View Layout */
+.trading-view {
+  padding: 20px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.top-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  min-height: 650px;
+}
+
+.chart-container {
+  background: #2b2b2b;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.signals-container {
+  max-height: 650px;
+  overflow-y: auto;
+}
+
+.bottom-row {
+  background: #2b2b2b;
+  border-radius: 8px;
+}
+
+/* Performance View */
+.performance-view {
+  padding: 20px 30px;
+}
+
+/* Footer */
+.app-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 30px;
+  background: #2b2b2b;
+  border-top: 2px solid #333;
+  margin-top: auto;
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #4caf50;
+  font-size: 14px;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  background: #4caf50;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.footer-right {
+  display: flex;
+  gap: 15px;
+  color: #666;
+  font-size: 12px;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .top-row {
+    grid-template-columns: 1fr;
+  }
+
+  .signals-container {
+    max-height: 400px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-header {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .controls-bar {
+    flex-direction: column;
+  }
+
+  .trading-view {
+    padding: 10px;
+  }
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
