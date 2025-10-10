@@ -26,11 +26,11 @@ python-dotenv==1.0.0
 shap==0.45.1
 yellowbrick==1.5
 jsonschema==4.20.0
-pytest==8.4.2
+pytest==7.4.3
 pytest-django==4.7.0
 pytest-cov==4.1.0
-pytest-asyncio==1.2.0
-pytest-mock==3.15.1
+pytest-asyncio==0.21.2
+pytest-mock==3.14.0
 faker==37.11.0
 responses==0.23.1
 pytest-httpx==0.23.0
