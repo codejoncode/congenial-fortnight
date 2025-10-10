@@ -49,8 +49,8 @@ class USForexRules:
         # Check for existing positions in opposite direction
         opposing_positions = PaperTrade.objects.filter(
             user=self.engine.user,
-            symbol=symbol,
-            signal_type=opposite_type,
+            pair=symbol,
+            order_type=opposite_type.lower(),
             status='open'
         ).exists()
         
@@ -85,7 +85,7 @@ class USForexRules:
         # Get oldest open position for this symbol
         oldest_position = PaperTrade.objects.filter(
             user=self.engine.user,
-            symbol=symbol,
+            pair=symbol,
             status='open'
         ).order_by('entry_time').first()
         
@@ -138,7 +138,7 @@ class USForexRules:
         
         positions = PaperTrade.objects.filter(
             user=self.engine.user,
-            symbol=symbol,
+            pair=symbol,
             status='open'
         ).order_by('entry_time')  # FIFO order
         
@@ -193,7 +193,7 @@ class USForexRules:
         # Get oldest position
         oldest_position = PaperTrade.objects.filter(
             user=self.engine.user,
-            symbol=symbol,
+            pair=symbol,
             status='open'
         ).order_by('entry_time').first()
         
