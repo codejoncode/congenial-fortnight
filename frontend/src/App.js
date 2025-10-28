@@ -3,6 +3,9 @@ import axios from 'axios';
 import CandlestickChart from './CandlestickChart';
 import TradingViewChart from './TradingViewChart2';
 import UnifiedSignals from './components/UnifiedSignals';
+import DataUpdateButton from './components/DataUpdateButton';
+import GenerateSignalsButton from './components/GenerateSignalsButton';
+import SignalsDashboard from './components/SignalsDashboard';
 import './App.css';
 
 // API configuration
@@ -40,6 +43,7 @@ function App() {
     fetchHolloway(chartPair);
     const savedDarkMode = localStorage.getItem('darkMode') === 'true';
     setDarkMode(savedDarkMode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -83,8 +87,6 @@ function App() {
     setDarkMode(newDark);
     localStorage.setItem('darkMode', newDark.toString());
   };
-
-  const clearNotifications = () => setNotifications([]);
 
   const simulateTrade = (signal) => {
     const positionSize = 1000;
@@ -285,6 +287,70 @@ function App() {
           )}
         </div>
       </header>
+
+      {/* Signal Generation Controls Section */}
+      <div style={{
+        backgroundColor: darkMode ? '#1a1a2e' : '#ffffff',
+        padding: '30px',
+        borderRadius: '12px',
+        marginBottom: '30px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        border: darkMode ? '1px solid #2c3e50' : '1px solid #e9ecef'
+      }}>
+        <h2 style={{
+          marginBottom: '24px',
+          fontSize: '24px',
+          fontWeight: '700',
+          color: darkMode ? '#fff' : '#212529',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px'
+        }}>
+          ⚙️ Signal Control Center
+        </h2>
+        
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: '20px',
+          marginBottom: '30px'
+        }}>
+          <DataUpdateButton 
+            apiBaseUrl={API_BASE_URL}
+            onUpdateComplete={(data) => {
+              console.log('Data updated:', data);
+              // Optionally refresh signals after data update
+            }}
+          />
+          
+          <GenerateSignalsButton 
+            apiBaseUrl={API_BASE_URL}
+            onSignalsGenerated={(newSignals) => {
+              console.log('New signals generated:', newSignals);
+              setSignals(newSignals);
+              // Add notifications for new signals
+              newSignals.forEach(signal => {
+                const notification = {
+                  id: signal.id,
+                  message: `${signal.signal} signal for ${signal.pair}`,
+                  timestamp: new Date(),
+                  type: 'signal',
+                  signal: signal.signal,
+                  pair: signal.pair,
+                  probability: signal.probability
+                };
+                setNotifications(prev => [notification, ...prev.slice(0, 9)]);
+              });
+            }}
+          />
+        </div>
+
+        {/* New Signals Dashboard */}
+        <SignalsDashboard 
+          apiBaseUrl={API_BASE_URL}
+          signals={signals}
+        />
+      </div>
 
       {/* Main Content Area */}
       <div style={{ marginTop: '20px' }}>
@@ -521,7 +587,7 @@ function App() {
                 <div>Loading Holloway data...</div>
               ) : (
                 <div>
-                  {Object.keys(holloway).filter(k => k != 'latest_merged').map(tf => (
+                  {Object.keys(holloway).filter(k => k !== 'latest_merged').map(tf => (
                     holloway[tf] ? (
                       <div key={tf} style={{marginBottom: '10px'}}>
                         <strong>{tf.toUpperCase()}</strong>: Trend: {holloway[tf].trend_direction || 'N/A'}

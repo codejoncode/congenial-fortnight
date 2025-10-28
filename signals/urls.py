@@ -17,4 +17,6 @@ urlpatterns = [
     path('backtest/<str:pair>/', views.trading_backtest, name='trading_backtest'),
     path('data/status/', views.data_status, name='data_status'),
     path('data/update/', views.update_data, name='update_data'),
+    path('data/update-all/', views.update_data, name='update_data_all'),  # Alias for data update
+    path('signals/generate/', views.generate_signals, name='generate_signals'),  # New endpoint for signal generation
 ]

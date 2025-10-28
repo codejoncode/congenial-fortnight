@@ -411,6 +411,101 @@ def update_data(request):
         }, status=500)
 
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def update_data(request):
+    """
+    Trigger incremental data update for forex pairs.
+    Fetches only missing/new data to keep datasets current.
+    """
+    try:
+        from django.core.management import call_command
+        from io import StringIO
+        import sys
+
+        # Capture command output
+        out = StringIO()
+        
+        # Run the data fetch command
+        call_command('run_daily_signal', '--fetch-data', stdout=out)
+        
+        output = out.getvalue()
+        
+        # Parse output for results
+        updated_pairs = []
+        if 'Updated' in output or 'Created' in output:
+            if 'EURUSD' in output:
+                updated_pairs.append('EURUSD')
+            if 'XAUUSD' in output:
+                updated_pairs.append('XAUUSD')
+        
+        return Response({
+            'status': 'success',
+            'message': f'Data update completed',
+            'pairs': updated_pairs if updated_pairs else ['EURUSD', 'XAUUSD'],
+            'output': output,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Error updating data: {str(e)}")
+        return Response({
+            'status': 'error',
+            'error': f'Failed to update data: {str(e)}'
+        }, status=500)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def generate_signals(request):
+    """
+    Generate trading signals for all pairs.
+    Automatically fetches latest data before generating signals.
+    """
+    try:
+        from django.core.management import call_command
+        from io import StringIO
+        import sys
+
+        # Capture command output
+        out = StringIO()
+        
+        # Run signal generation with data fetch
+        call_command('run_daily_signal', '--fetch-data', stdout=out)
+        
+        output = out.getvalue()
+        
+        # Get the latest signals from database
+        latest_signals = Signal.objects.all().order_by('-date', '-id')[:2]  # Last 2 signals (EURUSD & XAUUSD)
+        
+        signals_data = []
+        for signal in latest_signals:
+            signals_data.append({
+                'id': signal.id,
+                'pair': signal.pair,
+                'signal': signal.signal,
+                'probability': float(signal.probability),
+                'stop_loss': float(signal.stop_loss),
+                'date': signal.date.isoformat(),
+                'created_at': signal.created_at.isoformat() if hasattr(signal, 'created_at') else None
+            })
+        
+        return Response({
+            'status': 'success',
+            'message': f'Successfully generated {len(signals_data)} signals',
+            'signals': signals_data,
+            'output': output,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Error generating signals: {str(e)}")
+        return Response({
+            'status': 'error',
+            'error': f'Failed to generate signals: {str(e)}'
+        }, status=500)
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_holloway(request, pair):
