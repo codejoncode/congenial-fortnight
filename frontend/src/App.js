@@ -6,6 +6,7 @@ import UnifiedSignals from './components/UnifiedSignals';
 import DataUpdateButton from './components/DataUpdateButton';
 import GenerateSignalsButton from './components/GenerateSignalsButton';
 import SignalsDashboard from './components/SignalsDashboard';
+import PaperTradingApp from './PaperTradingApp';
 import './App.css';
 
 // API configuration
@@ -37,6 +38,7 @@ function App() {
   });
   const [notifications, setNotifications] = useState([]);
   const [showPortfolio, setShowPortfolio] = useState(false);
+  const [activeTab, setActiveTab] = useState('signals'); // New: 'signals' or 'paper-trading'
 
   useEffect(() => {
     fetchSignals();
@@ -297,59 +299,117 @@ function App() {
         boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
         border: darkMode ? '1px solid #2c3e50' : '1px solid #e9ecef'
       }}>
-        <h2 style={{
-          marginBottom: '24px',
-          fontSize: '24px',
-          fontWeight: '700',
-          color: darkMode ? '#fff' : '#212529',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px'
-        }}>
-          ⚙️ Signal Control Center
-        </h2>
-        
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '20px',
-          marginBottom: '30px'
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '24px',
+          flexWrap: 'wrap',
+          gap: '16px'
         }}>
-          <DataUpdateButton 
-            apiBaseUrl={API_BASE_URL}
-            onUpdateComplete={(data) => {
-              console.log('Data updated:', data);
-              // Optionally refresh signals after data update
-            }}
-          />
+          <h2 style={{
+            margin: 0,
+            fontSize: '24px',
+            fontWeight: '700',
+            color: darkMode ? '#fff' : '#212529',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
+          }}>
+            ⚙️ Signal Control Center
+          </h2>
           
-          <GenerateSignalsButton 
-            apiBaseUrl={API_BASE_URL}
-            onSignalsGenerated={(newSignals) => {
-              console.log('New signals generated:', newSignals);
-              setSignals(newSignals);
-              // Add notifications for new signals
-              newSignals.forEach(signal => {
-                const notification = {
-                  id: signal.id,
-                  message: `${signal.signal} signal for ${signal.pair}`,
-                  timestamp: new Date(),
-                  type: 'signal',
-                  signal: signal.signal,
-                  pair: signal.pair,
-                  probability: signal.probability
-                };
-                setNotifications(prev => [notification, ...prev.slice(0, 9)]);
-              });
-            }}
-          />
+          {/* Tab Navigation */}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              onClick={() => setActiveTab('signals')}
+              style={{
+                padding: '10px 20px',
+                background: activeTab === 'signals' 
+                  ? 'linear-gradient(135deg, #667eea, #764ba2)' 
+                  : darkMode ? 'rgba(108,117,125,0.3)' : '#6c757d',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '600',
+                transition: 'all 0.3s ease',
+                boxShadow: activeTab === 'signals' ? '0 4px 12px rgba(102,126,234,0.4)' : 'none'
+              }}
+            >
+              📊 Signals
+            </button>
+            <button
+              onClick={() => setActiveTab('paper-trading')}
+              style={{
+                padding: '10px 20px',
+                background: activeTab === 'paper-trading' 
+                  ? 'linear-gradient(135deg, #667eea, #764ba2)' 
+                  : darkMode ? 'rgba(108,117,125,0.3)' : '#6c757d',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '600',
+                transition: 'all 0.3s ease',
+                boxShadow: activeTab === 'paper-trading' ? '0 4px 12px rgba(102,126,234,0.4)' : 'none'
+              }}
+            >
+              📈 Paper Trading
+            </button>
+          </div>
         </div>
+        
+        {activeTab === 'signals' ? (
+          <>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+              gap: '20px',
+              marginBottom: '30px'
+            }}>
+              <DataUpdateButton 
+                apiBaseUrl={API_BASE_URL}
+                onUpdateComplete={(data) => {
+                  console.log('Data updated:', data);
+                  // Optionally refresh signals after data update
+                }}
+              />
+              
+              <GenerateSignalsButton 
+                apiBaseUrl={API_BASE_URL}
+                onSignalsGenerated={(newSignals) => {
+                  console.log('New signals generated:', newSignals);
+                  setSignals(newSignals);
+                  // Add notifications for new signals
+                  newSignals.forEach(signal => {
+                    const notification = {
+                      id: signal.id,
+                      message: `${signal.signal} signal for ${signal.pair}`,
+                      timestamp: new Date(),
+                      type: 'signal',
+                      signal: signal.signal,
+                      pair: signal.pair,
+                      probability: signal.probability
+                    };
+                    setNotifications(prev => [notification, ...prev.slice(0, 9)]);
+                  });
+                }}
+              />
+            </div>
 
-        {/* New Signals Dashboard */}
-        <SignalsDashboard 
-          apiBaseUrl={API_BASE_URL}
-          signals={signals}
-        />
+            {/* New Signals Dashboard */}
+            <SignalsDashboard 
+              apiBaseUrl={API_BASE_URL}
+              signals={signals}
+              darkMode={darkMode}
+            />
+          </>
+        ) : (
+          <PaperTradingApp />
+        )}
       </div>
 
       {/* Main Content Area */}

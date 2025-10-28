@@ -19,4 +19,5 @@ urlpatterns = [
     path('data/update/', views.update_data, name='update_data'),
     path('data/update-all/', views.update_data, name='update_data_all'),  # Alias for data update
     path('signals/generate/', views.generate_signals, name='generate_signals'),  # New endpoint for signal generation
+    path('paper-trades/execute/', views.execute_paper_trade, name='execute_paper_trade'),  # Execute paper trade from signal
 ]

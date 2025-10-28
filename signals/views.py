@@ -16,6 +16,30 @@ from trading_system import TradingDataCollector, TradingStrategies
 # Configure logging
 logger = logging.getLogger(__name__)
 
+# Helper function to get current price from latest data
+def get_current_price(pair):
+    """Get current/latest price for a pair from CSV data"""
+    try:
+        # Try to find price file
+        for interval in ['H1', 'H4', 'Daily']:
+            data_path = f'data/{pair}_{interval}.csv' if interval != 'Daily' else f'data/{pair}_Daily.csv'
+            if os.path.exists(data_path):
+                df = pd.read_csv(data_path)
+                if 'close' in df.columns and len(df) > 0:
+                    return float(df.iloc[-1]['close'])
+        
+        # Fallback defaults for common pairs
+        defaults = {
+            'EURUSD': 1.0850,
+            'XAUUSD': 2650.00,
+            'GBPUSD': 1.2700,
+            'USDJPY': 149.50
+        }
+        return defaults.get(pair, 1.0)
+    except Exception as e:
+        logger.error(f"Error getting current price for {pair}: {e}")
+        return 1.0  # Safe fallback
+
 class SignalViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Signal.objects.all().order_by('-date')
     serializer_class = SignalSerializer
@@ -550,3 +574,95 @@ def get_holloway(request, pair):
     except Exception as e:
         logger.error(f"Error getting holloway for {pair}: {str(e)}")
         return Response({'error': str(e)}, status=500)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def execute_paper_trade(request):
+    """
+    Execute a paper trade from a signal
+    
+    POST body:
+        pair: Currency pair (e.g., 'EURUSD')
+        signal: 'bullish' or 'bearish'
+        stop_loss: Stop loss price
+        probability: Signal confidence (0-1)
+        lot_size: Position size in lots (default: 0.1)
+    
+    Returns:
+        Trade execution details
+    """
+    try:
+        # Import paper trading engine
+        from paper_trading.engine import PaperTradingEngine
+        
+        # Get request data
+        pair = request.data.get('pair')
+        signal = request.data.get('signal')
+        stop_loss = request.data.get('stop_loss')
+        probability = request.data.get('probability', 0.5)
+        lot_size = float(request.data.get('lot_size', 0.1))
+        
+        # Validate inputs
+        if not pair or not signal:
+            return Response({
+                'success': False,
+                'error': 'Missing required fields: pair and signal'
+            }, status=400)
+        
+        if signal not in ['bullish', 'bearish']:
+            return Response({
+                'success': False,
+                'error': 'Signal must be bullish or bearish'
+            }, status=400)
+        
+        # Get current price
+        current_price = get_current_price(pair)
+        
+        # Calculate take profit based on signal
+        if signal == 'bullish':
+            order_type = 'buy'
+            # TP is 1.5x the risk (SL distance)
+            sl_distance = current_price - float(stop_loss) if stop_loss else current_price * 0.02
+            take_profit = current_price + (sl_distance * 1.5)
+        else:
+            order_type = 'sell'
+            sl_distance = float(stop_loss) - current_price if stop_loss else current_price * 0.02
+            take_profit = current_price - (sl_distance * 1.5)
+        
+        # Initialize engine (user=None for now, can add auth later)
+        engine = PaperTradingEngine(initial_balance=10000.0, user=None)
+        
+        # Execute trade
+        trade = engine.execute_order(
+            pair=pair,
+            order_type=order_type,
+            entry_price=current_price,
+            stop_loss=float(stop_loss) if stop_loss else (current_price * 0.98 if signal == 'bullish' else current_price * 1.02),
+            take_profit_1=take_profit,
+            lot_size=lot_size,
+            signal_source='ml_signal',
+            notes=f"Auto-executed from signal (confidence: {float(probability)*100:.1f}%)"
+        )
+        
+        logger.info(f"Paper trade executed: {pair} {order_type} @ {current_price}")
+        
+        return Response({
+            'success': True,
+            'trade_id': trade.id,
+            'pair': trade.pair,
+            'order_type': order_type,
+            'entry_price': float(trade.entry_price),
+            'stop_loss': float(trade.stop_loss),
+            'take_profit': float(trade.take_profit_1) if trade.take_profit_1 else None,
+            'lot_size': float(trade.lot_size),
+            'timestamp': trade.entry_time.isoformat(),
+            'message': f'Paper trade executed successfully for {pair}'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error executing paper trade: {e}")
+        return Response({
+            'success': False,
+            'error': str(e)
+        }, status=500)
