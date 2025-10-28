@@ -1,0 +1,235 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.5, pytest-8.4.2, pluggy-1.6.0 -- /workspaces/congenial-fortnight/.venv/bin/python
+cachedir: .pytest_cache
+django: version: 5.2.6, settings: forex_signal.settings (from ini)
+rootdir: /workspaces/congenial-fortnight
+configfile: pytest.ini
+plugins: Faker-37.11.0, asyncio-1.2.0, cov-4.1.0, django-4.7.0, mock-3.15.1
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 62 items
+
+paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_cache_ohlc_database FAILED [  1%]
+paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_cache_price_redis FAILED [  3%]
+paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_can_use_api_exceeds_limit PASSED [  4%]
+paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_can_use_api_no_limit FAILED [  6%]
+paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_can_use_api_within_limit PASSED [  8%]
+paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_convert_symbol_twelve_data FAILED [  9%]
+paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_convert_symbol_yahoo FAILED [ 11%]
+paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_fetch_from_twelve_data_success FAILED [ 12%]
+paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_fetch_from_yahoo_failure PASSED [ 14%]
+paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_fetch_from_yahoo_success FAILED [ 16%]
+paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_get_historical_ohlc_from_database FAILED [ 17%]
+paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_get_realtime_price_api_rotation PASSED [ 19%]
+paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_get_realtime_price_from_cache FAILED [ 20%]
+paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_symbol_mapping FAILED [ 22%]
+paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_track_api_usage_existing_entry PASSED [ 24%]
+paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_track_api_usage_new_entry FAILED [ 25%]
+paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_calculate_pips_forex FAILED [ 27%]
+paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_calculate_pips_gold FAILED [ 29%]
+paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_calculate_pips_jpy FAILED [ 30%]
+paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_check_sl_hit_buy FAILED [ 32%]
+paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_check_sl_hit_sell FAILED [ 33%]
+paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_check_tp_hit_buy FAILED [ 35%]
+paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_close_position FAILED [ 37%]
+paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_execute_order_buy FAILED [ 38%]
+paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_execute_order_sell FAILED [ 40%]
+paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_execute_order_with_multiple_tps FAILED [ 41%]
+paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_get_equity_curve FAILED [ 43%]
+paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_get_open_positions FAILED [ 45%]
+paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_get_performance_summary FAILED [ 46%]
+paper_trading/tests/test_models.py::PaperTradeModelTest::test_calculate_pips_gained_buy FAILED [ 48%]
+paper_trading/tests/test_models.py::PaperTradeModelTest::test_calculate_pips_gained_sell FAILED [ 50%]
+paper_trading/tests/test_models.py::PaperTradeModelTest::test_create_paper_trade FAILED [ 51%]
+paper_trading/tests/test_models.py::PaperTradeModelTest::test_paper_trade_string_representation FAILED [ 53%]
+paper_trading/tests/test_models.py::PriceCacheModelTest::test_create_price_cache FAILED [ 54%]
+paper_trading/tests/test_models.py::PriceCacheModelTest::test_price_cache_ordering FAILED [ 56%]
+paper_trading/tests/test_models.py::PerformanceMetricsModelTest::test_create_performance_metrics FAILED [ 58%]
+paper_trading/tests/test_models.py::APIUsageTrackerModelTest::test_api_usage_tracker_unique_constraint PASSED [ 59%]
+paper_trading/tests/test_models.py::APIUsageTrackerModelTest::test_create_api_usage_tracker FAILED [ 61%]
+paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_broadcast_signal_alert FAILED [ 62%]
+paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_calculate_lot_size_confluence_signal FAILED [ 64%]
+paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_calculate_lot_size_high_confidence FAILED [ 66%]
+paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_calculate_lot_size_low_confidence FAILED [ 67%]
+paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_calculate_lot_size_medium_confidence FAILED [ 69%]
+paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_execute_signal_with_multiple_tps FAILED [ 70%]
+paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_get_signal_summary FAILED [ 72%]
+paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_process_signal_alert_only FAILED [ 74%]
+paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_process_signal_execute_trade FAILED [ 75%]
+paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_process_signal_validation_invalid_type FAILED [ 77%]
+paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_process_signal_validation_missing_fields FAILED [ 79%]
+paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_validate_signal_buy_prices FAILED [ 80%]
+paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_validate_signal_sell_prices FAILED [ 82%]
+paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_authentication_required FAILED [ 83%]
+paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_close_position_endpoint FAILED [ 85%]
+paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_create_trade_not_allowed FAILED [ 87%]
+paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_execute_trade_endpoint FAILED [ 88%]
+paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_execute_trade_missing_required_fields FAILED [ 90%]
+paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_get_equity_curve FAILED [ 91%]
+paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_get_open_positions FAILED [ 93%]
+paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_get_performance_summary FAILED [ 95%]
+paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_list_trades FAILED [ 96%]
+paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_update_positions_endpoint FAILED [ 98%]
+paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_user_can_only_see_own_trades FAILED [100%]
+
+=================================== FAILURES ===================================
+/workspaces/congenial-fortnight/paper_trading/tests/test_data_aggregator.py:168: AttributeError: 'DataAggregator' object has no attribute '_cache_ohlc'
+/workspaces/congenial-fortnight/paper_trading/tests/test_data_aggregator.py:151: AttributeError: 'DataAggregator' object has no attribute '_cache_price'
+/workspaces/congenial-fortnight/paper_trading/data_aggregator.py:392: KeyError: 'yahoo'
+/workspaces/congenial-fortnight/paper_trading/tests/test_data_aggregator.py:97: AttributeError: 'DataAggregator' object has no attribute '_convert_symbol'
+/workspaces/congenial-fortnight/paper_trading/tests/test_data_aggregator.py:89: AttributeError: 'DataAggregator' object has no attribute '_convert_symbol'
+/usr/lib/python3.13/unittest/case.py:732: AssertionError: unexpectedly None
+/usr/lib/python3.13/unittest/case.py:732: AssertionError: unexpectedly None
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/db/models/base.py:569: TypeError: PriceCache() got unexpected keyword arguments: 'open_price', 'high_price', 'low_price', 'close_price'
+/workspaces/congenial-fortnight/paper_trading/tests/test_data_aggregator.py:193: AssertionError: Expected '_fetch_from_yahoo' to not have been called. Called 1 times.
+/workspaces/congenial-fortnight/paper_trading/tests/test_data_aggregator.py:239: AttributeError: 'DataAggregator' object has no attribute 'symbol_mappings'
+/workspaces/congenial-fortnight/paper_trading/data_aggregator.py:409: KeyError: 'yahoo'
+/workspaces/congenial-fortnight/paper_trading/engine.py:25: decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+/workspaces/congenial-fortnight/paper_trading/engine.py:25: decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+/workspaces/congenial-fortnight/paper_trading/engine.py:25: decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+/workspaces/congenial-fortnight/paper_trading/engine.py:25: decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+/workspaces/congenial-fortnight/paper_trading/engine.py:25: decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+/workspaces/congenial-fortnight/paper_trading/engine.py:25: decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+/workspaces/congenial-fortnight/paper_trading/engine.py:25: decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+/workspaces/congenial-fortnight/paper_trading/engine.py:25: decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+/workspaces/congenial-fortnight/paper_trading/engine.py:25: decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+/workspaces/congenial-fortnight/paper_trading/engine.py:25: decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+/workspaces/congenial-fortnight/paper_trading/engine.py:25: decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+/workspaces/congenial-fortnight/paper_trading/engine.py:25: decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+/workspaces/congenial-fortnight/paper_trading/engine.py:25: decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/db/models/base.py:569: TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/db/models/base.py:569: TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/db/models/base.py:569: TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/db/models/base.py:569: TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/db/models/base.py:569: TypeError: PriceCache() got unexpected keyword arguments: 'open_price', 'high_price', 'low_price', 'close_price'
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/db/models/base.py:569: TypeError: PriceCache() got unexpected keyword arguments: 'open_price', 'high_price', 'low_price', 'close_price'
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/db/models/base.py:569: TypeError: PerformanceMetrics() got unexpected keyword arguments: 'user', 'symbol', 'total_profit_loss', 'average_risk_reward'
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/db/backends/sqlite3/base.py:360: django.db.utils.IntegrityError: NOT NULL constraint failed: api_usage_tracker.requests_limit
+/workspaces/congenial-fortnight/paper_trading/tests/test_signal_integration.py:224: AssertionError: Expected 'get_channel_layer' to have been called once. Called 0 times.
+/workspaces/congenial-fortnight/paper_trading/tests/test_signal_integration.py:62: TypeError: SignalIntegrationService._calculate_lot_size() got an unexpected keyword argument 'confidence'
+/workspaces/congenial-fortnight/paper_trading/tests/test_signal_integration.py:51: TypeError: SignalIntegrationService._calculate_lot_size() got an unexpected keyword argument 'confidence'
+/workspaces/congenial-fortnight/paper_trading/tests/test_signal_integration.py:29: TypeError: SignalIntegrationService._calculate_lot_size() got an unexpected keyword argument 'confidence'
+/workspaces/congenial-fortnight/paper_trading/tests/test_signal_integration.py:40: TypeError: SignalIntegrationService._calculate_lot_size() got an unexpected keyword argument 'confidence'
+/usr/lib/python3.13/unittest/case.py:732: AssertionError: unexpectedly None
+/workspaces/congenial-fortnight/paper_trading/tests/test_signal_integration.py:196: TypeError: SignalIntegrationService.process_signal() got an unexpected keyword argument 'auto_execute'
+/workspaces/congenial-fortnight/paper_trading/tests/test_signal_integration.py:117: TypeError: SignalIntegrationService.process_signal() got an unexpected keyword argument 'auto_execute'
+/workspaces/congenial-fortnight/paper_trading/tests/test_signal_integration.py:92: TypeError: SignalIntegrationService.process_signal() got an unexpected keyword argument 'auto_execute'
+/workspaces/congenial-fortnight/paper_trading/tests/test_signal_integration.py:152: TypeError: 'NoneType' object is not subscriptable
+/workspaces/congenial-fortnight/paper_trading/tests/test_signal_integration.py:136: TypeError: 'NoneType' object is not subscriptable
+/workspaces/congenial-fortnight/paper_trading/tests/test_signal_integration.py:229: AttributeError: 'SignalIntegrationService' object has no attribute '_validate_signal_prices'. Did you mean: '_validate_signal'?
+/workspaces/congenial-fortnight/paper_trading/tests/test_signal_integration.py:249: AttributeError: 'SignalIntegrationService' object has no attribute '_validate_signal_prices'. Did you mean: '_validate_signal'?
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/urls/resolvers.py:831: django.urls.exceptions.NoReverseMatch: Reverse for 'papertrade-list' not found. 'papertrade-list' is not a valid view function or pattern name.
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/db/models/base.py:569: TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/urls/resolvers.py:831: django.urls.exceptions.NoReverseMatch: Reverse for 'papertrade-list' not found. 'papertrade-list' is not a valid view function or pattern name.
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/urls/resolvers.py:831: django.urls.exceptions.NoReverseMatch: Reverse for 'papertrade-execute' not found. 'papertrade-execute' is not a valid view function or pattern name.
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/urls/resolvers.py:831: django.urls.exceptions.NoReverseMatch: Reverse for 'papertrade-execute' not found. 'papertrade-execute' is not a valid view function or pattern name.
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/urls/resolvers.py:831: django.urls.exceptions.NoReverseMatch: Reverse for 'papertrade-equity-curve' not found. 'papertrade-equity-curve' is not a valid view function or pattern name.
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/db/models/base.py:569: TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/db/models/base.py:569: TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/db/models/base.py:569: TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/db/models/base.py:569: TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+/workspaces/congenial-fortnight/.venv/lib/python3.13/site-packages/django/db/models/base.py:569: TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+
+---------- coverage: platform linux, python 3.13.5-final-0 -----------
+Name                                                    Stmts   Miss  Cover   Missing
+-------------------------------------------------------------------------------------
+paper_trading/__init__.py                                   2      0   100%
+paper_trading/admin.py                                     50     16    68%   46-62, 111-114
+paper_trading/apps.py                                       9      0   100%
+paper_trading/consumers.py                                 84     84     0%   5-217
+paper_trading/data_aggregator.py                          191     88    54%   113-114, 124, 164-190, 204, 219-225, 242-266, 272, 298-300, 306, 320-332, 341-388, 429-454, 464-480
+paper_trading/engine.py                                   106     83    22%   64-96, 109-137, 156-170, 174, 178, 197-206, 218-249, 280-298, 308-321, 334-360, 364-372
+paper_trading/management/__init__.py                        0      0   100%
+paper_trading/management/commands/__init__.py               0      0   100%
+paper_trading/management/commands/run_price_worker.py      51     51     0%   5-128
+paper_trading/migrations/0001_initial.py                    7      0   100%
+paper_trading/migrations/__init__.py                        0      0   100%
+paper_trading/models.py                                   133     36    73%   80, 84-94, 98-104, 108-115, 157, 195, 199-226, 252
+paper_trading/mt_bridge.py                                175    175     0%   6-389
+paper_trading/routing.py                                    3      3     0%   4-7
+paper_trading/serializers.py                               40     40     0%   5-95
+paper_trading/signal_integration.py                       100     60    40%   56-63, 75-83, 95-99, 106-138, 147-170, 177-199, 203-226, 230-257
+paper_trading/tests/__init__.py                             0      0   100%
+paper_trading/tests/conftest.py                             6      0   100%
+paper_trading/tests/test_data_aggregator.py               101     21    79%   29, 61-66, 90-93, 98, 114-115, 154-155, 171-176, 194, 231-234, 240-245
+paper_trading/tests/test_engine.py                         87     62    29%   29-42, 46-57, 61-73, 78-97, 102-123, 127-133, 137-143, 147-153, 157-174, 178-195, 199-216, 221-246, 250-267
+paper_trading/tests/test_models.py                         63     24    62%   40-43, 59-60, 79-82, 101-104, 124-126, 144-157, 186-188, 203-205
+paper_trading/tests/test_signal_integration.py             96     26    73%   36, 47, 58, 69, 97-99, 122-124, 137, 153, 179-181, 197-203, 235-244, 255-264
+paper_trading/tests/test_views.py                          83     45    46%   44-48, 53-65, 70-83, 88-96, 113-123, 140-158, 179-184, 189-192, 209-213, 220-222, 246-250
+paper_trading/urls.py                                       7      7     0%   4-14
+paper_trading/views.py                                    162    162     0%   5-368
+-------------------------------------------------------------------------------------
+TOTAL                                                    1556    983    37%
+Coverage HTML written to dir htmlcov
+
+=========================== short test summary info ============================
+FAILED paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_cache_ohlc_database - AttributeError: 'DataAggregator' object has no attribute '_cache_ohlc'
+FAILED paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_cache_price_redis - AttributeError: 'DataAggregator' object has no attribute '_cache_price'
+FAILED paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_can_use_api_no_limit - KeyError: 'yahoo'
+FAILED paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_convert_symbol_twelve_data - AttributeError: 'DataAggregator' object has no attribute '_convert_symbol'
+FAILED paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_convert_symbol_yahoo - AttributeError: 'DataAggregator' object has no attribute '_convert_symbol'
+FAILED paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_fetch_from_twelve_data_success - AssertionError: unexpectedly None
+FAILED paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_fetch_from_yahoo_success - AssertionError: unexpectedly None
+FAILED paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_get_historical_ohlc_from_database - TypeError: PriceCache() got unexpected keyword arguments: 'open_price', 'high_price', 'low_price', 'close_price'
+FAILED paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_get_realtime_price_from_cache - AssertionError: Expected '_fetch_from_yahoo' to not have been called. Called 1 times.
+Calls: [call('EURUSD'), call().__bool__()].
+
+pytest introspection follows:
+
+Args:
+assert ('EURUSD',) == ()
+  
+  Left contains one more item: 'EURUSD'
+  
+  Full diff:
+  - ()
+  + (
+  +     'EURUSD',
+  + )
+FAILED paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_symbol_mapping - AttributeError: 'DataAggregator' object has no attribute 'symbol_mappings'
+FAILED paper_trading/tests/test_data_aggregator.py::DataAggregatorTest::test_track_api_usage_new_entry - KeyError: 'yahoo'
+FAILED paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_calculate_pips_forex - decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+FAILED paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_calculate_pips_gold - decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+FAILED paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_calculate_pips_jpy - decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+FAILED paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_check_sl_hit_buy - decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+FAILED paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_check_sl_hit_sell - decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+FAILED paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_check_tp_hit_buy - decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+FAILED paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_close_position - decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+FAILED paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_execute_order_buy - decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+FAILED paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_execute_order_sell - decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+FAILED paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_execute_order_with_multiple_tps - decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+FAILED paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_get_equity_curve - decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+FAILED paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_get_open_positions - decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+FAILED paper_trading/tests/test_engine.py::PaperTradingEngineTest::test_get_performance_summary - decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+FAILED paper_trading/tests/test_models.py::PaperTradeModelTest::test_calculate_pips_gained_buy - TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+FAILED paper_trading/tests/test_models.py::PaperTradeModelTest::test_calculate_pips_gained_sell - TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+FAILED paper_trading/tests/test_models.py::PaperTradeModelTest::test_create_paper_trade - TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+FAILED paper_trading/tests/test_models.py::PaperTradeModelTest::test_paper_trade_string_representation - TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+FAILED paper_trading/tests/test_models.py::PriceCacheModelTest::test_create_price_cache - TypeError: PriceCache() got unexpected keyword arguments: 'open_price', 'high_price', 'low_price', 'close_price'
+FAILED paper_trading/tests/test_models.py::PriceCacheModelTest::test_price_cache_ordering - TypeError: PriceCache() got unexpected keyword arguments: 'open_price', 'high_price', 'low_price', 'close_price'
+FAILED paper_trading/tests/test_models.py::PerformanceMetricsModelTest::test_create_performance_metrics - TypeError: PerformanceMetrics() got unexpected keyword arguments: 'user', 'symbol', 'total_profit_loss', 'average_risk_reward'
+FAILED paper_trading/tests/test_models.py::APIUsageTrackerModelTest::test_create_api_usage_tracker - django.db.utils.IntegrityError: NOT NULL constraint failed: api_usage_tracker.requests_limit
+FAILED paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_broadcast_signal_alert - AssertionError: Expected 'get_channel_layer' to have been called once. Called 0 times.
+FAILED paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_calculate_lot_size_confluence_signal - TypeError: SignalIntegrationService._calculate_lot_size() got an unexpected keyword argument 'confidence'
+FAILED paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_calculate_lot_size_high_confidence - TypeError: SignalIntegrationService._calculate_lot_size() got an unexpected keyword argument 'confidence'
+FAILED paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_calculate_lot_size_low_confidence - TypeError: SignalIntegrationService._calculate_lot_size() got an unexpected keyword argument 'confidence'
+FAILED paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_calculate_lot_size_medium_confidence - TypeError: SignalIntegrationService._calculate_lot_size() got an unexpected keyword argument 'confidence'
+FAILED paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_execute_signal_with_multiple_tps - AssertionError: unexpectedly None
+FAILED paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_get_signal_summary - TypeError: SignalIntegrationService.process_signal() got an unexpected keyword argument 'auto_execute'
+FAILED paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_process_signal_alert_only - TypeError: SignalIntegrationService.process_signal() got an unexpected keyword argument 'auto_execute'
+FAILED paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_process_signal_execute_trade - TypeError: SignalIntegrationService.process_signal() got an unexpected keyword argument 'auto_execute'
+FAILED paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_process_signal_validation_invalid_type - TypeError: 'NoneType' object is not subscriptable
+FAILED paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_process_signal_validation_missing_fields - TypeError: 'NoneType' object is not subscriptable
+FAILED paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_validate_signal_buy_prices - AttributeError: 'SignalIntegrationService' object has no attribute '_validate_signal_prices'. Did you mean: '_validate_signal'?
+FAILED paper_trading/tests/test_signal_integration.py::SignalIntegrationServiceTest::test_validate_signal_sell_prices - AttributeError: 'SignalIntegrationService' object has no attribute '_validate_signal_prices'. Did you mean: '_validate_signal'?
+FAILED paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_authentication_required - django.urls.exceptions.NoReverseMatch: Reverse for 'papertrade-list' not found. 'papertrade-list' is not a valid view function or pattern name.
+FAILED paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_close_position_endpoint - TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+FAILED paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_create_trade_not_allowed - django.urls.exceptions.NoReverseMatch: Reverse for 'papertrade-list' not found. 'papertrade-list' is not a valid view function or pattern name.
+FAILED paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_execute_trade_endpoint - django.urls.exceptions.NoReverseMatch: Reverse for 'papertrade-execute' not found. 'papertrade-execute' is not a valid view function or pattern name.
+FAILED paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_execute_trade_missing_required_fields - django.urls.exceptions.NoReverseMatch: Reverse for 'papertrade-execute' not found. 'papertrade-execute' is not a valid view function or pattern name.
+FAILED paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_get_equity_curve - django.urls.exceptions.NoReverseMatch: Reverse for 'papertrade-equity-curve' not found. 'papertrade-equity-curve' is not a valid view function or pattern name.
+FAILED paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_get_open_positions - TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+FAILED paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_get_performance_summary - TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+FAILED paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_list_trades - TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+FAILED paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_update_positions_endpoint - TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+FAILED paper_trading/tests/test_views.py::PaperTradeViewSetTest::test_user_can_only_see_own_trades - TypeError: PaperTrade() got unexpected keyword arguments: 'user', 'symbol'
+======================== 56 failed, 6 passed in 11.52s =========================

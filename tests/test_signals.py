@@ -7,7 +7,7 @@ import numpy as np
 from scripts.day_trading_signals import DayTradingSignalGenerator
 from scripts.intraday_features import add_intraday_features
 from scripts.signal_backtester import backtest_signal
-from scripts.slump_signals import generate_slump_signals
+from scripts.slump_signals import SlumpSignalEngine
 from scripts.fundamental_signals import add_fundamental_signals
 from scripts.candlestick_patterns import add_candlestick_patterns
 from scripts.chart_patterns import add_chart_patterns
@@ -68,8 +68,11 @@ class TestSignalModules(unittest.TestCase):
         self.assertIn('cum_return', df_bt)
 
     def test_slump_signals(self):
-        signal = generate_slump_signals(self.df)
-        self.assertEqual(len(signal), len(self.df))
+        engine = SlumpSignalEngine()
+        df_with_signals = engine.generate_all_signals(self.df)
+        self.assertEqual(len(df_with_signals), len(self.df))
+        # Check that at least some signal columns were added
+        self.assertGreater(len(df_with_signals.columns), len(self.df.columns))
 
     def test_fundamental_signals(self):
         df_fund = add_fundamental_signals(self.df, self.fundamentals)
