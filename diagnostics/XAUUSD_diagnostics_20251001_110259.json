@@ -1,0 +1,63 @@
+{
+  "pair": "XAUUSD",
+  "timestamp": "2025-10-01T11:02:59.030498",
+  "models_analyzed": [
+    "ensemble",
+    "rf",
+    "xgb",
+    "calibrator",
+    "scaler"
+  ],
+  "data_summary": {
+    "price_observations": 252,
+    "feature_observations": 0,
+    "date_range": {
+      "start": "2024-10-01T00:00:00",
+      "end": "2025-09-30T00:00:00"
+    }
+  },
+  "feature_importance": {
+    "error": "No feature data available"
+  },
+  "stability": {
+    "error": "No feature data available"
+  },
+  "error_analysis": {
+    "error_distribution": {},
+    "error_by_time": {},
+    "error_by_magnitude": {},
+    "systematic_biases": {},
+    "error": "argument of type 'CalibratedClassifierCV' is not iterable"
+  },
+  "calibration": {
+    "error": "No feature data available"
+  },
+  "recommendations": [
+    {
+      "priority": "medium",
+      "category": "data",
+      "issue": "Data quality check",
+      "recommendation": "Implement automated data validation and cleaning",
+      "expected_impact": "medium"
+    },
+    {
+      "priority": "low",
+      "category": "monitoring",
+      "issue": "Model monitoring",
+      "recommendation": "Set up automated model performance monitoring",
+      "expected_impact": "low"
+    }
+  ],
+  "summary": {
+    "overall_health": "poor",
+    "key_metrics": {
+      "model_stability": 0
+    },
+    "risk_assessment": {
+      "level": "medium",
+      "issues": [
+        "Limited historical data"
+      ]
+    }
+  }
+}

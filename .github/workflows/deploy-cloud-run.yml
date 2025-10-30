@@ -1,0 +1,108 @@
+name: Deploy to Cloud Run & Train Models
+
+on:
+  push:
+    branches: [ main, enhancements_backend ]
+    paths:
+      - 'forex_signal/**'
+      - 'signals/**'
+      - 'scripts/**'
+      - 'requirements.txt'
+      - 'Dockerfile'
+      - 'cloudbuild.yaml'
+      - 'manage.py'
+  workflow_dispatch:
+    inputs:
+      target_accuracy:
+        description: 'Target accuracy for automated training'
+        required: false
+        default: '0.85'
+        type: string
+      max_iterations:
+        description: 'Maximum iterations for training'
+        required: false
+        default: '50'
+        type: string
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+  FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+  EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+  EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+  NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
+  NOTIFICATION_SMS: ${{ secrets.NOTIFICATION_SMS }}
+
+jobs:
+  deploy-and-train:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Build and Deploy with Cloud Build
+      run: |
+        gcloud builds submit --config cloudbuild.yaml \
+          --substitutions _REGION="us-central1",_FRED_API_KEY="${{ env.FRED_API_KEY }}",_EMAIL_USERNAME="${{ env.EMAIL_USERNAME }}",_EMAIL_FROM="${{ env.EMAIL_FROM }}",_NOTIFICATION_EMAIL="${{ env.NOTIFICATION_EMAIL }}",_NOTIFICATION_SMS="${{ env.NOTIFICATION_SMS }}" \
+          .
+
+    - name: Run Automated Training Job
+      run: |
+        # Extract target accuracy and max iterations from workflow inputs or defaults
+        TARGET_ACCURACY="${{ github.event.inputs.target_accuracy || '0.85' }}"
+        MAX_ITERATIONS="${{ github.event.inputs.max_iterations || '50' }}"
+
+        echo "Starting automated training with target accuracy: $TARGET_ACCURACY, max iterations: $MAX_ITERATIONS"
+
+        # Run the training job
+        gcloud run jobs execute automated-training \
+          --region us-central1 \
+          --args="--target,$TARGET_ACCURACY,--max-iterations,$MAX_ITERATIONS" \
+          --wait
+
+    - name: Check Training Results
+      run: |
+        echo "Checking training job status..."
+        gcloud run jobs describe automated-training --region us-central1 --format "value(status.conditions[0].message)"
+
+    - name: Notify on Completion
+      if: always()
+      run: |
+        if [ ${{ job.status }} == 'success' ]; then
+          echo "Deployment and training completed successfully!"
+        else
+          echo "Deployment or training failed. Check logs above."
+          exit 1
+        fi
+
+    - name: Upload CSV files to Cloud Storage
+      run: |
+        # Create bucket if it doesn't exist
+        gsutil mb -p ${{ env.GCP_PROJECT_ID }} gs://${{ env.GCP_PROJECT_ID }}-forex-data || true
+        
+        # Upload all CSV files from output directory
+        if [ -d "output" ]; then
+          gsutil -m cp -r output/*.csv gs://${{ env.GCP_PROJECT_ID }}-forex-data/ || true
+          gsutil -m cp -r output/*.json gs://${{ env.GCP_PROJECT_ID }}-forex-data/ || true
+        fi
+        
+        # Upload model files
+        if [ -d "models" ]; then
+          gsutil -m cp -r models/*.joblib gs://${{ env.GCP_PROJECT_ID }}-forex-data/models/ || true
+        fi
+
+    - name: Test deployment
+      run: |
+        # Wait a moment for deployment to be ready
+        sleep 30
+        # Test the API endpoint
+        curl -f https://congenial-fortnight-1034520618737.europe-west1.run.app/api/signals/ || exit 1

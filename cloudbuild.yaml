@@ -1,0 +1,111 @@
+options:
+  logging: LEGACY
+  machineType: 'E2_HIGHCPU_8'  # Use high-CPU machine for faster builds
+  diskSizeGb: 100
+  substitutionOption: 'ALLOW_LOOSE'
+
+steps:
+  # Build the Docker image with caching
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      [
+        'build',
+        '--cache-from', 'gcr.io/$PROJECT_ID/congenial-fortnight:latest',
+        '-t', 'gcr.io/$PROJECT_ID/congenial-fortnight:v1',
+        '-t', 'gcr.io/$PROJECT_ID/congenial-fortnight:latest',
+        '.',
+      ]
+
+  # Push both tags to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/congenial-fortnight:v1']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/congenial-fortnight:latest']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      [
+        'run',
+        'deploy',
+        'congenial-fortnight',
+        '--image',
+        'gcr.io/$PROJECT_ID/congenial-fortnight:v1',
+        '--region',
+        '${_REGION}',
+        '--platform',
+        'managed',
+        '--allow-unauthenticated',
+        '--port',
+        '8080',
+        '--memory',
+        '2Gi',
+        '--cpu',
+        '1',
+        '--max-instances',
+        '10',
+        '--concurrency',
+        '80',
+        '--timeout',
+        '300',
+        '--set-env-vars',
+        'FRED_API_KEY=${_FRED_API_KEY},GMAIL_USERNAME=${_GMAIL_USERNAME},GMAIL_APP_PASSWORD=${_GMAIL_APP_PASSWORD},NOTIFICATION_EMAIL=${_NOTIFICATION_EMAIL},NOTIFICATION_SMS=${_NOTIFICATION_SMS},ALPHA_VANTAGE_API_KEY=${_ALPHA_VANTAGE_API_KEY},FINNHUB_API_KEY=${_FINNHUB_API_KEY},FMP_API_KEY=${_FMP_API_KEY},API_NINJAS_API_KEY=${_API_NINJAS_API_KEY},FINNHUB_ACCOUNT_EMAIL=${_FINNHUB_ACCOUNT_EMAIL}',
+      ]
+
+  # Delete existing training job if it exists
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      [
+        '-c',
+        'gcloud run jobs delete automated-training --region ${_REGION} --quiet || true',
+      ]
+    waitFor: ['-']
+
+  # Run automated training job after deployment
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      [
+        'run',
+        'jobs',
+        'create',
+        'automated-training',
+        '--image',
+        'gcr.io/$PROJECT_ID/congenial-fortnight:v1',
+        '--region',
+        '${_REGION}',
+        '--set-env-vars',
+        'FRED_API_KEY=${_FRED_API_KEY},GMAIL_USERNAME=${_GMAIL_USERNAME},GMAIL_APP_PASSWORD=${_GMAIL_APP_PASSWORD},NOTIFICATION_EMAIL=${_NOTIFICATION_EMAIL},NOTIFICATION_SMS=${_NOTIFICATION_SMS},ALPHA_VANTAGE_API_KEY=${_ALPHA_VANTAGE_API_KEY},FINNHUB_API_KEY=${_FINNHUB_API_KEY},FMP_API_KEY=${_FMP_API_KEY},API_NINJAS_API_KEY=${_API_NINJAS_API_KEY},FINNHUB_ACCOUNT_EMAIL=${_FINNHUB_ACCOUNT_EMAIL}',
+        '--memory',
+        '4Gi',
+        '--cpu',
+        '2',
+        '--max-retries',
+        '3',
+        '--task-timeout',
+        '3600',
+        '--command',
+        'python,manage.py,run_daily_signal,--fetch-data',
+      ]
+    waitFor: ['-']
+
+images:
+  - 'gcr.io/$PROJECT_ID/congenial-fortnight:v1'
+  - 'gcr.io/$PROJECT_ID/congenial-fortnight:latest'
+
+substitutions:
+  _REGION: us-central1
+  _FRED_API_KEY: 850a0ae886d3d75d89c58eb7e92a97ee
+  _GMAIL_USERNAME: 1man2amazing@gmail.com
+  _GMAIL_APP_PASSWORD: ajlkyonpbkljeqzc
+  _NOTIFICATION_EMAIL: mydecretor@protonmail.com
+  _NOTIFICATION_SMS: "7084652230"
+  _ALPHA_VANTAGE_API_KEY: I5YWRTOSI66VCNZ3
+  _FINNHUB_ACCOUNT_EMAIL: jonathanjamelholloway@gmail.com
+  _FINNHUB_API_KEY: D3fchl1r01qolknclli0d3fchl1r01qolkncllig
+  _FMP_API_KEY: ZxESabcaMZjG3afC244wWBK8s1XSk6eq
+  _API_NINJAS_API_KEY: eDfQfKSB3yRss5lf1AeCmA==1nG53v9DPIz49KdF
+
+timeout: '3600s'  # 60 minutes - increased for ML model builds

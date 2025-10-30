@@ -1,0 +1,21 @@
+{
+  "start_time": "2025-10-07T15:14:45.124123",
+  "end_time": "2025-10-07T15:16:12.595246",
+  "duration_seconds": 87.471123,
+  "pairs": {
+    "EURUSD": {
+      "pair": "EURUSD",
+      "status": "success",
+      "error": null,
+      "start_time": "2025-10-07T15:14:45.124438",
+      "end_time": "2025-10-07T15:16:12.592991",
+      "duration_seconds": 87.468553,
+      "validation_accuracy": 0.6085657370517928,
+      "test_accuracy": 0.6417910447761194,
+      "n_features": 346,
+      "n_samples": 6695,
+      "model_path": "/workspaces/congenial-fortnight/models/EURUSD_model.txt",
+      "signal_eval_path": "EURUSD_signal_evaluation.csv"
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "Symbol": "EURUSD",
+  "PERatio": "15.23",
+  "EBITDA": "1000000",
+  "DebtToEquity": "0.00",
+  "MarketCapitalization": "N/A"
+}{
+  "Symbol": "EURUSD",
+  "PERatio": 15.23,
+  "EBITDA": null,
+  "DebtToEquity": 0.0,
+  "MarketCapitalization": null
+}

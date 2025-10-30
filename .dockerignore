@@ -1,0 +1,82 @@
+# Build and cache directories
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.coverage
+.pytest_cache/
+.venv/
+venv/
+env/
+ENV/
+
+# Node modules and build artifacts
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+frontend/node_modules/
+frontend/build/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git and version control
+.git/
+.gitignore
+.gitattributes
+
+# Documentation and README files
+README.md
+*.md
+docs/
+
+# Development and testing files
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+
+# Database files
+*.db
+*.sqlite3
+db.sqlite3
+
+# Model files (too large for build context)
+models/*.joblib
+models/*.pkl
+models/*.json
+backtests/
+diagnostics/
+output/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Cloud build files
+cloudbuild.yaml
+.gcloudignore
