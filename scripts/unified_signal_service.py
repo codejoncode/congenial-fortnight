@@ -102,12 +102,27 @@ class UnifiedSignalService:
         signals = []
         
         try:
+            # Handle ensemble model dict (contains rf, xgb, scaler, calibrator)
+            if isinstance(ml_model, dict):
+                # Use the ensemble model if available, otherwise use rf
+                if 'ensemble' in ml_model:
+                    model = ml_model['ensemble']
+                elif 'calibrator' in ml_model:
+                    model = ml_model['calibrator']
+                elif 'rf' in ml_model:
+                    model = ml_model['rf']
+                else:
+                    logger.warning("No usable model found in ensemble dict")
+                    return []
+            else:
+                model = ml_model
+            
             # Get model predictions
             # Note: This assumes features are already calculated
             # In production, you'd integrate with forecasting.py
             
             # For the last bar, generate a quality signal
-            predictions = ml_model.predict_proba(df.tail(1))  # Assuming features are in df
+            predictions = model.predict_proba(df.tail(1))  # Assuming features are in df
             prob = predictions[0]
             
             model_prediction = {

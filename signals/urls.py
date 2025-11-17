@@ -2,22 +2,33 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
 
+# Router for the SignalViewSet (database signals list)
 router = DefaultRouter()
-router.register(r'signals', views.SignalViewSet)
+router.register(r'db', views.SignalViewSet, basename='signal-db')
 
 urlpatterns = [
+    # Router URLs (creates /api/db/ endpoint for Signal model)
     path('', include(router.urls)),
+    
+    # Custom signal endpoints
+    path('signals/', views.SignalViewSet.as_view({'get': 'list'}), name='signals_list'),
+    path('signals/unified/', views.unified_signals, name='unified_signals'),
+    path('signals/generate/', views.generate_signals, name='generate_signals'),
+    path('signals/<str:pair>/', views.get_signals, name='get_signals'),
+    
+    # Backtest endpoints
     path('backtest/', views.backtest_results, name='backtest_results'),
     path('backtest/csv/', views.download_backtest_csv, name='download_backtest_csv'),
-    path('historical/', views.get_historical_data, name='get_historical_data'),
-    path('health/', views.health_check, name='health_check'),
-    path('unified/', views.unified_signals, name='unified_signals'),
-    path('holloway/<str:pair>/', views.get_holloway, name='get_holloway'),
-    path('signals/<str:pair>/', views.get_signals, name='get_signals'),
     path('backtest/<str:pair>/', views.trading_backtest, name='trading_backtest'),
+    
+    # Data endpoints
+    path('historical/', views.get_historical_data, name='get_historical_data'),
+    path('holloway/<str:pair>/', views.get_holloway, name='get_holloway'),
     path('data/status/', views.data_status, name='data_status'),
     path('data/update/', views.update_data, name='update_data'),
-    path('data/update-all/', views.update_data, name='update_data_all'),  # Alias for data update
-    path('signals/generate/', views.generate_signals, name='generate_signals'),  # New endpoint for signal generation
-    path('paper-trades/execute/', views.execute_paper_trade, name='execute_paper_trade'),  # Execute paper trade from signal
+    path('data/update-all/', views.update_data, name='update_data_all'),
+    
+    # Other endpoints
+    path('health/', views.health_check, name='health_check'),
+    path('paper-trades/execute/', views.execute_paper_trade, name='execute_paper_trade'),
 ]

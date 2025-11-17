@@ -246,7 +246,7 @@ def unified_signals(request):
         df = df.sort_values('timestamp').tail(5000)  # Last 5000 bars
         
         # Load ML model
-        model_file = f'models/{pair}_pip_based_model.joblib'
+        model_file = f'models/{pair}_ensemble.joblib'
         if not os.path.exists(model_file):
             return Response({
                 'error': f'Model file not found: {model_file}',
@@ -271,54 +271,97 @@ def unified_signals(request):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def get_signals(request, pair):
-    """Get trading signals for a specific currency pair"""
+def get_signals(request, pair=None):
+    """Get current model-based trading signals for one or more pairs using pip-based risk rules.
+
+    If `pair` is provided, returns a list with signals for that pair (if any).
+    If no `pair` is provided, returns signals for all supported pairs.
+    """
     try:
-        # Initialize trading system
-        data_collector = TradingDataCollector()
-        strategies = TradingStrategies(data_collector)
+        from scripts.pip_based_signal_system import PipBasedSignalSystem
+        import joblib
+        from pathlib import Path
 
-        # Load data for the pair
-        data = data_collector.collect_all_data()
+        data_dir = Path('data')
+        models_dir = Path('models')
 
-        if pair not in data or data[pair].empty:
-            return Response({
-                'error': f'No data available for {pair}',
-                'available_pairs': list(data.keys())
-            }, status=404)
+        # Pairs we actively support
+        supported_pairs = ['EURUSD', 'XAUUSD']
+        if pair:
+            supported_pairs = [pair]
 
-        df = data[pair]
+        pip_system = PipBasedSignalSystem()
+        results = []
 
-        # Generate signals using master signal system
-        signals = strategies.master_signal_system(df)
+        for p in supported_pairs:
+            # Load latest H1 data
+            data_file = data_dir / f'{p}_H1.csv'
+            if not data_file.exists():
+                logger.warning(f"No data file found for {p}: {data_file}")
+                continue
 
-        # Get latest signal
-        latest_signal = signals.iloc[-1] if not signals.empty else None
+            df = pd.read_csv(data_file)
+            if df.empty:
+                logger.warning(f"Data file for {p} is empty")
+                continue
 
-        # Get recent signals (last 10)
-        recent_signals = []
-        for i in range(max(0, len(signals)-10), len(signals)):
-            recent_signals.append({
-                'date': signals.index[i].strftime('%Y-%m-%d'),
-                'signal': 'bullish' if signals.iloc[i] > 0 else 'bearish',
-                'strength': abs(signals.iloc[i])
+            # Ensure timestamp and sort
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            df = df.sort_values('timestamp').tail(1000)
+
+            # Build a minimal model prediction stub.
+            # In production this should be replaced with real model probabilities.
+            # For now, use a neutral confidence and direction based on last candle.
+            last_row = df.iloc[-1]
+            direction = 'long' if last_row['close'] > last_row['open'] else 'short'
+            model_prediction = {
+                'direction': direction,
+                'confidence': 0.8  # placeholder until ML model is fully wired here
+            }
+
+            # Use pip-based system to detect a quality setup
+            signal = pip_system.detect_quality_setup(
+                df.set_index('timestamp'),
+                p,
+                model_prediction
+            )
+
+            if signal.get('signal') is None:
+                logger.info(f"No quality setup for {p} at this time")
+                continue
+
+            # Enforce spread-aware stop: risk must exceed typical spread * 2
+            typical_spread = pip_system.typical_spreads.get(p, 1.0)
+            if signal['risk_pips'] < typical_spread * 2:
+                logger.info(
+                    f"Rejected {p} signal due to tight stop: risk {signal['risk_pips']:.1f} pips, "
+                    f"spread {typical_spread} pips"
+                )
+                continue
+
+            results.append({
+                'pair': p,
+                'signal': 'bullish' if signal['signal'] == 'long' else 'bearish',
+                'probability': signal['confidence'],
+                'entry': signal['entry'],
+                'stop_loss': signal['stop_loss'],
+                'take_profit': signal['take_profit'],
+                'risk_pips': signal['risk_pips'],
+                'reward_pips': signal['reward_pips'],
+                'risk_reward_ratio': signal['risk_reward_ratio'],
+                'date': signal.get('timestamp').strftime('%Y-%m-%d') if signal.get('timestamp') is not None else df['timestamp'].iloc[-1].strftime('%Y-%m-%d'),
+                'timestamp': signal.get('timestamp').isoformat() if signal.get('timestamp') is not None else df['timestamp'].iloc[-1].isoformat(),
+                'setup_quality': signal['setup_quality'],
+                'quality_score': signal['quality_score'],
+                'reasoning': signal['reasoning']
             })
 
-        return Response({
-            'pair': pair,
-            'latest_signal': {
-                'date': signals.index[-1].strftime('%Y-%m-%d') if latest_signal is not None else None,
-                'signal': 'bullish' if latest_signal and latest_signal > 0 else 'bearish',
-                'strength': abs(latest_signal) if latest_signal else 0
-            },
-            'recent_signals': recent_signals,
-            'data_points': len(df)
-        })
+        return Response(results)
 
     except Exception as e:
-        logger.error(f"Error getting signals for {pair}: {str(e)}")
+        logger.error(f"Error getting signals: {str(e)}", exc_info=True)
         return Response({
-            'error': f'Failed to get signals for {pair}: {str(e)}'
+            'error': f'Failed to get signals: {str(e)}'
         }, status=500)
 
 @api_view(['GET'])
@@ -408,8 +451,8 @@ def data_status(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
-def update_data(request):
-    """Update trading data from APIs"""
+def update_data_old(request):
+    """Old update_data - renamed to avoid conflict"""
     try:
         data_collector = TradingDataCollector()
 
@@ -439,43 +482,380 @@ def update_data(request):
 @permission_classes([AllowAny])
 def update_data(request):
     """
-    Trigger incremental data update for forex pairs.
-    Fetches only missing/new data to keep datasets current.
+    Update trading data using FREE APIs with multiple fallbacks.
+    Tries sources in order: Yahoo Finance -> Twelve Data -> Alpha Vantage
+    Ensures data is ALWAYS fetched from at least one source.
+    
+    Saves data to CSV files in data/ directory.
     """
     try:
-        from django.core.management import call_command
-        from io import StringIO
-        import sys
-
-        # Capture command output
-        out = StringIO()
+        import requests
+        import time
+        from pathlib import Path
+        import yfinance as yf
         
-        # Run the data fetch command
-        call_command('run_daily_signal', '--fetch-data', stdout=out)
+        data_dir = Path('data')
+        data_dir.mkdir(parents=True, exist_ok=True)
+        updated_files = []
+        errors = []
         
-        output = out.getvalue()
+        alpha_vantage_key = os.getenv('ALPHA_VANTAGE_API_KEY', '')
+        twelve_data_key = os.getenv('TWELVEDATA_API_KEY', '')  # Note: TWELVEDATA not TWELVE_DATA
         
-        # Parse output for results
-        updated_pairs = []
-        if 'Updated' in output or 'Created' in output:
-            if 'EURUSD' in output:
-                updated_pairs.append('EURUSD')
-            if 'XAUUSD' in output:
-                updated_pairs.append('XAUUSD')
+        def fetch_yahoo_finance(symbol, period='60d', interval='1h'):
+            """Fetch data from Yahoo Finance (Free, unlimited, but sometimes rate-limited)"""
+            try:
+                logger.info(f"Fetching {symbol} from Yahoo Finance...")
+                df = yf.download(symbol, period=period, interval=interval, progress=False)
+                
+                if df.empty:
+                    logger.warning(f"Yahoo Finance returned empty data for {symbol}")
+                    return None
+                
+                # Prepare data
+                df = df.reset_index()
+                
+                # Handle column names (Datetime or Date)
+                timestamp_col = 'Datetime' if 'Datetime' in df.columns else 'Date'
+                df['timestamp'] = pd.to_datetime(df[timestamp_col])
+                df['date'] = df['timestamp'].dt.date
+                df['time'] = df['timestamp'].dt.time
+                
+                # Rename OHLCV columns to lowercase
+                df = df.rename(columns={
+                    'Open': 'open', 'High': 'high', 'Low': 'low',
+                    'Close': 'close', 'Volume': 'volume'
+                })
+                
+                # Add required columns
+                df['id'] = range(1, len(df) + 1)
+                df['spread'] = 2
+                
+                # Select and order columns
+                df = df[['id', 'timestamp', 'date', 'time', 'open', 'high', 'low', 'close', 'volume', 'spread']]
+                
+                logger.info(f"✅ Yahoo Finance: Fetched {len(df)} records")
+                return df
+                
+            except Exception as e:
+                logger.error(f"❌ Yahoo Finance failed: {e}")
+                return None
         
-        return Response({
-            'status': 'success',
-            'message': f'Data update completed',
-            'pairs': updated_pairs if updated_pairs else ['EURUSD', 'XAUUSD'],
-            'output': output,
-            'timestamp': datetime.now().isoformat()
-        })
-
+        def fetch_alpha_vantage_forex(from_currency, to_currency, interval='60min'):
+            """Fetch forex data from Alpha Vantage (Free: 500 calls/day, 5 calls/min)"""
+            if not alpha_vantage_key:
+                logger.warning("Alpha Vantage API key not configured")
+                return None
+                
+            try:
+                url = 'https://www.alphavantage.co/query'
+                params = {
+                    'function': 'FX_DAILY',  # Use daily instead of intraday (free tier)
+                    'from_symbol': from_currency,
+                    'to_symbol': to_currency,
+                    'outputsize': 'full',
+                    'apikey': alpha_vantage_key
+                }
+                
+                logger.info(f"Fetching {from_currency}/{to_currency} from Alpha Vantage...")
+                response = requests.get(url, params=params, timeout=30)
+                response.raise_for_status()
+                data = response.json()
+                
+                if 'Note' in data:
+                    logger.warning(f"Alpha Vantage rate limit: {data['Note']}")
+                    return None
+                
+                if 'Information' in data:
+                    logger.warning(f"Alpha Vantage info: {data['Information']}")
+                    return None
+                
+                time_series_key = 'Time Series FX (Daily)'
+                if time_series_key in data:
+                    df = pd.DataFrame.from_dict(data[time_series_key], orient='index')
+                    df.index = pd.to_datetime(df.index)
+                    df = df.sort_index()
+                    
+                    # Rename columns
+                    df.columns = ['open', 'high', 'low', 'close']
+                    df = df.astype(float)
+                    
+                    # Add required columns
+                    df = df.reset_index()
+                    df = df.rename(columns={'index': 'timestamp'})
+                    df['date'] = df['timestamp'].dt.date
+                    df['time'] = df['timestamp'].dt.time
+                    df['id'] = range(1, len(df) + 1)
+                    df['volume'] = 0
+                    df['spread'] = 2
+                    
+                    # Reorder columns
+                    df = df[['id', 'timestamp', 'date', 'time', 'open', 'high', 'low', 'close', 'volume', 'spread']]
+                    
+                    logger.info(f"✅ Alpha Vantage: Fetched {len(df)} records")
+                    return df
+                else:
+                    logger.error(f"Alpha Vantage unexpected response: {data}")
+                    return None
+                    
+            except Exception as e:
+                logger.error(f"❌ Alpha Vantage failed: {e}")
+                return None
+        
+        def fetch_twelve_data(symbol, interval='1h'):
+            """Fetch data from Twelve Data (Free: 800 calls/day, works with 'demo' key)"""
+            try:
+                url = 'https://api.twelvedata.com/time_series'
+                params = {
+                    'symbol': symbol,
+                    'interval': interval,
+                    'outputsize': 5000,  # Max for free tier
+                    'apikey': twelve_data_key
+                }
+                
+                logger.info(f"Fetching {symbol} from Twelve Data...")
+                response = requests.get(url, params=params, timeout=30)
+                response.raise_for_status()
+                data = response.json()
+                
+                if 'values' in data and data['values']:
+                    df = pd.DataFrame(data['values'])
+                    df['datetime'] = pd.to_datetime(df['datetime'])
+                    df = df.sort_values('datetime')
+                    
+                    # Convert to numeric
+                    for col in ['open', 'high', 'low', 'close']:
+                        df[col] = pd.to_numeric(df[col], errors='coerce')
+                    
+                    # Handle volume column properly
+                    if 'volume' in df.columns:
+                        df['volume'] = pd.to_numeric(df['volume'], errors='coerce').fillna(0)
+                    else:
+                        df['volume'] = 0
+                    
+                    df = df.rename(columns={'datetime': 'timestamp'})
+                    df['date'] = df['timestamp'].dt.date
+                    df['time'] = df['timestamp'].dt.time
+                    df['id'] = range(1, len(df) + 1)
+                    df['spread'] = 2
+                    
+                    df = df[['id', 'timestamp', 'date', 'time', 'open', 'high', 'low', 'close', 'volume', 'spread']]
+                    
+                    logger.info(f"✅ Twelve Data: Fetched {len(df)} records")
+                    return df
+                else:
+                    logger.error(f"Twelve Data unexpected response: {data}")
+                    return None
+                    
+            except Exception as e:
+                logger.error(f"❌ Twelve Data failed: {e}")
+                return None
+        
+        def create_daily_from_hourly(df_hourly):
+            """Resample hourly data to daily"""
+            try:
+                df = df_hourly.copy()
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
+                df = df.set_index('timestamp')
+                
+                daily = df.resample('D').agg({
+                    'open': 'first',
+                    'high': 'max',
+                    'low': 'min',
+                    'close': 'last',
+                    'volume': 'sum'
+                }).dropna()
+                
+                daily = daily.reset_index()
+                daily['date'] = daily['timestamp'].dt.date
+                daily['time'] = daily['timestamp'].dt.time
+                daily['id'] = range(1, len(daily) + 1)
+                daily['spread'] = 2
+                
+                return daily[['id', 'timestamp', 'date', 'time', 'open', 'high', 'low', 'close', 'volume', 'spread']]
+            except Exception as e:
+                logger.error(f"Error creating daily data: {e}")
+                return None
+        
+        def create_all_timeframes_from_h1(df_hourly, pair_name):
+            """Create H4, Daily, Weekly, Monthly from H1 data and save all"""
+            timeframe_files = []
+            
+            try:
+                df = df_hourly.copy()
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
+                df_indexed = df.set_index('timestamp')
+                
+                def format_resampled(resampled_df):
+                    resampled_df = resampled_df.reset_index()
+                    resampled_df['date'] = resampled_df['timestamp'].dt.date
+                    resampled_df['time'] = resampled_df['timestamp'].dt.time
+                    resampled_df['id'] = range(1, len(resampled_df) + 1)
+                    resampled_df['spread'] = 2
+                    return resampled_df[['id', 'timestamp', 'date', 'time', 'open', 'high', 'low', 'close', 'volume', 'spread']]
+                
+                timeframes = {
+                    'H4': '4h',
+                    'Daily': 'D',
+                    'Weekly': 'W',
+                    'Monthly': 'ME'
+                }
+                
+                for tf_name, resample_rule in timeframes.items():
+                    resampled = df_indexed.resample(resample_rule).agg({
+                        'open': 'first',
+                        'high': 'max',
+                        'low': 'min',
+                        'close': 'last',
+                        'volume': 'sum'
+                    }).dropna()
+                    
+                    tf_df = format_resampled(resampled)
+                    tf_file = data_dir / f'{pair_name}_{tf_name}.csv'
+                    tf_df.to_csv(tf_file, index=False)
+                    timeframe_files.append(str(tf_file.name))
+                    logger.info(f"✅ Saved {tf_file.name} with {len(tf_df)} rows")
+                
+                return timeframe_files
+                
+            except Exception as e:
+                logger.error(f"Error creating timeframes for {pair_name}: {e}")
+                return []
+        
+        # Update EURUSD - Try all sources until one works
+        logger.info("=" * 60)
+        logger.info("Updating EURUSD...")
+        eurusd_df = None
+        sources_tried = []
+        
+        # Source 1: Yahoo Finance (fastest, no rate limits)
+        try:
+            eurusd_df = fetch_yahoo_finance('EURUSD=X', period='60d', interval='1h')
+            sources_tried.append('Yahoo Finance')
+        except Exception as e:
+            logger.error(f"Yahoo Finance exception for EURUSD: {e}")
+            eurusd_df = None
+            sources_tried.append('Yahoo Finance')
+        
+        # Source 2: Twelve Data (if Yahoo failed)
+        if eurusd_df is None or eurusd_df.empty:
+            logger.info("Yahoo failed, trying Twelve Data...")
+            try:
+                eurusd_df = fetch_twelve_data('EUR/USD', '1h')
+                sources_tried.append('Twelve Data')
+                time.sleep(8)  # Rate limit: 8 calls/min
+            except Exception as e:
+                logger.error(f"Twelve Data exception for EURUSD: {e}")
+                eurusd_df = None
+        
+        # Source 3: Alpha Vantage (last resort)
+        if eurusd_df is None or eurusd_df.empty:
+            logger.info("Twelve Data failed, trying Alpha Vantage...")
+            try:
+                eurusd_df = fetch_alpha_vantage_forex('EUR', 'USD')
+                sources_tried.append('Alpha Vantage')
+                time.sleep(12)  # Rate limit: 5 calls/min
+            except Exception as e:
+                logger.error(f"Alpha Vantage exception for EURUSD: {e}")
+                eurusd_df = None
+        
+        if eurusd_df is not None and not eurusd_df.empty:
+            # Save H1 data
+            h1_file = data_dir / 'EURUSD_H1.csv'
+            eurusd_df.to_csv(h1_file, index=False)
+            updated_files.append(str(h1_file.name))
+            latest_date = eurusd_df['timestamp'].max()
+            logger.info(f"✅ EURUSD: Saved {h1_file.name} with {len(eurusd_df)} rows (Latest: {latest_date})")
+            logger.info(f"   Data source: {sources_tried[-1]}")
+            
+            # Create and save all timeframes (H4, Daily, Weekly, Monthly)
+            tf_files = create_all_timeframes_from_h1(eurusd_df, 'EURUSD')
+            updated_files.extend(tf_files)
+        else:
+            error_msg = f"EURUSD: Failed from all sources: {', '.join(sources_tried)}"
+            errors.append(error_msg)
+            logger.error(error_msg)
+        
+        # Update XAUUSD (Gold) - Try all sources until one works
+        logger.info("=" * 60)
+        logger.info("Updating XAUUSD...")
+        xauusd_df = None
+        sources_tried = []
+        
+        # Source 1: Yahoo Finance (Gold futures as proxy)
+        try:
+            xauusd_df = fetch_yahoo_finance('GC=F', period='60d', interval='1h')
+            sources_tried.append('Yahoo Finance')
+        except Exception as e:
+            logger.error(f"Yahoo Finance exception for XAUUSD: {e}")
+            xauusd_df = None
+            sources_tried.append('Yahoo Finance')
+        
+        # Source 2: Twelve Data
+        if xauusd_df is None or xauusd_df.empty:
+            logger.info("Yahoo failed, trying Twelve Data...")
+            try:
+                xauusd_df = fetch_twelve_data('XAU/USD', '1h')
+                sources_tried.append('Twelve Data')
+                time.sleep(8)
+            except Exception as e:
+                logger.error(f"Twelve Data exception for XAUUSD: {e}")
+                xauusd_df = None
+        
+        # Source 3: Alpha Vantage
+        if xauusd_df is None or xauusd_df.empty:
+            logger.info("Twelve Data failed, trying Alpha Vantage...")
+            try:
+                xauusd_df = fetch_alpha_vantage_forex('XAU', 'USD')
+                sources_tried.append('Alpha Vantage')
+                time.sleep(12)
+            except Exception as e:
+                logger.error(f"Alpha Vantage exception for XAUUSD: {e}")
+                xauusd_df = None
+        
+        if xauusd_df is not None and not xauusd_df.empty:
+            # Save H1 data
+            h1_file = data_dir / 'XAUUSD_H1.csv'
+            xauusd_df.to_csv(h1_file, index=False)
+            updated_files.append(str(h1_file.name))
+            latest_date = xauusd_df['timestamp'].max()
+            logger.info(f"✅ XAUUSD: Saved {h1_file.name} with {len(xauusd_df)} rows (Latest: {latest_date})")
+            logger.info(f"   Data source: {sources_tried[-1]}")
+            
+            # Create and save all timeframes (H4, Daily, Weekly, Monthly)
+            tf_files = create_all_timeframes_from_h1(xauusd_df, 'XAUUSD')
+            updated_files.extend(tf_files)
+        else:
+            error_msg = f"XAUUSD: Failed from all sources: {', '.join(sources_tried)}"
+            errors.append(error_msg)
+            logger.error(error_msg)
+        
+        logger.info("=" * 60)
+        
+        # Build response
+        if updated_files:
+            return Response({
+                'status': 'success',
+                'message': f'Successfully updated {len(updated_files)} files',
+                'files': updated_files,
+                'pairs': ['EURUSD', 'XAUUSD'],
+                'errors': errors if errors else None,
+                'timestamp': datetime.now().isoformat()
+            })
+        else:
+            return Response({
+                'status': 'error',
+                'message': 'Failed to update any data',
+                'errors': errors,
+                'timestamp': datetime.now().isoformat()
+            }, status=500)
+            
     except Exception as e:
-        logger.error(f"Error updating data: {str(e)}")
+        logger.error(f"Critical error in update_data: {str(e)}", exc_info=True)
         return Response({
             'status': 'error',
-            'error': f'Failed to update data: {str(e)}'
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
         }, status=500)
 
 

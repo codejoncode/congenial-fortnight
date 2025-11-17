@@ -142,11 +142,11 @@ function App() {
       padding: '20px',
       transition: 'all 0.3s ease'
     }}>
-      {/* Enhanced Notification Panel */}
+      {/* Enhanced Notification Panel - moved to bottom-right and made NaN-safe */}
       {notifications.length > 0 && (
         <div style={{ 
           position: 'fixed', 
-          top: '20px', 
+          bottom: '20px', 
           right: '20px', 
           zIndex: 1000, 
           maxWidth: '400px',
@@ -177,7 +177,9 @@ function App() {
                   <strong style={{ fontSize: '16px' }}>{note.pair}</strong>
                 </div>
                 <div style={{ fontSize: '12px', opacity: 0.8 }}>
-                  {(note.probability * 100).toFixed(1)}%
+                  {typeof note.probability === 'number' && !Number.isNaN(note.probability)
+                    ? `${(note.probability * 100).toFixed(1)}%`
+                    : 'N/A'}
                 </div>
               </div>
               
@@ -188,7 +190,7 @@ function App() {
                 fontWeight: 'bold',
                 letterSpacing: '1px'
               }}>
-                {note.signal} Signal Detected!
+                {(note.signal || 'No')} Signal Detected!
               </div>
               
               <div style={{ 
@@ -198,8 +200,12 @@ function App() {
                 display: 'flex',
                 justifyContent: 'space-between'
               }}>
-                <span>AI Confidence: {(note.probability * 100).toFixed(1)}%</span>
-                <span>{new Date(note.timestamp).toLocaleTimeString()}</span>
+                <span>
+                  AI Confidence: {typeof note.probability === 'number' && !Number.isNaN(note.probability)
+                    ? `${(note.probability * 100).toFixed(1)}%`
+                    : 'N/A'}
+                </span>
+                <span>{note.timestamp ? new Date(note.timestamp).toLocaleTimeString() : ''}</span>
               </div>
             </div>
           ))}
@@ -574,24 +580,34 @@ function App() {
                       <div style={{ fontSize: '24px', marginBottom: '10px' }}>
                         {signal.signal === 'bullish' ? '🚀' : '📉'} {signal.pair}
                       </div>
-                      
+
+                      {/* Signal type / name */}
                       <div style={{
                         fontSize: '18px',
                         fontWeight: 'bold',
                         color: signal.signal === 'bullish' ? '#27ae60' : '#e74c3c',
-                        marginBottom: '10px',
+                        marginBottom: '8px',
                         textTransform: 'uppercase'
                       }}>
                         {signal.signal}
                       </div>
-                      
-                      <div style={{ fontSize: '14px', color: '#7f8c8d', marginBottom: '15px' }}>
-                        Generated: {new Date(signal.date || Date.now()).toLocaleString()}
+
+                      {/* Trade management details */}
+                      <div style={{ fontSize: '13px', color: '#7f8c8d', marginBottom: '4px' }}>
+                        Generated: {new Date(signal.date || signal.timestamp || Date.now()).toLocaleString()}
                       </div>
-                      
-                      {signal.stop_loss && (
-                        <div style={{ fontSize: '12px', marginBottom: '10px' }}>
-                          Stop Loss: {signal.stop_loss.toFixed(4)}
+                      <div style={{ fontSize: '13px', color: '#7f8c8d', marginBottom: '4px' }}>
+                        Entry: {signal.entry !== undefined ? signal.entry : 'N/A'}
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#7f8c8d', marginBottom: '4px' }}>
+                        Take Profit: {signal.take_profit !== undefined ? signal.take_profit : 'N/A'}
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#7f8c8d', marginBottom: '4px' }}>
+                        Stop Loss: {signal.stop_loss !== undefined ? signal.stop_loss : 'N/A'}
+                      </div>
+                      {signal.risk_reward_ratio !== undefined && (
+                        <div style={{ fontSize: '13px', color: '#7f8c8d', marginBottom: '10px' }}>
+                          R:R: {signal.risk_reward_ratio.toFixed(2)}
                         </div>
                       )}
                       

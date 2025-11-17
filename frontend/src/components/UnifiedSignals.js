@@ -14,7 +14,8 @@ const UnifiedSignals = ({ pair = 'EURUSD', mode = 'parallel', onSignalUpdate }) 
   const [selectedPair, setSelectedPair] = useState(pair);
   const [selectedMode, setSelectedMode] = useState(mode);
 
-  const pairs = ['EURUSD', 'XAUUSD', 'GBPUSD', 'USDJPY'];
+  // Focus on core pairs for clarity; can be extended if needed
+  const pairs = ['EURUSD', 'XAUUSD'];
   const modes = [
     { value: 'parallel', label: 'All Signals', description: 'Show all opportunities' },
     { value: 'confluence', label: 'Confluence Only', description: 'Both systems agree' },
