@@ -16,64 +16,102 @@ const EnhancedTradingChart = ({ symbol = 'EURUSD', interval = '1h' }) => {
 
   // Initialize chart
   useEffect(() => {
-    if (!chartContainerRef.current) return;
-
-    const chart = createChart(chartContainerRef.current, {
-      width: chartContainerRef.current.clientWidth,
-      height: 600,
-      layout: {
-        background: { color: '#1E1E1E' },
-        textColor: '#D9D9D9',
-      },
-      grid: {
-        vertLines: { color: '#2B2B2B' },
-        horzLines: { color: '#2B2B2B' },
-      },
-      crosshair: {
-        mode: CrosshairMode.Normal,
-      },
-      rightPriceScale: {
-        borderColor: '#2B2B2B',
-      },
-      timeScale: {
-        borderColor: '#2B2B2B',
-        timeVisible: true,
-        secondsVisible: false,
-      },
-    });
-
-    const candlestickSeries = chart.addCandlestickSeries({
-      upColor: '#26a69a',
-      downColor: '#ef5350',
-      borderVisible: false,
-      wickUpColor: '#26a69a',
-      wickDownColor: '#ef5350',
-    });
-
-    chartRef.current = chart;
-    candlestickSeriesRef.current = candlestickSeries;
-
-    // Handle window resize
-    const handleResize = () => {
-      if (chartContainerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-        });
+    if (!chartContainerRef.current) {
+      console.warn('Chart container ref not ready');
+      return;
+    }
+    if (chartContainerRef.current.offsetWidth === 0) {
+      console.warn('Chart container has zero width, waiting...');
+      return;
+    }
+    let chart = null;
+    let candlestickSeries = null;
+    try {
+      chart = createChart(chartContainerRef.current, {
+        width: chartContainerRef.current.clientWidth || 800,
+        height: 600,
+        layout: {
+          background: { color: '#1E1E1E' },
+          textColor: '#D9D9D9',
+        },
+        grid: {
+          vertLines: { color: '#2B2B2B' },
+          horzLines: { color: '#2B2B2B' },
+        },
+        crosshair: {
+          mode: CrosshairMode.Normal,
+        },
+        rightPriceScale: {
+          borderColor: '#2B2B2B',
+        },
+        timeScale: {
+          borderColor: '#2B2B2B',
+          timeVisible: true,
+          secondsVisible: false,
+        },
+      });
+      if (typeof chart.addCandlestickSeries !== 'function') {
+        console.error('addCandlestickSeries not found on chart object');
+        console.error('Available methods:', Object.keys(chart));
+        throw new Error('Chart API mismatch - check lightweight-charts version');
       }
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    // Load initial data
-    loadHistoricalData();
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (chartRef.current) {
-        chartRef.current.remove();
-      }
-    };
+      candlestickSeries = chart.addCandlestickSeries({
+        upColor: '#26a69a',
+        downColor: '#ef5350',
+        borderVisible: false,
+        wickUpColor: '#26a69a',
+        wickDownColor: '#ef5350',
+      });
+      chartRef.current = chart;
+      candlestickSeriesRef.current = candlestickSeries;
+      const handleResize = () => {
+        if (chartContainerRef.current && chartRef.current) {
+          chartRef.current.applyOptions({
+            width: chartContainerRef.current.clientWidth,
+          });
+        }
+      };
+      window.addEventListener('resize', handleResize);
+      loadHistoricalData();
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        if (chartRef.current) {
+          try {
+            chartRef.current.remove();
+          } catch (e) {
+            console.warn('Error removing chart:', e);
+          }
+          chartRef.current = null;
+        }
+      };
+    } catch (error) {
+      console.error('Error initializing chart:', error);
+      console.error('Stack:', error.stack);
+    }
   }, [symbol, interval]);
+
+  // Helper to generate mock candles for demo/fallback
+  const generateMockCandles = () => {
+    const candles = [];
+    let basePrice = symbol === 'EURUSD' ? 1.0850 : 2050;
+    let time = Math.floor(Date.now() / 1000) - 200 * 3600;
+    for (let i = 0; i < 200; i++) {
+      const open = basePrice + (Math.random() - 0.5) * 0.01;
+      const close = open + (Math.random() - 0.5) * 0.015;
+      const high = Math.max(open, close) + Math.random() * 0.01;
+      const low = Math.min(open, close) - Math.random() * 0.01;
+      candles.push({
+        time,
+        open: parseFloat(open.toFixed(5)),
+        high: parseFloat(high.toFixed(5)),
+        low: parseFloat(low.toFixed(5)),
+        close: parseFloat(close.toFixed(5))
+      });
+      basePrice = close;
+      time += 3600;
+    }
+    return candles;
+  };
 
   // Load historical OHLC data
   const loadHistoricalData = async () => {
@@ -81,8 +119,18 @@ const EnhancedTradingChart = ({ symbol = 'EURUSD', interval = '1h' }) => {
       const response = await fetch(
         `/api/paper-trading/price/ohlc/?symbol=${symbol}&interval=${interval}&limit=200`
       );
+      if (!response.ok) {
+        console.warn(`API returned ${response.status}, using mock data`);
+        const mockData = generateMockCandles();
+        if (candlestickSeriesRef.current && mockData) {
+          candlestickSeriesRef.current.setData(mockData);
+          if (mockData.length > 0) {
+            setCurrentPrice(mockData[mockData.length - 1].close);
+          }
+        }
+        return;
+      }
       const data = await response.json();
-
       if (data.data && candlestickSeriesRef.current) {
         const ohlcData = data.data.map((candle) => ({
           time: new Date(candle.timestamp).getTime() / 1000,
@@ -91,16 +139,20 @@ const EnhancedTradingChart = ({ symbol = 'EURUSD', interval = '1h' }) => {
           low: candle.low,
           close: candle.close,
         }));
-
         candlestickSeriesRef.current.setData(ohlcData);
-
-        // Set current price
         if (ohlcData.length > 0) {
           setCurrentPrice(ohlcData[ohlcData.length - 1].close);
         }
       }
     } catch (error) {
       console.error('Error loading historical data:', error);
+      const mockData = generateMockCandles();
+      if (candlestickSeriesRef.current && mockData) {
+        candlestickSeriesRef.current.setData(mockData);
+        if (mockData.length > 0) {
+          setCurrentPrice(mockData[mockData.length - 1].close);
+        }
+      }
     }
   };
 
