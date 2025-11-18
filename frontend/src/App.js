@@ -4,8 +4,8 @@ import CandlestickChart from './CandlestickChart';
 import TradingViewChart from './TradingViewChart2';
 import UnifiedSignals from './components/UnifiedSignals';
 import DataUpdateButton from './components/DataUpdateButton';
-import GenerateSignalsButton from './components/GenerateSignalsButton';
-import SignalsDashboard from './components/SignalsDashboard';
+import GenerateSignalButton from './components/GenerateSignalButton';
+import SignalDashboard from './components/SignalDashboard';
 import PaperTradingApp from './PaperTradingApp';
 import './App.css';
 
@@ -72,10 +72,14 @@ function App() {
     }
   }, [signals, notifications]);
 
-  const fetchSignals = () => {
-    axios.get(`${API_BASE_URL}/api/signals/`)
-      .then(response => setSignals(response.data))
-      .catch(error => console.error('Error fetching signals:', error));
+  // Add fetch for today's signals from backend
+  const fetchSignals = async () => {
+    try {
+      const res = await axios.post('/api/generate-signal/', { pair: 'all' });
+      setSignals(res.data.signals);
+    } catch (err) {
+      setSignals([]);
+    }
   };
 
   const fetchHolloway = (pair) => {
@@ -384,9 +388,9 @@ function App() {
                 }}
               />
               
-              <GenerateSignalsButton 
+              <GenerateSignalButton 
                 apiBaseUrl={API_BASE_URL}
-                onSignalsGenerated={(newSignals) => {
+                onSignalGenerated={(newSignals) => {
                   console.log('New signals generated:', newSignals);
                   setSignals(newSignals);
                   // Add notifications for new signals
@@ -407,7 +411,7 @@ function App() {
             </div>
 
             {/* New Signals Dashboard */}
-            <SignalsDashboard 
+            <SignalDashboard 
               apiBaseUrl={API_BASE_URL}
               signals={signals}
               darkMode={darkMode}
@@ -975,19 +979,22 @@ function App() {
           textAlign: 'center', marginTop: '30px', padding: '20px',
           backgroundColor: darkMode ? '#333' : '#ecf0f1', borderRadius: '8px'
         }}>
-          <button onClick={fetchSignals} style={{
-            padding: '12px 25px', backgroundColor: '#3498db', color: 'white',
-            border: 'none', borderRadius: '6px', cursor: 'pointer',
-            fontSize: '16px', fontWeight: '500', transition: 'all 0.3s ease',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          }}
-            onMouseOver={e => e.currentTarget.style.backgroundColor = '#2980b9'}
-            onMouseOut={e => e.currentTarget.style.backgroundColor = '#3498db'}>
+          <button
+            onClick={fetchSignals}
+            style={{
+              padding: '12px 25px', backgroundColor: '#3498db', color: 'white',
+              border: 'none', borderRadius: '6px', cursor: 'pointer',
+              fontSize: '16px', fontWeight: '500', transition: 'all 0.3s ease',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+            onMouseOver={e => { e.currentTarget.style.backgroundColor = '#2980b9'; }}
+            onMouseOut={e => { e.currentTarget.style.backgroundColor = '#3498db'; }}
+          >
             🔄 Refresh Signals
           </button>
         </div>
       </div>
-    </div>  // ← This closes the <div className="App">
+    </div>
   );
 }
 
