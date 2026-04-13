@@ -1,7 +1,8 @@
 from django.urls import path
-from .api import views as api_views
+from . import views
 
 urlpatterns = [
-    path('api/update-data/', api_views.update_data_api, name='update_data_api'),
-    path('api/generate-signal/', api_views.generate_signal_api, name='generate_signal_api'),
+    path('api/generate-signal/', views.generate_signal, name='generate_signal'),
+    path('api/update-data/', views.update_data, name='forex_app_update_data'),
+    path('api/backtest/', views.run_backtest, name='backtest'),
 ]

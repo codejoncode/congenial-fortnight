@@ -5,7 +5,8 @@ import TradingViewChart from './TradingViewChart2';
 import UnifiedSignals from './components/UnifiedSignals';
 import DataUpdateButton from './components/DataUpdateButton';
 import GenerateSignalButton from './components/GenerateSignalButton';
-import SignalDashboard from './components/SignalDashboard';
+import SignalsDashboard from './components/SignalsDashboard';
+import SignalPerformanceView from './components/SignalPerformanceView';
 import PaperTradingApp from './PaperTradingApp';
 import './App.css';
 
@@ -61,23 +62,30 @@ function App() {
       const lastSignal = signals[0];
       const lastNotification = notifications[notifications.length - 1];
       if (!lastNotification || lastNotification.id !== lastSignal.id) {
+        const prob = typeof lastSignal.probability === 'number' ? lastSignal.probability : 0;
         const newNotification = {
           id: lastSignal.id,
-          message: `New ${lastSignal.signal} signal for ${lastSignal.pair} (${(lastSignal.probability * 100).toFixed(1)}% confidence)`,
+          message: `${lastSignal.signal} signal for ${lastSignal.pair} (${(prob * 100).toFixed(1)}% confidence)`,
           timestamp: new Date(),
-          type: 'signal'
+          type: 'signal',
+          signal: lastSignal.signal,
+          pair: lastSignal.pair,
+          probability: prob,
         };
         setNotifications(prev => [newNotification, ...prev.slice(0, 9)]);
       }
     }
   }, [signals, notifications]);
 
-  // Add fetch for today's signals from backend
+  // Load existing signals from the database (do NOT auto-generate on every load)
   const fetchSignals = async () => {
     try {
-      const res = await axios.post('/api/generate-signal/', { pair: 'all' });
-      setSignals(res.data.signals);
+      const res = await axios.get(`${API_BASE_URL}/api/signals/`);
+      // SignalViewSet returns an array; handle both array and DRF paginated response
+      const data = Array.isArray(res.data) ? res.data : (res.data.results || []);
+      setSignals(data);
     } catch (err) {
+      console.error('Error fetching signals:', err);
       setSignals([]);
     }
   };
@@ -354,8 +362,8 @@ function App() {
               onClick={() => setActiveTab('paper-trading')}
               style={{
                 padding: '10px 20px',
-                background: activeTab === 'paper-trading' 
-                  ? 'linear-gradient(135deg, #667eea, #764ba2)' 
+                background: activeTab === 'paper-trading'
+                  ? 'linear-gradient(135deg, #667eea, #764ba2)'
                   : darkMode ? 'rgba(108,117,125,0.3)' : '#6c757d',
                 color: 'white',
                 border: 'none',
@@ -368,6 +376,25 @@ function App() {
               }}
             >
               📈 Paper Trading
+            </button>
+            <button
+              onClick={() => setActiveTab('performance')}
+              style={{
+                padding: '10px 20px',
+                background: activeTab === 'performance'
+                  ? 'linear-gradient(135deg, #00ff87, #60efff)'
+                  : darkMode ? 'rgba(108,117,125,0.3)' : '#6c757d',
+                color: activeTab === 'performance' ? '#0d1117' : 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '600',
+                transition: 'all 0.3s ease',
+                boxShadow: activeTab === 'performance' ? '0 4px 12px rgba(0,255,135,0.4)' : 'none'
+              }}
+            >
+              🎯 Performance
             </button>
           </div>
         </div>
@@ -410,13 +437,15 @@ function App() {
               />
             </div>
 
-            {/* New Signals Dashboard */}
-            <SignalDashboard 
+            {/* Signals Dashboard with trade execution */}
+            <SignalsDashboard
               apiBaseUrl={API_BASE_URL}
               signals={signals}
               darkMode={darkMode}
             />
           </>
+        ) : activeTab === 'performance' ? (
+          <SignalPerformanceView apiBaseUrl={API_BASE_URL} darkMode={darkMode} />
         ) : (
           <PaperTradingApp />
         )}

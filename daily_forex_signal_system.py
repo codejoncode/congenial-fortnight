@@ -452,6 +452,19 @@ class DailyForexSignal:
         print(f"Engineered features. Dropped {rows_dropped} rows due to NaN.")
         print(f"Shape after feature engineering and dropna: {df.shape}")
 
+        # ===== DEDUPLICATION BLOCK =====
+        duplicate_cols = df.columns[df.columns.duplicated()].tolist()
+        if duplicate_cols:
+            print(f"⚠️  WARNING: Found {len(duplicate_cols)} duplicate columns: {duplicate_cols}")
+            df = df.loc[:, ~df.columns.duplicated(keep='first')]
+            print(f"After deduplication: {df.shape}")
+        # Also deduplicate feature list
+        original_feature_count = len(getattr(self, 'features', []))
+        self.features = list(dict.fromkeys(getattr(self, 'features', [])))
+        if len(self.features) < original_feature_count:
+            print(f"⚠️  Deduped feature list: {original_feature_count} → {len(self.features)}")
+        # ===== END DEDUPLICATION BLOCK =====
+
         # Feature columns - comprehensive list matching what was actually created
         self.features = [
             # Basic technical indicators
@@ -863,7 +876,12 @@ class DailyForexSignal:
         if pair not in self.engineered_data:
             raw_df = self.load_data(pair)
             self.engineered_data[pair] = self.engineer_features(pair, raw_df)
-        df = self.engineered_data[pair]
+        df = self.engineered_data[pair].copy()
+        # ===== DEDUPLICATION BLOCK =====
+        if df.columns.duplicated().any():
+            print(f"⚠️  Removing duplicate columns in backtest for {pair}")
+            df = df.loc[:, ~df.columns.duplicated(keep='first')]
+        # ===== END DEDUPLICATION BLOCK =====
 
         if len(df) < 2:
             raise ValueError('Not enough data to backtest')

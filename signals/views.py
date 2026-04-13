@@ -863,51 +863,52 @@ def update_data(request):
 @permission_classes([AllowAny])
 def generate_signals(request):
     """
-    Generate trading signals for all pairs.
-    Automatically fetches latest data before generating signals.
+    Trigger signal generation for all pairs via management command, then return
+    the latest signals from the database.  Signals are always returned even when
+    the command skips generation (e.g. no new market data today).
     """
+    from django.core.management import call_command
+    from io import StringIO
+
+    output = ''
+    generation_attempted = False
+
     try:
-        from django.core.management import call_command
-        from io import StringIO
-        import sys
-
-        # Capture command output
         out = StringIO()
-        
-        # Run signal generation with data fetch
         call_command('run_daily_signal', '--fetch-data', stdout=out)
-        
         output = out.getvalue()
-        
-        # Get the latest signals from database
-        latest_signals = Signal.objects.all().order_by('-date', '-id')[:2]  # Last 2 signals (EURUSD & XAUUSD)
-        
-        signals_data = []
-        for signal in latest_signals:
-            signals_data.append({
-                'id': signal.id,
-                'pair': signal.pair,
-                'signal': signal.signal,
-                'probability': float(signal.probability),
-                'stop_loss': float(signal.stop_loss),
-                'date': signal.date.isoformat(),
-                'created_at': signal.created_at.isoformat() if hasattr(signal, 'created_at') else None
-            })
-        
-        return Response({
-            'status': 'success',
-            'message': f'Successfully generated {len(signals_data)} signals',
-            'signals': signals_data,
-            'output': output,
-            'timestamp': datetime.now().isoformat()
-        })
+        generation_attempted = True
+    except Exception as cmd_err:
+        logger.warning(f"run_daily_signal command error (non-fatal): {cmd_err}")
+        output = str(cmd_err)
 
-    except Exception as e:
-        logger.error(f"Error generating signals: {str(e)}")
-        return Response({
-            'status': 'error',
-            'error': f'Failed to generate signals: {str(e)}'
-        }, status=500)
+    # Always return the latest DB signals regardless of whether generation succeeded
+    def _signal_dict(s):
+        return {
+            'id': s.id,
+            'pair': s.pair,
+            'signal': s.signal,
+            'probability': float(s.probability),
+            'stop_loss': float(s.stop_loss) if s.stop_loss is not None else None,
+            'date': s.date.isoformat(),
+            'created_at': s.created_at.isoformat() if hasattr(s, 'created_at') and s.created_at else None,
+        }
+
+    # One latest signal per pair
+    signals_data = []
+    for pair in ['EURUSD', 'XAUUSD']:
+        qs = Signal.objects.filter(pair=pair).order_by('-date', '-id').first()
+        if qs:
+            signals_data.append(_signal_dict(qs))
+
+    return Response({
+        'status': 'success',
+        'message': f'Returning {len(signals_data)} signal(s)',
+        'generation_attempted': generation_attempted,
+        'signals': signals_data,
+        'output': output,
+        'timestamp': datetime.now().isoformat(),
+    })
 
 
 @api_view(['GET'])
@@ -1046,3 +1047,102 @@ def execute_paper_trade(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+# Grade thresholds for signal accuracy
+SIGNAL_GRADES = [
+    (0.75, 'A++', '#00e5ff'),
+    (0.70, 'A+',  '#00ff87'),
+    (0.65, 'A',   '#60efff'),
+    (0.60, 'A-',  '#b8ff45'),
+    (0.55, 'B+',  '#ffd700'),
+    (0.50, 'B',   '#ffa500'),
+    (0.00, 'C',   '#ff6b6b'),
+]
+
+def _grade(accuracy):
+    for threshold, grade, color in SIGNAL_GRADES:
+        if accuracy >= threshold:
+            return grade, color
+    return 'C', '#ff6b6b'
+
+
+# Human-readable labels for well-known signal names
+SIGNAL_LABELS = {
+    'smc_signal': 'SMC Signal',
+    'order_block_support': 'Order Block Support',
+    'master_signal': 'Master Signal',
+    'master_signal_raw': 'Master Signal (Raw)',
+    'rsi_mean_reversion': 'RSI Mean Reversion',
+    'elliott_wave_signal': 'Elliott Wave',
+    'holloway_bear_signal': 'Holloway Bear',
+    'double_bottom': 'Double Bottom',
+    'signal_confluence_count': 'Signal Confluence Count',
+    'position_size_factor': 'Position Size Factor',
+}
+
+def _label(feature):
+    if feature in SIGNAL_LABELS:
+        return SIGNAL_LABELS[feature]
+    # Convert snake_case to Title Case as fallback
+    return feature.replace('_', ' ').title()
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def signal_performance(request):
+    """
+    Return per-signal accuracy data from the pre-computed evaluation CSVs
+    (EURUSD_signal_evaluation.csv / XAUUSD_signal_evaluation.csv).
+
+    Query params:
+        pair:     EURUSD | XAUUSD | all  (default: all)
+        min_acc:  minimum accuracy to include, 0-1  (default: 0.50)
+        limit:    max signals per pair  (default: 20)
+    """
+    pair_param = request.GET.get('pair', 'all').upper()
+    min_acc = float(request.GET.get('min_acc', 0.50))
+    limit = int(request.GET.get('limit', 20))
+
+    pairs_to_load = ['EURUSD', 'XAUUSD'] if pair_param == 'ALL' else [pair_param]
+
+    # Resolve CSV directory: try project root first, then cwd
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # project root
+
+    result = {}
+    for p in pairs_to_load:
+        filename = f'{p}_signal_evaluation.csv'
+        # Search in project root, then cwd
+        csv_path = None
+        for candidate in [os.path.join(base_dir, filename), os.path.join(os.getcwd(), filename)]:
+            if os.path.exists(candidate):
+                csv_path = candidate
+                break
+        if csv_path is None:
+            result[p] = {'error': f'Evaluation file not found: {filename}', 'signals': []}
+            continue
+
+        try:
+            df = pd.read_csv(csv_path)
+            df = df[df['accuracy'] >= min_acc].sort_values('accuracy', ascending=False).head(limit)
+
+            signals_out = []
+            for _, row in df.iterrows():
+                acc = float(row['accuracy'])
+                grade, grade_color = _grade(acc)
+                signals_out.append({
+                    'feature': row['feature'],
+                    'label': _label(row['feature']),
+                    'accuracy': round(acc, 4),
+                    'accuracy_pct': round(acc * 100, 2),
+                    'hit_rate': round(float(row['hit_rate']), 4),
+                    'correlation': round(float(row['correlation']), 4),
+                    'grade': grade,
+                    'grade_color': grade_color,
+                })
+            result[p] = {'signals': signals_out, 'count': len(signals_out)}
+        except Exception as e:
+            logger.error(f"Error reading {csv_path}: {e}")
+            result[p] = {'error': str(e), 'signals': []}
+
+    return Response(result)
