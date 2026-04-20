@@ -78,22 +78,31 @@ class Command(BaseCommand):
 
     @staticmethod
     def _data_is_stale(pairs) -> bool:
-        """Return True if any pair's H1 CSV is missing or last bar is > DATA_STALE_HOURS old."""
+        """Return True if any required timeframe CSV is missing or stale."""
         now = datetime.now(timezone.utc)
+        # H1/H4/Daily expected within DATA_STALE_HOURS; Weekly allowed up to 7 days
+        checks = [
+            ('H1',     DATA_STALE_HOURS),
+            ('H4',     DATA_STALE_HOURS),
+            ('Daily',  24),
+            ('Weekly', 24 * 7),
+        ]
         for pair in pairs:
-            path = Path(DATA_DIR) / f'{pair}_H1.csv'
-            if not path.exists():
-                return True
-            try:
-                df = pd.read_csv(path, usecols=['timestamp'], dtype=str)
-                if df.empty:
+            for suffix, max_hours in checks:
+                path = Path(DATA_DIR) / f'{pair}_{suffix}.csv'
+                if not path.exists():
                     return True
-                last_ts = pd.to_datetime(df['timestamp'].iloc[-1], utc=True)
-                age_hours = (now - last_ts).total_seconds() / 3600
-                if age_hours > DATA_STALE_HOURS:
+                try:
+                    df = pd.read_csv(path, dtype=str)
+                    if df.empty:
+                        return True
+                    ts_col = 'timestamp' if 'timestamp' in df.columns else df.columns[0]
+                    last_ts = pd.to_datetime(df[ts_col].iloc[-1], utc=True)
+                    age_hours = (now - last_ts).total_seconds() / 3600
+                    if age_hours > max_hours:
+                        return True
+                except Exception:
                     return True
-            except Exception:
-                return True
         return False
 
     def _run_fetch(self, pair_arg):

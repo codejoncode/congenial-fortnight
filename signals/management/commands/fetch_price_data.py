@@ -2,14 +2,16 @@
 management command: fetch_price_data
 
 Fetches current OHLCV price data for EURUSD and XAUUSD across all timeframes
-(H1, H4, Daily).  Uses multiple sources with automatic fallback:
+(H1, H4, Daily, Weekly).  Uses multiple sources with automatic fallback:
 
-  1. yfinance   — free, no key, H1/H4/Daily
+  1. yfinance   — free, no key, H1/H4/Daily/Weekly
   2. Alpha Vantage FX_DAILY — free (500 calls/day), key: ALPHA_VANTAGE_API_KEY
 
+H4 is resampled from H1; Weekly is resampled from Daily.
 Appends new rows to existing CSVs so historical data is preserved.
-Files written: data/EURUSD_H1.csv, EURUSD_H4.csv, EURUSD_Daily.csv,
-               data/XAUUSD_H1.csv, XAUUSD_H4.csv, XAUUSD_Daily.csv
+
+Files written: data/EURUSD_H1.csv, EURUSD_H4.csv, EURUSD_Daily.csv, EURUSD_Weekly.csv
+               data/XAUUSD_H1.csv, XAUUSD_H4.csv, XAUUSD_Daily.csv, XAUUSD_Weekly.csv
 
 Usage:
     python manage.py fetch_price_data
@@ -20,6 +22,7 @@ Usage:
 import os
 import logging
 from pathlib import Path
+import pandas as pd
 from django.core.management.base import BaseCommand
 
 logger = logging.getLogger(__name__)
@@ -37,11 +40,10 @@ AV_SYMBOLS = {
     'XAUUSD': ('XAU', 'USD'),
 }
 
-# yfinance period + interval for each timeframe
+# yfinance period + interval for H1 and Daily base fetches
 YF_CONFIG = {
-    'H1':    {'interval': '1h',  'period': '120d'},
-    'H4':    {'interval': '1h',  'period': '120d'},   # resample to H4
-    'Daily': {'interval': '1d',  'period': '730d'},
+    'H1':    {'interval': '1h', 'period': '120d'},
+    'Daily': {'interval': '1d', 'period': '730d'},
 }
 
 
@@ -61,21 +63,23 @@ def _load_yfinance(ticker: str, interval: str, period: str):
         'Close': 'close', 'Volume': 'volume',
     })
     df['timestamp'] = df['timestamp'].astype(str)
-    return df[['timestamp', 'open', 'high', 'low', 'close', 'volume']].dropna()
+    result = df[['timestamp', 'open', 'high', 'low', 'close', 'volume']].copy()
+    # Drop yfinance ticker-name artifact rows (non-numeric close)
+    result = result[pd.to_numeric(result['close'], errors='coerce').notna()]
+    return result.dropna(subset=['timestamp']).reset_index(drop=True)
 
 
-def _resample_h4(df_h1):
-    """Resample H1 DataFrame to H4."""
-    import pandas as pd
-    df = df_h1.copy()
+def _resample(df_src, rule: str):
+    """Resample a higher-frequency DataFrame to a lower frequency."""
+    df = df_src.copy()
     df['timestamp'] = pd.to_datetime(df['timestamp'])
     df = df.set_index('timestamp').sort_index()
-    h4 = df.resample('4h').agg({
+    out = df.resample(rule).agg({
         'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum'
     }).dropna()
-    h4 = h4.reset_index()
-    h4['timestamp'] = h4['timestamp'].astype(str)
-    return h4
+    out = out.reset_index()
+    out['timestamp'] = out['timestamp'].astype(str)
+    return out
 
 
 def _load_av_daily(from_sym: str, to_sym: str, api_key: str):
@@ -93,7 +97,6 @@ def _load_av_daily(from_sym: str, to_sym: str, api_key: str):
     ts = data.get('Time Series FX (Daily)', {})
     if not ts:
         return None
-    import pandas as pd
     rows = []
     for date_str, bar in sorted(ts.items()):
         rows.append({
@@ -107,43 +110,17 @@ def _load_av_daily(from_sym: str, to_sym: str, api_key: str):
     return pd.DataFrame(rows)
 
 
-def _merge_into_csv(path: Path, new_df, timeframe: str) -> int:
-    """Append new rows not already in the CSV.  Returns count of new rows added."""
-    import pandas as pd
-    if path.exists():
-        existing = pd.read_csv(path, dtype=str)
-        # Normalize timestamp column name
-        if 'timestamp' not in existing.columns and 'date' in existing.columns:
-            existing = existing.rename(columns={'date': 'timestamp'})
-        existing_ts = set(existing['timestamp'].astype(str).str[:16])
-        new_df['timestamp'] = new_df['timestamp'].astype(str).str[:16]
-        new_rows = new_df[~new_df['timestamp'].isin(existing_ts)].copy()
-        if new_rows.empty:
-            return 0
-        combined = pd.concat([existing, new_rows], ignore_index=True)
-        combined = combined.sort_values('timestamp').drop_duplicates('timestamp')
-    else:
-        combined = new_df.copy()
-
-    combined.to_csv(path, index=False)
-    return len(new_df[~new_df['timestamp'].isin(
-        set(combined['timestamp'].astype(str).str[:16]) - set(new_df['timestamp'].astype(str).str[:16])
-    )]) if path.exists() else len(new_df)
-
-
 def _save_csv(path: Path, df, timeframe: str) -> int:
     """Write/merge CSV, return rows added."""
-    import pandas as pd
     path.parent.mkdir(exist_ok=True)
 
-    # Normalize to full timestamp strings (YYYY-MM-DD HH:MM:SS)
     df = df.copy()
-    df['timestamp'] = pd.to_datetime(df['timestamp'], format='mixed').dt.strftime('%Y-%m-%d %H:%M:%S')
+    df['timestamp'] = pd.to_datetime(df['timestamp'], format='mixed', errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
+    df = df.dropna(subset=['timestamp'])
 
     if path.exists():
         existing = pd.read_csv(path, dtype=str)
         ts_col = 'timestamp' if 'timestamp' in existing.columns else existing.columns[0]
-        # Normalize existing timestamps too
         try:
             existing[ts_col] = pd.to_datetime(existing[ts_col], format='mixed').dt.strftime('%Y-%m-%d %H:%M:%S')
         except Exception:
@@ -162,7 +139,7 @@ def _save_csv(path: Path, df, timeframe: str) -> int:
 
 
 class Command(BaseCommand):
-    help = 'Fetch current OHLCV price data for EURUSD and XAUUSD (all timeframes)'
+    help = 'Fetch current OHLCV price data for EURUSD and XAUUSD (H1, H4, Daily, Weekly)'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -176,9 +153,9 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         DATA_DIR.mkdir(exist_ok=True)
-        pairs   = [p.upper() for p in options['pairs']]
-        full    = options['full']
-        av_key  = os.getenv('ALPHA_VANTAGE_API_KEY', '')
+        pairs  = [p.upper() for p in options['pairs']]
+        full   = options['full']
+        av_key = os.getenv('ALPHA_VANTAGE_API_KEY', '')
 
         if full:
             YF_CONFIG['H1']['period']    = '730d'
@@ -196,31 +173,27 @@ class Command(BaseCommand):
             self.stdout.write(f'  [{pair}]')
 
             # ── H1 ──
+            h1_df = None
             try:
                 h1_df = _load_yfinance(ticker, '1h', YF_CONFIG['H1']['period'])
                 if h1_df is not None:
                     n = _save_csv(DATA_DIR / f'{pair}_H1.csv', h1_df, 'H1')
-                    self.stdout.write(
-                        self.style.SUCCESS(f'    H1:    +{n} new rows (yfinance)')
-                    )
+                    self.stdout.write(self.style.SUCCESS(f'    H1:     +{n} new rows (yfinance)'))
                     total_new += n
                 else:
-                    self.stdout.write(self.style.WARNING('    H1:    yfinance returned no data'))
+                    self.stdout.write(self.style.WARNING('    H1:     yfinance returned no data'))
             except Exception as e:
-                self.stdout.write(self.style.WARNING(f'    H1:    FAILED — {e}'))
-                h1_df = None
+                self.stdout.write(self.style.WARNING(f'    H1:     FAILED — {e}'))
 
-            # ── H4 (resample from H1) ──
+            # ── H4 (resampled from H1) ──
             if h1_df is not None:
                 try:
-                    h4_df = _resample_h4(h1_df)
+                    h4_df = _resample(h1_df, '4h')
                     n = _save_csv(DATA_DIR / f'{pair}_H4.csv', h4_df, 'H4')
-                    self.stdout.write(
-                        self.style.SUCCESS(f'    H4:    +{n} new rows (resampled)')
-                    )
+                    self.stdout.write(self.style.SUCCESS(f'    H4:     +{n} new rows (resampled from H1)'))
                     total_new += n
                 except Exception as e:
-                    self.stdout.write(self.style.WARNING(f'    H4:    resample FAILED — {e}'))
+                    self.stdout.write(self.style.WARNING(f'    H4:     resample FAILED — {e}'))
 
             # ── Daily ──
             daily_df = None
@@ -229,25 +202,34 @@ class Command(BaseCommand):
             except Exception:
                 pass
 
-            # Fallback to Alpha Vantage Daily
             if (daily_df is None or daily_df.empty) and av_key:
                 try:
                     from_s, to_s = AV_SYMBOLS[pair]
                     daily_df = _load_av_daily(from_s, to_s, av_key)
                     source = 'AlphaVantage'
                 except Exception as e:
-                    self.stdout.write(self.style.WARNING(f'    Daily: AlphaVantage FAILED — {e}'))
+                    self.stdout.write(self.style.WARNING(f'    Daily:  AlphaVantage FAILED — {e}'))
             else:
                 source = 'yfinance'
 
             if daily_df is not None and not daily_df.empty:
                 n = _save_csv(DATA_DIR / f'{pair}_Daily.csv', daily_df, 'Daily')
-                self.stdout.write(
-                    self.style.SUCCESS(f'    Daily: +{n} new rows ({source})')
-                )
+                self.stdout.write(self.style.SUCCESS(f'    Daily:  +{n} new rows ({source})'))
                 total_new += n
             else:
-                self.stdout.write(self.style.WARNING('    Daily: no data from any source'))
+                self.stdout.write(self.style.WARNING('    Daily:  no data from any source'))
+
+            # ── Weekly (resampled from Daily) ──
+            if daily_df is not None and not daily_df.empty:
+                try:
+                    weekly_df = _resample(daily_df, 'W-MON')
+                    n = _save_csv(DATA_DIR / f'{pair}_Weekly.csv', weekly_df, 'Weekly')
+                    self.stdout.write(self.style.SUCCESS(f'    Weekly: +{n} new rows (resampled from Daily)'))
+                    total_new += n
+                except Exception as e:
+                    self.stdout.write(self.style.WARNING(f'    Weekly: resample FAILED — {e}'))
+            else:
+                self.stdout.write(self.style.WARNING('    Weekly: skipped (no Daily data)'))
 
         self.stdout.write(
             self.style.SUCCESS(f'\nDone: {total_new} total new rows added across all files.\n')
