@@ -2,6 +2,7 @@
 signals/management/commands/train_models.py
 
 Train RF + XGB ensemble models for EURUSD and XAUUSD using the clean SignalEngine.
+Uses Daily CSV as primary training source (longest history) with FRED fundamentals.
 Must be run BEFORE run_daily_signal can generate signals.
 
 Usage:
@@ -20,12 +21,20 @@ import os
 import pandas as pd
 
 from django.core.management.base import BaseCommand
+from django.core.management import call_command
 
 from signals.signal_engine import SignalEngine
 
 PAIRS    = ['EURUSD', 'XAUUSD']
 DATA_DIR = 'data'
-TICKER_MAP = {'EURUSD': 'EURUSD=X', 'XAUUSD': 'GC=F'}
+
+# Per-pair target parameters optimised for daily bars:
+#   EURUSD: 1.5:1 RR (breakeven=40%), 15-day window — EURUSD often ranges, 2:1 in 10 days too tight
+#   XAUUSD: 2:1 RR (breakeven=33%), 10-day window — gold trends strongly, higher RR is achievable
+PAIR_TRAIN_PARAMS = {
+    'EURUSD': {'lookahead': 15, 'tp_mult': 1.5, 'sl_mult': 1.0},
+    'XAUUSD': {'lookahead': 10, 'tp_mult': 2.0, 'sl_mult': 1.0},
+}
 
 
 class Command(BaseCommand):
@@ -35,14 +44,23 @@ class Command(BaseCommand):
         parser.add_argument('--pair', type=str, default=None,
                             help='Specific pair to train (EURUSD or XAUUSD).')
         parser.add_argument('--fetch-data', action='store_true',
-                            help='Fetch latest 120-day H1 data from yfinance before training.')
+                            help='Fetch fresh price data (all timeframes) before training.')
+        parser.add_argument('--full', action='store_true',
+                            help='Fetch maximum history before training (implies --fetch-data).')
 
     def handle(self, *args, **options):
         pairs  = [options['pair'].upper()] if options.get('pair') else PAIRS
         engine = SignalEngine()
 
-        if options['fetch_data']:
-            self._fetch_data(pairs)
+        if options['fetch_data'] or options.get('full'):
+            self.stdout.write('  Fetching fresh price data...')
+            kwargs = {'full': True} if options.get('full') else {}
+            if options.get('pair'):
+                kwargs['pairs'] = [options['pair'].upper()]
+            try:
+                call_command('fetch_price_data', **kwargs)
+            except Exception as exc:
+                self.stdout.write(self.style.WARNING(f'  fetch_price_data failed: {exc}'))
 
         self.stdout.write('\n{}\n  MODEL TRAINING\n{}\n'.format('=' * 60, '=' * 60))
 
@@ -53,31 +71,50 @@ class Command(BaseCommand):
             if df is None:
                 self.stdout.write(self.style.ERROR(
                     '[{}] No data file found in {}/.\n'
-                    '  Run with --fetch-data or:\n'
-                    '    python manage.py run_daily_signal --fetch-data'.format(pair, DATA_DIR)
+                    '  Run:  python manage.py train_models --fetch-data'.format(pair, DATA_DIR)
                 ))
                 continue
 
-            self.stdout.write('[{}] {} rows loaded from {}'.format(pair, len(df), DATA_DIR))
+            self.stdout.write('[{}] {} rows loaded'.format(pair, len(df)))
 
             if len(df) < 200:
                 self.stdout.write(self.style.WARNING(
-                    '[{}] Only {} rows — training on sparse data. '
-                    'Recommend >= 300 rows (run --fetch-data).'.format(pair, len(df))
+                    '[{}] Only {} rows — need ≥200. Run --fetch-data --full.'.format(pair, len(df))
                 ))
 
             try:
-                meta = engine.train(pair, df)
-                self.stdout.write(self.style.SUCCESS(
+                train_params = PAIR_TRAIN_PARAMS.get(pair, {'lookahead': 10, 'tp_mult': 2.0, 'sl_mult': 1.0})
+                self.stdout.write('[{}] Target: {:.1f}:1 RR, {}-bar lookahead (breakeven={:.0%})'.format(
+                    pair, train_params['tp_mult'], train_params['lookahead'],
+                    1 / (1 + train_params['tp_mult']),
+                ))
+                meta = engine.train(pair, df, **train_params)
+                exp_r   = meta.get('expectancy_R', 0)
+                thr_wr  = meta.get('thr_win_rate', 0)
+                thr     = meta.get('threshold', 0)
+                breakeven = 1 / (1 + meta.get('tp_mult', 2.0))
+
+                positive = exp_r > 0
+                style = self.style.SUCCESS if positive else self.style.WARNING
+
+                self.stdout.write(style(
                     '[{}] Training complete\n'
-                    '       CV accuracy : {:.1%}\n'
-                    '       CV AUC      : {:.4f}\n'
-                    '       Samples     : {:,}\n'
-                    '       Features    : {}\n'
-                    '       Trained at  : {}'.format(
+                    '       CV accuracy  : {:.1%}\n'
+                    '       CV AUC       : {:.4f}\n'
+                    '       CV win rate  : {:.1%}\n'
+                    '       Threshold    : {:.2f}\n'
+                    '       Win@threshold: {:.1%}  (breakeven={:.1%})\n'
+                    '       Expectancy   : {:.3f}R  {}\n'
+                    '       Samples      : {:,}\n'
+                    '       Features     : {}\n'
+                    '       Trained at   : {}'.format(
                         pair,
                         meta['cv_accuracy'],
                         meta.get('cv_auc', 0),
+                        meta.get('cv_win_rate', 0),
+                        thr,
+                        thr_wr, breakeven,
+                        exp_r, '[POSITIVE EDGE]' if positive else '[NO EDGE]',
                         meta['n_samples'],
                         meta['n_features'],
                         meta['trained_at'],
@@ -97,7 +134,8 @@ class Command(BaseCommand):
 
     @staticmethod
     def _load_data(pair):
-        for suffix in ['H1', 'H4', 'Daily', 'Weekly']:
+        # Prefer Daily (most history) → H4 → H1 for training
+        for suffix in ['Daily', 'H4', 'H1', 'Weekly']:
             path = os.path.join(DATA_DIR, '{}_{}.csv'.format(pair, suffix))
             if not os.path.exists(path):
                 continue
@@ -126,40 +164,3 @@ class Command(BaseCommand):
 
         return None
 
-    @staticmethod
-    def _fetch_data(pairs):
-        try:
-            import yfinance as yf
-        except ImportError:
-            print('yfinance not installed — skipping')
-            return
-
-        os.makedirs(DATA_DIR, exist_ok=True)
-        for pair in pairs:
-            ticker = TICKER_MAP.get(pair, pair)
-            try:
-                print('[{}] Fetching {} (120d H1)...'.format(pair, ticker))
-                raw = yf.download(ticker, period='120d', interval='1h',
-                                  progress=False, auto_adjust=True)
-                if raw is None or raw.empty:
-                    print('[{}] No data returned'.format(pair))
-                    continue
-
-                if isinstance(raw.columns, pd.MultiIndex):
-                    raw.columns = raw.columns.get_level_values(0)
-
-                raw = raw.reset_index()
-                ts_col = 'Datetime' if 'Datetime' in raw.columns else 'Date'
-                raw['timestamp'] = pd.to_datetime(raw[ts_col])
-                raw = raw.rename(columns={
-                    'Open': 'open', 'High': 'high',
-                    'Low': 'low', 'Close': 'close', 'Volume': 'volume',
-                })
-                out_cols = [c for c in ['timestamp', 'open', 'high', 'low', 'close', 'volume']
-                            if c in raw.columns]
-                df_out = raw[out_cols].dropna()
-                out_path = os.path.join(DATA_DIR, '{}_H1.csv'.format(pair))
-                df_out.to_csv(out_path, index=False)
-                print('[{}] Saved {} rows -> {}'.format(pair, len(df_out), out_path))
-            except Exception as exc:
-                print('[{}] Failed: {}'.format(pair, exc))
