@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import CandlestickChart from './CandlestickChart';
 import TradingViewChart from './TradingViewChart2';
@@ -7,7 +7,9 @@ import DataUpdateButton from './components/DataUpdateButton';
 import GenerateSignalButton from './components/GenerateSignalButton';
 import SignalsDashboard from './components/SignalsDashboard';
 import SignalPerformanceView from './components/SignalPerformanceView';
+import SystemHealth from './components/SystemHealth';
 import PaperTradingApp from './PaperTradingApp';
+import { registerServiceWorker, requestNotificationPermission, showSignalNotification, playAlertSound } from './utils/notifications';
 import './App.css';
 
 // API configuration
@@ -40,13 +42,17 @@ function App() {
   });
   const [notifications, setNotifications] = useState([]);
   const [showPortfolio, setShowPortfolio] = useState(false);
-  const [activeTab, setActiveTab] = useState('signals'); // New: 'signals' or 'paper-trading'
+  const [activeTab, setActiveTab] = useState('signals');
+  const prevSignalIds = useRef(new Set());
 
   useEffect(() => {
     fetchSignals();
     fetchHolloway(chartPair);
     const savedDarkMode = localStorage.getItem('darkMode') === 'true';
     setDarkMode(savedDarkMode);
+    // Register service worker + request notification permission on load
+    registerServiceWorker();
+    requestNotificationPermission();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -59,25 +65,37 @@ function App() {
   }, [autoRefresh]);
 
   useEffect(() => {
-    if (signals.length > 0) {
-      const lastSignal = signals[0];
-      const lastNotification = notifications[notifications.length - 1];
-      if (!lastNotification || lastNotification.id !== lastSignal.id) {
-        const prob = typeof lastSignal.probability === 'number' ? lastSignal.probability : 0;
-        const signalLabel = lastSignal.signal === 'bullish' ? 'BUY' : lastSignal.signal === 'bearish' ? 'SELL' : 'WAIT';
-        const newNotification = {
-          id: lastSignal.id,
-          message: `${signalLabel} signal for ${lastSignal.pair} (${(prob * 100).toFixed(1)}% confidence)`,
-          timestamp: new Date(),
-          type: 'signal',
-          signal: lastSignal.signal,
-          pair: lastSignal.pair,
-          probability: prob,
-        };
-        setNotifications(prev => [newNotification, ...prev.slice(0, 9)]);
-      }
-    }
-  }, [signals, notifications]);
+    if (signals.length === 0) return;
+    const newOnes = signals.filter(s => s.id && !prevSignalIds.current.has(s.id));
+    if (newOnes.length === 0) return;
+
+    // Update seen-ids tracking
+    newOnes.forEach(s => prevSignalIds.current.add(s.id));
+
+    // Only alert for non-neutral signals
+    const actionable = newOnes.filter(s => s.signal !== 'no_signal');
+    if (actionable.length === 0) return;
+
+    // Sound + browser push for the newest actionable signal
+    playAlertSound();
+    showSignalNotification(actionable[0]);
+
+    // Add to in-app notification strip
+    const newNotifs = actionable.map(s => {
+      const prob  = typeof s.probability === 'number' ? s.probability : 0;
+      const label = s.signal === 'bullish' ? 'BUY' : s.signal === 'bearish' ? 'SELL' : 'WAIT';
+      return {
+        id: s.id,
+        message: `${label} ${s.pair} — ${(prob * 100).toFixed(1)}% confidence`,
+        timestamp: new Date(),
+        type: 'signal',
+        signal: s.signal,
+        pair: s.pair,
+        probability: prob,
+      };
+    });
+    setNotifications(prev => [...newNotifs, ...prev].slice(0, 10));
+  }, [signals]);
 
   const fetchSignals = async () => {
     setSignalError('');
@@ -411,6 +429,25 @@ function App() {
             >
               🎯 Performance
             </button>
+            <button
+              onClick={() => setActiveTab('health')}
+              style={{
+                padding: '10px 20px',
+                background: activeTab === 'health'
+                  ? 'linear-gradient(135deg, #f85149, #ff6e6e)'
+                  : darkMode ? 'rgba(108,117,125,0.3)' : '#6c757d',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '600',
+                transition: 'all 0.3s ease',
+                boxShadow: activeTab === 'health' ? '0 4px 12px rgba(248,81,73,0.4)' : 'none'
+              }}
+            >
+              System Health
+            </button>
           </div>
         </div>
         
@@ -477,6 +514,8 @@ function App() {
           </>
         ) : activeTab === 'performance' ? (
           <SignalPerformanceView apiBaseUrl={API_BASE_URL} darkMode={darkMode} />
+        ) : activeTab === 'health' ? (
+          <SystemHealth apiBaseUrl={API_BASE_URL} darkMode={darkMode} />
         ) : (
           <PaperTradingApp />
         )}

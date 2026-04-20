@@ -150,6 +150,18 @@ class Command(BaseCommand):
             )
             self.stdout.write(self.style.SUCCESS('         [saved] Signal written to DB'))
 
+            # Fire email alert (non-fatal — never crashes signal generation)
+            if result['signal'] != 'no_signal':
+                try:
+                    from signals.notifications import send_signal_alert
+                    from signals.decision_engine import evaluate
+                    decision = evaluate(result)
+                    sent = send_signal_alert(result, decision)
+                    if sent:
+                        self.stdout.write('         [email] Alert sent')
+                except Exception:
+                    pass
+
         return result
 
     # ─────────────────────────────────────────────────────────────────────────

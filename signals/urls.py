@@ -28,8 +28,12 @@ urlpatterns = [
     path('data/update/', views.update_data, name='update_data'),
     path('data/update-all/', views.update_data, name='update_data_all'),
     
-    # Other endpoints
+    # System health + decision engine
     path('health/', views.health_check, name='api_health_check'),
+    path('system-health/', views.system_health, name='system_health'),
+    path('signals/decision/', views.signal_decision, name='signal_decision'),
+    path('signals/decision/<str:pair>/', views.signal_decision, name='signal_decision_pair'),
+
     path('paper-trades/execute/', views.execute_paper_trade, name='execute_paper_trade'),
 
     # Signal performance / accuracy endpoint

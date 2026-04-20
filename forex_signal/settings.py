@@ -156,3 +156,19 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+# ── Email alerts (free via personal Gmail) ────────────────────────────────────
+# To enable:
+#   1. Gmail → Account → Security → 2-Step Verification → App Passwords
+#   2. Create App Password for Mail + Windows Computer
+#   3. Add to your .env file:
+#        ALERT_EMAIL_HOST_USER=your@gmail.com
+#        ALERT_EMAIL_HOST_PASSWORD=xxxx xxxx xxxx xxxx
+#        ALERT_EMAIL_TO=your@gmail.com
+EMAIL_BACKEND         = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST            = 'smtp.gmail.com'
+EMAIL_PORT            = 587
+EMAIL_USE_TLS         = True
+EMAIL_HOST_USER       = os.getenv('ALERT_EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD   = os.getenv('ALERT_EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL    = os.getenv('ALERT_EMAIL_HOST_USER', 'trading@localhost')

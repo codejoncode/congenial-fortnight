@@ -209,6 +209,58 @@ def health_check(request):
         'service': 'trading_system'
     })
 
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def system_health(request):
+    """Full system health snapshot — data, models, signals, positions."""
+    from signals.health import get_system_health
+    return Response(get_system_health())
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def signal_decision(request, pair=None):
+    """
+    Run the decision engine on the latest DB signal for a pair.
+
+    Query params:
+        open_positions: int (default 0)
+        daily_pnl:      float (default 0.0)
+    """
+    from signals.decision_engine import evaluate
+
+    pairs_to_check = [pair.upper()] if pair else ['EURUSD', 'XAUUSD']
+    open_pos   = int(request.GET.get('open_positions', 0))
+    daily_pnl  = float(request.GET.get('daily_pnl', 0.0))
+    balance    = float(request.GET.get('balance', 500.0))
+
+    results = {}
+    for p in pairs_to_check:
+        sig_obj = Signal.objects.filter(pair=p).order_by('-date', '-id').first()
+        if not sig_obj:
+            results[p] = {'action': 'SKIP', 'summary': 'No signal in database for this pair.', 'reasons': [], 'score': 0}
+            continue
+
+        sig_dict = {
+            'pair':        p,
+            'signal':      sig_obj.signal,
+            'probability': float(sig_obj.probability),
+            'confidence':  float(getattr(sig_obj, 'confidence', 0) or 0),
+            'entry_price': float(sig_obj.entry_price) if sig_obj.entry_price else None,
+            'entry':       float(sig_obj.entry_price) if sig_obj.entry_price else None,
+            'stop_loss':   float(sig_obj.stop_loss)   if sig_obj.stop_loss   else None,
+            'take_profit': float(sig_obj.take_profit) if sig_obj.take_profit else None,
+            'risk_reward': float(getattr(sig_obj, 'risk_reward', 0) or 0),
+            'atr':         float(getattr(sig_obj, 'atr', 0) or 0),
+            'date':        sig_obj.date.isoformat(),
+        }
+
+        decision = evaluate(sig_dict, open_positions=open_pos, daily_pnl_usd=daily_pnl, account_balance=balance)
+        results[p] = {**decision, 'signal': sig_dict}
+
+    return Response(results)
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def unified_signals(request):
