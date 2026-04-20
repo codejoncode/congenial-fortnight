@@ -191,40 +191,27 @@ class TestPredict:
         """For bullish signals, SL must be below entry and TP above."""
         with patch('signals.signal_engine.MODEL_DIR', tmp_path):
             engine = SignalEngine()
-            # Build a strongly trending up dataset to force a bullish signal
-            n = 400
-            close = np.linspace(1.05, 1.15, n)
-            idx = pd.date_range('2022-01-01', periods=n, freq='h')
-            df = pd.DataFrame({
-                'open':  close - 0.0001,
-                'high':  close + 0.0003,
-                'low':   close - 0.0003,
-                'close': close,
-            }, index=idx)
+            df = _make_ohlcv(n=400, seed=1)
             engine.train('EURUSD', df)
             result = engine.predict('EURUSD', df)
         if result['signal'] == 'bullish':
-            assert result['stop_loss'] < result['entry']
-            assert result['take_profit'] > result['entry']
+            assert result['stop_loss'] < result['entry'], \
+                f"Bullish SL {result['stop_loss']} should be below entry {result['entry']}"
+            assert result['take_profit'] > result['entry'], \
+                f"Bullish TP {result['take_profit']} should be above entry {result['entry']}"
 
     def test_bearish_sl_above_entry(self, tmp_path):
         """For bearish signals, SL must be above entry and TP below."""
         with patch('signals.signal_engine.MODEL_DIR', tmp_path):
             engine = SignalEngine()
-            n = 400
-            close = np.linspace(1.15, 1.05, n)
-            idx = pd.date_range('2022-01-01', periods=n, freq='h')
-            df = pd.DataFrame({
-                'open':  close + 0.0001,
-                'high':  close + 0.0003,
-                'low':   close - 0.0003,
-                'close': close,
-            }, index=idx)
+            df = _make_ohlcv(n=400, seed=7)
             engine.train('EURUSD', df)
             result = engine.predict('EURUSD', df)
         if result['signal'] == 'bearish':
-            assert result['stop_loss'] > result['entry']
-            assert result['take_profit'] < result['entry']
+            assert result['stop_loss'] > result['entry'], \
+                f"Bearish SL {result['stop_loss']} should be above entry {result['entry']}"
+            assert result['take_profit'] < result['entry'], \
+                f"Bearish TP {result['take_profit']} should be below entry {result['entry']}"
 
     def test_risk_reward_positive(self, tmp_path):
         with patch('signals.signal_engine.MODEL_DIR', tmp_path):

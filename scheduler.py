@@ -65,21 +65,32 @@ def _run(*args: str, label: str = '') -> bool:
 # ── Jobs ──────────────────────────────────────────────────────────────────────
 
 def daily_workflow():
-    """Fetch data → generate signals → evaluate. Runs every day at 22:00 UTC."""
+    """Fetch price data → generate signals → evaluate → archive old signals."""
     logger.info('=' * 55)
     logger.info('DAILY WORKFLOW START — %s UTC', datetime.utcnow().strftime('%Y-%m-%d %H:%M'))
     logger.info('=' * 55)
-    _run('run_daily_signal', '--fetch-data', '--force', label='signals')
+    _run('fetch_price_data', label='price-data')          # dedicated multi-source fetch
+    _run('run_daily_signal', '--force', label='signals')  # generate from fresh data
     _run('evaluate_signals', label='evaluate')
+    _run('archive_old_signals', label='archive')
     logger.info('DAILY WORKFLOW DONE')
 
 
+def refresh_fundamentals():
+    """Refresh FRED economic indicator CSVs. Runs every Sunday at 23:00 UTC."""
+    logger.info('=' * 55)
+    logger.info('FUNDAMENTAL REFRESH START — %s UTC', datetime.utcnow().strftime('%Y-%m-%d %H:%M'))
+    logger.info('=' * 55)
+    _run('refresh_fundamental_data', label='fred')
+    logger.info('FUNDAMENTAL REFRESH DONE')
+
+
 def retrain_workflow():
-    """Fetch data → retrain models → generate → evaluate. Runs bi-weekly."""
+    """Fetch price data → retrain models → generate → evaluate. Runs bi-weekly."""
     logger.info('=' * 55)
     logger.info('RETRAIN WORKFLOW START — %s UTC', datetime.utcnow().strftime('%Y-%m-%d %H:%M'))
     logger.info('=' * 55)
-    _run('run_daily_signal', '--fetch-data', '--force', label='fetch-data')
+    _run('fetch_price_data', '--full', label='fetch-data')   # full history for retraining
     _run('train_models', label='train')
     _run('run_daily_signal', '--force', label='signals-post-train')
     _run('evaluate_signals', label='evaluate')
@@ -151,6 +162,15 @@ def main():
         name='Every 30min: check SL/TP on open positions',
     )
 
+    # Weekly FRED fundamental data refresh — every Sunday at 23:00 UTC
+    scheduler.add_job(
+        refresh_fundamentals,
+        CronTrigger(day_of_week='sun', hour=23, minute=0, timezone='UTC'),
+        id='refresh_fundamentals',
+        name='Weekly (Sunday): refresh FRED economic indicators',
+        misfire_grace_time=7200,
+    )
+
     if args.run_now:
         logger.info('--run-now flag: executing daily_workflow immediately...')
         daily_workflow()
@@ -160,6 +180,7 @@ def main():
     logger.info('  • Daily signals  : 22:00 UTC every day')
     logger.info('  • Model retrain  : 22:30 UTC on 1st and 15th of each month')
     logger.info('  • Position check : every 30 min, 08:00–21:30 UTC')
+    logger.info('  • FRED refresh   : 23:00 UTC every Sunday')
     logger.info('')
     logger.info('Press Ctrl+C to stop.')
 

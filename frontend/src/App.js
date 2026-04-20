@@ -43,6 +43,7 @@ function App() {
   const [notifications, setNotifications] = useState([]);
   const [showPortfolio, setShowPortfolio] = useState(false);
   const [activeTab, setActiveTab] = useState('signals');
+  const [qualityFilter, setQualityFilter] = useState(true); // default: high-quality only
   const prevSignalIds = useRef(new Set());
 
   useEffect(() => {
@@ -59,10 +60,11 @@ function App() {
   useEffect(() => {
     let interval;
     if (autoRefresh) {
-      interval = setInterval(fetchSignals, 30000);
+      interval = setInterval(() => fetchSignals(qualityFilter), 30000);
     }
     return () => clearInterval(interval);
-  }, [autoRefresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRefresh, qualityFilter]);
 
   useEffect(() => {
     if (signals.length === 0) return;
@@ -97,10 +99,11 @@ function App() {
     setNotifications(prev => [...newNotifs, ...prev].slice(0, 10));
   }, [signals]);
 
-  const fetchSignals = async () => {
+  const fetchSignals = async (useQualityFilter = qualityFilter) => {
     setSignalError('');
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/signals/`);
+      const params = useQualityFilter ? '?quality=high' : '';
+      const res = await axios.get(`${API_BASE_URL}/api/signals/${params}`);
       const data = Array.isArray(res.data) ? res.data : (res.data.results || []);
       setSignals(data);
     } catch (err) {
@@ -487,6 +490,32 @@ function App() {
                   });
                 }}
               />
+            </div>
+
+            {/* Quality filter toggle */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <button
+                onClick={() => {
+                  const next = !qualityFilter;
+                  setQualityFilter(next);
+                  fetchSignals(next);
+                }}
+                style={{
+                  padding: '7px 16px',
+                  borderRadius: 8,
+                  border: `1px solid ${qualityFilter ? '#3fb950' : '#6e7681'}`,
+                  background: qualityFilter ? 'rgba(63,185,80,0.15)' : 'transparent',
+                  color: qualityFilter ? '#3fb950' : '#6e7681',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                {qualityFilter ? '★ High-Quality Only (75%+ confidence, 2.5:1+ R:R)' : '☆ Show All Signals'}
+              </button>
+              <span style={{ fontSize: 12, color: '#6e7681' }}>
+                {qualityFilter ? `${signals.length} actionable signal(s)` : `${signals.length} total signal(s)`}
+              </span>
             </div>
 
             {/* Error banner */}

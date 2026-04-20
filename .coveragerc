@@ -1,0 +1,15 @@
+[run]
+source = signals, trading
+omit =
+    signals/tests.py
+    signals/migrations/*
+    trading/migrations/*
+    */__pycache__/*
+    */site-packages/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if TYPE_CHECKING

@@ -40,10 +40,23 @@ def get_current_price(pair):
         logger.error(f"Error getting current price for {pair}: {e}")
         return 1.0  # Safe fallback
 
+QUALITY_MIN_PROB = 0.75   # 75% confidence minimum for "high quality"
+QUALITY_MIN_RR   = 2.5    # 2.5:1 risk:reward minimum for "high quality"
+
+
 class SignalViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Signal.objects.all().order_by('-date')
     serializer_class = SignalSerializer
     permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        qs = Signal.objects.all().order_by('-date')
+        quality = self.request.query_params.get('quality', '').lower()
+        if quality == 'high':
+            qs = qs.filter(probability__gte=QUALITY_MIN_PROB, risk_reward__gte=QUALITY_MIN_RR)
+        pair = self.request.query_params.get('pair', '').upper()
+        if pair:
+            qs = qs.filter(pair=pair)
+        return qs
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
