@@ -18,11 +18,13 @@ Usage:
 
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
+from pathlib import Path
 
 import pandas as pd
 
 from django.core.management.base import BaseCommand
+from django.core.management import call_command
 
 from signals.models import Signal
 from signals.signal_engine import SignalEngine
@@ -32,6 +34,7 @@ logger = logging.getLogger(__name__)
 PAIRS    = ['EURUSD', 'XAUUSD']
 DATA_DIR = 'data'
 TICKER_MAP = {'EURUSD': 'EURUSD=X', 'XAUUSD': 'GC=F'}
+DATA_STALE_HOURS = 4  # auto-fetch if newest H1 bar is older than this
 
 
 class Command(BaseCommand):
@@ -52,8 +55,8 @@ class Command(BaseCommand):
         today  = datetime.utcnow().date()
         engine = SignalEngine()
 
-        if options['fetch_data']:
-            self._fetch_data(pairs)
+        if options['fetch_data'] or self._data_is_stale(pairs):
+            self._run_fetch(options.get('pair'))
 
         generated = []
         for pair in pairs:
@@ -70,6 +73,39 @@ class Command(BaseCommand):
             ))
         else:
             self.stdout.write('No new signals generated (use --force to override).')
+
+    # ─────────────────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _data_is_stale(pairs) -> bool:
+        """Return True if any pair's H1 CSV is missing or last bar is > DATA_STALE_HOURS old."""
+        now = datetime.now(timezone.utc)
+        for pair in pairs:
+            path = Path(DATA_DIR) / f'{pair}_H1.csv'
+            if not path.exists():
+                return True
+            try:
+                df = pd.read_csv(path, usecols=['timestamp'], dtype=str)
+                if df.empty:
+                    return True
+                last_ts = pd.to_datetime(df['timestamp'].iloc[-1], utc=True)
+                age_hours = (now - last_ts).total_seconds() / 3600
+                if age_hours > DATA_STALE_HOURS:
+                    return True
+            except Exception:
+                return True
+        return False
+
+    def _run_fetch(self, pair_arg):
+        """Delegate to the fetch_price_data management command."""
+        self.stdout.write('  [data] Auto-fetching fresh price data...')
+        kwargs = {}
+        if pair_arg:
+            kwargs['pairs'] = [pair_arg.upper()]
+        try:
+            call_command('fetch_price_data', **kwargs)
+        except Exception as exc:
+            self.stdout.write(self.style.WARNING(f'  [data] fetch failed: {exc}'))
 
     # ─────────────────────────────────────────────────────────────────────────
 
