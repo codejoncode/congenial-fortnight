@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const SignalsDashboard = ({ apiBaseUrl, signals: propSignals, darkMode = false }) => {
+const SIGNAL_LABEL = { bullish: 'BUY', bearish: 'SELL', no_signal: 'WAIT' };
+
+const SignalsDashboard = ({ apiBaseUrl, signals: propSignals, darkMode = false, onRequestGenerate }) => {
   const [signals, setSignals] = useState(propSignals || []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [executingTrade, setExecutingTrade] = useState(null);
   const [tradeMessage, setTradeMessage] = useState(null);
+  const [generating, setGenerating] = useState(false);
 
   // Fetch signals on mount if not provided as props
   useEffect(() => {
@@ -41,6 +44,8 @@ const SignalsDashboard = ({ apiBaseUrl, signals: propSignals, darkMode = false }
         pair: signal.pair,
         signal: signal.signal,
         stop_loss: signal.stop_loss,
+        take_profit: signal.take_profit,
+        entry_price: signal.entry_price,
         probability: signal.probability,
         lot_size: 0.1,
       });
@@ -135,18 +140,58 @@ const SignalsDashboard = ({ apiBaseUrl, signals: propSignals, darkMode = false }
     );
   }
 
+  const handleGenerate = async () => {
+    setGenerating(true);
+    setError('');
+    try {
+      const res = await axios.post(`${apiBaseUrl}/api/signals/generate/`);
+      const newSignals = res.data?.signals || [];
+      setSignals(newSignals);
+      if (newSignals.length === 0) setError('No signals generated yet — market data may still be loading.');
+    } catch (err) {
+      setError('Could not generate signals. Make sure the server is running.');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   if (!signals || signals.length === 0) {
     return (
       <div style={{
-        padding: '40px',
+        padding: '48px 32px',
         textAlign: 'center',
         backgroundColor: darkMode ? 'rgba(22,27,34,0.5)' : '#f8f9fa',
-        borderRadius: '12px',
+        borderRadius: '16px',
         border: `2px dashed ${darkMode ? '#30363d' : '#dee2e6'}`
       }}>
-        <div style={{ fontSize: '48px', marginBottom: '20px' }}>📊</div>
-        <h3 style={{ color: darkMode ? '#8b949e' : '#6c757d', marginBottom: '10px' }}>No Signals Available</h3>
-        <p style={{ color: darkMode ? '#6e7681' : '#adb5bd' }}>Generate signals to see trading recommendations</p>
+        <div style={{ fontSize: '64px', marginBottom: '20px' }}>📊</div>
+        <h2 style={{ color: darkMode ? '#c9d1d9' : '#212529', marginBottom: '12px', fontSize: '24px' }}>
+          No signals yet
+        </h2>
+        <p style={{ color: darkMode ? '#6e7681' : '#6c757d', marginBottom: '28px', fontSize: '16px' }}>
+          Tap the button below to get your first trading signal.
+        </p>
+        {error && (
+          <p style={{ color: '#f85149', marginBottom: '16px', fontSize: '14px' }}>{error}</p>
+        )}
+        <button
+          onClick={handleGenerate}
+          disabled={generating}
+          style={{
+            padding: '16px 40px',
+            fontSize: '18px',
+            fontWeight: '700',
+            color: 'white',
+            background: generating ? '#6c757d' : 'linear-gradient(135deg, #667eea, #764ba2)',
+            border: 'none',
+            borderRadius: '12px',
+            cursor: generating ? 'not-allowed' : 'pointer',
+            boxShadow: generating ? 'none' : '0 6px 20px rgba(102,126,234,0.5)',
+            transition: 'all 0.3s ease'
+          }}
+        >
+          {generating ? 'Getting signals...' : 'Get Trading Signals'}
+        </button>
       </div>
     );
   }
@@ -303,12 +348,11 @@ const SignalsDashboard = ({ apiBaseUrl, signals: propSignals, darkMode = false }
                 marginBottom: '20px',
                 textAlign: 'center',
                 fontWeight: '700',
-                fontSize: '22px',
-                textTransform: 'uppercase',
-                letterSpacing: '2px',
+                fontSize: '28px',
+                letterSpacing: '4px',
                 boxShadow: `0 4px 12px ${signalColor}50, inset 0 1px 0 rgba(255,255,255,0.2)`
               }}>
-                {signal.signal}
+                {SIGNAL_LABEL[signal.signal] || signal.signal.toUpperCase()}
               </div>
 
               {/* Confidence Badge with Glow */}
@@ -331,7 +375,7 @@ const SignalsDashboard = ({ apiBaseUrl, signals: propSignals, darkMode = false }
                 <span>Confidence: {confidence.text} ({(signal.probability * 100).toFixed(1)}%)</span>
               </div>
 
-              {/* Signal Details Grid */}
+              {/* Signal Details Grid — Entry / SL / TP / R:R */}
               <div style={{
                 background: darkMode ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.03)',
                 padding: '20px',
@@ -339,53 +383,61 @@ const SignalsDashboard = ({ apiBaseUrl, signals: propSignals, darkMode = false }
                 marginTop: '20px',
                 border: `1px solid ${darkMode ? '#30363d' : '#e9ecef'}`
               }}>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '16px',
-                  fontSize: '14px'
-                }}>
-                  <div>
-                    <div style={{ 
-                      color: darkMode ? '#8b949e' : '#6c757d', 
-                      fontWeight: '500', 
-                      marginBottom: '6px',
-                      fontSize: '12px',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}>
-                      Stop Loss
+                {(() => {
+                  const priceCell = (label, value, color) => (
+                    <div>
+                      <div style={{
+                        color: darkMode ? '#8b949e' : '#6c757d',
+                        fontWeight: '500', marginBottom: '6px',
+                        fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px'
+                      }}>{label}</div>
+                      <div style={{
+                        color: color || (darkMode ? '#c9d1d9' : '#212529'),
+                        fontWeight: '700', fontSize: '16px', fontFamily: '"Roboto Mono", monospace'
+                      }}>
+                        {typeof value === 'number' ? value.toFixed(value > 100 ? 2 : 5) : (value || '—')}
+                      </div>
                     </div>
-                    <div style={{ 
-                      color: darkMode ? '#c9d1d9' : '#212529', 
-                      fontWeight: '700', 
-                      fontSize: '18px',
-                      fontFamily: '"Roboto Mono", monospace'
-                    }}>
-                      {signal.stop_loss ? signal.stop_loss.toFixed(4) : 'N/A'}
+                  );
+                  const isXAU = signal.pair && signal.pair.includes('XAU');
+                  const fmt = (v) => typeof v === 'number' ? v.toFixed(isXAU ? 2 : 5) : '—';
+                  const slColor = signal.signal === 'bullish' ? '#f85149' : '#3fb950';
+                  const tpColor = signal.signal === 'bullish' ? '#3fb950' : '#f85149';
+                  return (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '14px' }}>
+                      <div>
+                        <div style={{ color: darkMode ? '#8b949e' : '#6c757d', fontWeight: '500', marginBottom: '6px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Entry</div>
+                        <div style={{ color: signalColor, fontWeight: '700', fontSize: '16px', fontFamily: '"Roboto Mono", monospace' }}>
+                          {signal.entry_price ? fmt(signal.entry_price) : '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ color: darkMode ? '#8b949e' : '#6c757d', fontWeight: '500', marginBottom: '6px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Stop Loss</div>
+                        <div style={{ color: slColor, fontWeight: '700', fontSize: '16px', fontFamily: '"Roboto Mono", monospace' }}>
+                          {signal.stop_loss ? fmt(signal.stop_loss) : '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ color: darkMode ? '#8b949e' : '#6c757d', fontWeight: '500', marginBottom: '6px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Take Profit</div>
+                        <div style={{ color: tpColor, fontWeight: '700', fontSize: '16px', fontFamily: '"Roboto Mono", monospace' }}>
+                          {signal.take_profit ? fmt(signal.take_profit) : '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ color: darkMode ? '#8b949e' : '#6c757d', fontWeight: '500', marginBottom: '6px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>R:R Ratio</div>
+                        <div style={{ color: signal.risk_reward >= 2 ? '#00ff87' : signal.risk_reward >= 1.5 ? '#ffd700' : (darkMode ? '#c9d1d9' : '#212529'), fontWeight: '700', fontSize: '16px', fontFamily: '"Roboto Mono", monospace' }}>
+                          {signal.risk_reward ? `1 : ${signal.risk_reward.toFixed(2)}` : '—'}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div style={{ 
-                      color: darkMode ? '#8b949e' : '#6c757d', 
-                      fontWeight: '500', 
-                      marginBottom: '6px',
-                      fontSize: '12px',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}>
-                      Date
-                    </div>
-                    <div style={{ 
-                      color: darkMode ? '#c9d1d9' : '#212529', 
-                      fontWeight: '700', 
-                      fontSize: '18px',
-                      fontFamily: '"Roboto Mono", monospace'
-                    }}>
-                      {new Date(signal.date).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
+                  );
+                })()}
+              </div>
+
+              {/* Date and source */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', fontSize: '11px', color: darkMode ? '#6e7681' : '#adb5bd' }}>
+                <span>{new Date(signal.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                {signal.source && <span style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>{signal.source}</span>}
               </div>
 
               {/* Animated Probability Bar */}

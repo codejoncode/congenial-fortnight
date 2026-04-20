@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d, indent=2\\)\\)\")",
+      "Bash(python3 -c \"import json; f=open\\('/c/Users/jonat/Documents/codejoncode/congenial-fortnight/training_results.json'\\); print\\(f.read\\(\\)[:2000]\\)\")"
+    ]
+  }
+}

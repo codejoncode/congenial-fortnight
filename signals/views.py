@@ -309,15 +309,29 @@ def get_signals(request, pair=None):
             df['timestamp'] = pd.to_datetime(df['timestamp'])
             df = df.sort_values('timestamp').tail(1000)
 
-            # Build a minimal model prediction stub.
-            # In production this should be replaced with real model probabilities.
-            # For now, use a neutral confidence and direction based on last candle.
+            # Use real SignalEngine prediction for direction + confidence.
+            # Falls back to last-candle heuristic if models are not yet trained.
             last_row = df.iloc[-1]
-            direction = 'long' if last_row['close'] > last_row['open'] else 'short'
-            model_prediction = {
-                'direction': direction,
-                'confidence': 0.8  # placeholder until ML model is fully wired here
-            }
+            try:
+                from signals.signal_engine import SignalEngine
+                _engine = SignalEngine()
+                if _engine.models_exist(p):
+                    _df_indexed = df.set_index('timestamp').sort_index()
+                    _pred = _engine.predict(p, _df_indexed)
+                    direction = 'long' if _pred['signal'] == 'bullish' else 'short'
+                    model_prediction = {
+                        'direction': direction,
+                        'confidence': round(_pred['probability'], 4),
+                        'engine_signal': _pred['signal'],
+                        'engine_prob': _pred['probability'],
+                    }
+                else:
+                    direction = 'long' if last_row['close'] > last_row['open'] else 'short'
+                    model_prediction = {'direction': direction, 'confidence': 0.5}
+            except Exception as _e:
+                logger.warning(f'SignalEngine predict failed for {p}: {_e}')
+                direction = 'long' if last_row['close'] > last_row['open'] else 'short'
+                model_prediction = {'direction': direction, 'confidence': 0.5}
 
             # Use pip-based system to detect a quality setup
             signal = pip_system.detect_quality_setup(
@@ -875,7 +889,7 @@ def generate_signals(request):
 
     try:
         out = StringIO()
-        call_command('run_daily_signal', '--fetch-data', stdout=out)
+        call_command('run_daily_signal', '--force', '--fetch-data', stdout=out)
         output = out.getvalue()
         generation_attempted = True
     except Exception as cmd_err:

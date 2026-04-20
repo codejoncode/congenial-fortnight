@@ -22,6 +22,7 @@ TRADINGVIEW INTEGRATION OPTIONS FOR REACT:
 
 function App() {
   const [signals, setSignals] = useState([]);
+  const [signalError, setSignalError] = useState('');
   const [backtestResults, setBacktestResults] = useState(null);
   const [showBacktest, setShowBacktest] = useState(false);
   const [showChart, setShowChart] = useState(false);
@@ -63,9 +64,10 @@ function App() {
       const lastNotification = notifications[notifications.length - 1];
       if (!lastNotification || lastNotification.id !== lastSignal.id) {
         const prob = typeof lastSignal.probability === 'number' ? lastSignal.probability : 0;
+        const signalLabel = lastSignal.signal === 'bullish' ? 'BUY' : lastSignal.signal === 'bearish' ? 'SELL' : 'WAIT';
         const newNotification = {
           id: lastSignal.id,
-          message: `${lastSignal.signal} signal for ${lastSignal.pair} (${(prob * 100).toFixed(1)}% confidence)`,
+          message: `${signalLabel} signal for ${lastSignal.pair} (${(prob * 100).toFixed(1)}% confidence)`,
           timestamp: new Date(),
           type: 'signal',
           signal: lastSignal.signal,
@@ -77,15 +79,15 @@ function App() {
     }
   }, [signals, notifications]);
 
-  // Load existing signals from the database (do NOT auto-generate on every load)
   const fetchSignals = async () => {
+    setSignalError('');
     try {
       const res = await axios.get(`${API_BASE_URL}/api/signals/`);
-      // SignalViewSet returns an array; handle both array and DRF paginated response
       const data = Array.isArray(res.data) ? res.data : (res.data.results || []);
       setSignals(data);
     } catch (err) {
       console.error('Error fetching signals:', err);
+      setSignalError('Could not load signals. Make sure the server is running on port 8000.');
       setSignals([]);
     }
   };
@@ -104,14 +106,27 @@ function App() {
 
   const simulateTrade = (signal) => {
     const positionSize = 1000;
-    const currentPrice = 1.0850;
-    const stopLoss = signal.stop_loss || (signal.signal === 'bullish' ? currentPrice * 0.98 : currentPrice * 1.02);
+    // Use the signal's own entry_price (populated by SignalEngine) or stop_loss-derived estimate
+    const currentPrice = signal.entry_price
+      || signal.entry
+      || (signal.stop_loss
+            ? (signal.signal === 'bullish' ? signal.stop_loss * 1.015 : signal.stop_loss * 0.985)
+            : null);
+    if (!currentPrice) {
+      console.warn('simulateTrade: no entry price for signal', signal);
+      return;
+    }
+    const stopLoss = signal.stop_loss
+      || (signal.signal === 'bullish' ? currentPrice * 0.985 : currentPrice * 1.015);
+    const takeProfit = signal.take_profit
+      || (signal.signal === 'bullish' ? currentPrice * 1.025 : currentPrice * 0.975);
     const newPosition = {
       id: Date.now(),
       pair: signal.pair,
       type: signal.signal,
       entryPrice: currentPrice,
       stopLoss,
+      takeProfit,
       size: positionSize,
       timestamp: new Date(),
       status: 'open'
@@ -436,6 +451,22 @@ function App() {
                 }}
               />
             </div>
+
+            {/* Error banner */}
+            {signalError && (
+              <div style={{
+                padding: '14px 20px',
+                backgroundColor: darkMode ? 'rgba(248,81,73,0.12)' : '#f8d7da',
+                color: '#f85149',
+                borderRadius: '10px',
+                marginBottom: '16px',
+                border: '1px solid rgba(248,81,73,0.3)',
+                fontWeight: '600',
+                fontSize: '15px'
+              }}>
+                {signalError}
+              </div>
+            )}
 
             {/* Signals Dashboard with trade execution */}
             <SignalsDashboard
