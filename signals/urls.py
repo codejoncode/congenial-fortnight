@@ -14,6 +14,8 @@ urlpatterns = [
     path('signals/', views.SignalViewSet.as_view({'get': 'list'}), name='signals_list'),
     path('signals/unified/', views.unified_signals, name='unified_signals'),
     path('signals/generate/', views.generate_signals, name='generate_signals'),
+    path('signals/decision/', views.signal_decision, name='signal_decision'),
+    path('signals/decision/<str:pair>/', views.signal_decision, name='signal_decision_pair'),
     path('signals/<str:pair>/', views.get_signals, name='get_signals'),   # keep last
 
     # Backtest endpoints — fixed paths before wildcard
@@ -31,8 +33,6 @@ urlpatterns = [
     # System health + decision engine
     path('health/', views.health_check, name='api_health_check'),
     path('system-health/', views.system_health, name='system_health'),
-    path('signals/decision/', views.signal_decision, name='signal_decision'),
-    path('signals/decision/<str:pair>/', views.signal_decision, name='signal_decision_pair'),
 
     path('paper-trades/execute/', views.execute_paper_trade, name='execute_paper_trade'),
 

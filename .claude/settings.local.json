@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d, indent=2\\)\\)\")",
-      "Bash(python3 -c \"import json; f=open\\('/c/Users/jonat/Documents/codejoncode/congenial-fortnight/training_results.json'\\); print\\(f.read\\(\\)[:2000]\\)\")"
+      "Bash(python3 -c \"import json; f=open\\('/c/Users/jonat/Documents/codejoncode/congenial-fortnight/training_results.json'\\); print\\(f.read\\(\\)[:2000]\\)\")",
+      "Bash(python -m pytest tests/test_features.py tests/test_signal_engine.py tests/test_backtest.py tests/test_signals.py -q)"
     ]
   }
 }
