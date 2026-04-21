@@ -7,11 +7,12 @@ Follow the signal, enter the trade manually in MT5, let SL/TP do the rest.
 
 | Pair   | RR    | Win Rate | Breakeven | Expectancy | Threshold |
 |--------|-------|----------|-----------|------------|-----------|
-| EURUSD | 1.5:1 | 42.7%    | 40.0%     | +0.068R    | 0.58      |
-| XAUUSD | 2.0:1 | 36.0%    | 33.3%     | +0.079R    | 0.50      |
+| EURUSD | 1.5:1 | 63.4%    | 40.0%     | +0.585R    | 0.71      |
+| XAUUSD | 2.0:1 | 41.4%    | 33.3%     | +0.241R    | 0.50      |
 
 All metrics from TimeSeriesSplit(n_splits=5) walk-forward cross-validation.
 No lookahead bias. Target: did trade hit TP before SL within N daily bars?
+Features: 37 TA indicators + 7 FRED macro fundamentals + 12 Fibonacci harmonic patterns.
 
 ## Quick Start
 

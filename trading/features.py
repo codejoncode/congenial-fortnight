@@ -4,11 +4,12 @@ trading/features.py — Canonical feature engineering for the signal engine.
 Single source of truth used by BOTH model training and live inference.
 NO random values. All features are deterministic given price data.
 
-Features: ~37 technical + candlestick features, all normalized/scale-invariant.
+Features: ~37 TA + candlestick + 12 Fibonacci harmonic pattern features.
 """
 
 import numpy as np
 import pandas as pd
+from trading.harmonic import HARMONIC_COLS, add_harmonic_features
 
 # ── Canonical feature list ────────────────────────────────────────────────────
 # Any change here requires retraining. The SignalEngine saves this list in
@@ -42,6 +43,8 @@ FEATURE_COLS = [
     # Market regime
     'trend_strength',      # (close - sma50) / sma50 * 100
     'vol_regime',          # vol_20 > rolling median → 1 else 0
+    # Fibonacci harmonic patterns (Gartley, Bat, Butterfly, Crab, Shark, ABCD)
+    *HARMONIC_COLS,
 ]
 
 
@@ -231,6 +234,12 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
 
     vol_median = feat['vol_20'].rolling(50, min_periods=20).median()
     feat['vol_regime'] = (feat['vol_20'] > vol_median).astype(int)
+
+    # ── Harmonic patterns ─────────────────────────────────────────────────────
+    # add_harmonic_features adds HARMONIC_COLS columns directly to df-aligned frame
+    harm_df = add_harmonic_features(df[['high', 'low']].copy())
+    for col in HARMONIC_COLS:
+        feat[col] = harm_df[col].values
 
     return feat[FEATURE_COLS]
 
